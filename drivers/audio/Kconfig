@@ -1,0 +1,103 @@
+menu "Audio"
+    menuconfig OS_USING_AUDIO
+        bool "Using audio device drivers"
+        default n
+
+        if OS_USING_AUDIO
+            menuconfig OS_USING_SAI
+                bool "Using SAI drivers"
+                default n
+                
+                if OS_USING_SAI
+                    config BSP_SAI_BLOCK
+                    string "sai blcok name"
+                    default "sai_BlockA1"
+                endif
+
+            menuconfig BSP_USING_ES8388
+                bool "Using ES8388 audio device"
+                default n
+
+                if BSP_USING_ES8388
+                    config BSP_ES8388_I2C_BUS
+                        string "es8388 i2c bus name"
+                        default "i2c3"
+
+                    config BSP_ES8388_I2C_ADDR
+                        hex "es8388 i2c addr"
+                        default 0x10
+
+                    config BSP_ES8388_POWER_PIN
+                        int "es8388 power pin"
+                        default 63
+                endif
+
+            menuconfig BSP_USING_VS1003B
+                bool "Using VS1003B audio device"
+                default n
+
+                if BSP_USING_VS1003B
+                    config BSP_VS1003B_SPI_BUS
+                        string "vs1003b spi bus name"
+                        default "spi2"
+
+                    config BSP_VS1003B_SPI_CS
+                        int "vs1003bspi cs pin"
+                        default 28
+                endif
+                
+            menuconfig BSP_USING_WM8978
+                bool "Using wm8978 audio device"
+                default n
+
+                if BSP_USING_WM8978
+                    config BSP_WM8978_I2C_BUS
+                        string "wm8978 i2c bus name"
+                        default "i2c3"
+
+                    config BSP_WM8978_I2C_ADDR
+                        hex "wm8978 i2c addr"
+                        default 0x1a
+
+                    config BSP_WM8978_POWER_PIN
+                        int "wm8978 power pin"
+                        default 63
+                endif
+                
+            menuconfig BSP_USING_CS43L22
+                bool "Using cs43l22 audio device"
+                default n
+
+                if BSP_USING_CS43L22
+                    config BSP_CS43L22_I2C_BUS
+                        string "cs43l22 i2c bus name"
+                        default "i2c3"
+
+                    config BSP_CS43L22_I2C_ADDR
+                        hex "cs43l22 i2c addr"
+                        default 0x94
+
+                    config BSP_CS43L22_RST_PIN
+                        int "cs43l22 rst pin"
+                        default 66
+                endif
+                
+            menuconfig BSP_USING_ISD9160
+                bool "Using isd9160 audio device"
+                default n
+
+                if BSP_USING_ISD9160
+                    config BSP_ISD9160_I2C_BUS
+                        string "isd9160 i2c bus name"
+                        default "i2c3"
+
+                    config BSP_ISD9160_I2C_ADDR
+                        hex "isd9160 i2c addr"
+                        default 0x15
+
+                    config BSP_ISD9160_RST_PIN
+                        int "isd9160 rst pin"
+                        default 54
+                endif
+        endif
+endmenu

@@ -1,0 +1,17 @@
+config SOC_FAMILY_STM32
+    bool
+    default n
+
+source "$OS_ROOT/drivers/hal/st/STM32F0xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32F1xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32F3xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32F4xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32F7xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32G0xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32H7xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32L0xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32L1xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/st/STM32L4xx_HAL/Kconfig"
+
+source "$OS_ROOT/drivers/hal/st/drivers/Kconfig"
+comment "Configure base hal in STM32CubeMX"

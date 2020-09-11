@@ -1,0 +1,11 @@
+config SOC_SERIES_APOLLO
+    bool
+    select ARCH_ARM_CORTEX_M4
+    default n
+
+config SOC_APOLLO_XXX
+    bool
+    select SOC_FAMILY_APOLLO
+    select SOC_SERIES_APOLLO
+    default n
+

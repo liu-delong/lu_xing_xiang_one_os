@@ -1,0 +1,45 @@
+menu "EC200X Config" 
+
+    config EC200X_AUTO_CREATE
+        bool "Enable EC200X Module Object Auto Create"
+        default n
+
+    if EC200X_AUTO_CREATE
+
+        config EC200X_DEVICE_NAME
+            string "EC200X Interface Device Name"
+            default "uart2"
+
+        config EC200X_DEVICE_RATE
+            int "EC200X Interface Device Rate"
+            default 115200
+
+        config EC200X_RECV_BUFF_LEN
+            int "The maximum length of AT command data accepted"
+            default 512
+
+    endif
+
+    config EC200X_USING_GENERAL_OPS
+        bool "Enable EC200X Module General Operates"
+        select MOLINK_USING_GENERAL_OPS
+        default y
+    
+    config EC200X_USING_NETSERV_OPS
+        bool "Enable EC200X Module Network Service Operates"
+        select MOLINK_USING_NETSERV_OPS
+        default y
+
+    config EC200X_USING_NETCONN_OPS
+        bool "Enable EC200X Module Network TCP/IP Operates"
+        select OS_USING_EVENT
+        select MOLINK_USING_NETCONN_OPS
+        default y
+
+    config EC200X_USING_SOCKETS_OPS
+        bool "Enable EC200X Module BSD Socket Operates"
+        select EC200X_USING_NETCONN_OPS
+        select MOLINK_USING_SOCKETS_OPS
+        default n
+
+endmenu

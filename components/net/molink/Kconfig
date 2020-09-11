@@ -1,0 +1,18 @@
+menu "Molink"
+
+config NET_USING_MOLINK
+    bool "Enable IoT modules support"
+    select MOLINK_USING_PARSER
+    default n
+
+if NET_USING_MOLINK
+
+    source "$OS_ROOT/components/net/molink/module/Kconfig"
+
+    source "$OS_ROOT/components/net/molink/parser/Kconfig"
+
+    source "$OS_ROOT/components/net/molink/api/Kconfig"
+
+endif
+
+endmenu 

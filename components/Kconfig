@@ -1,0 +1,12 @@
+menu "Components"
+    source "$OS_ROOT/components/atest/Kconfig"
+    source "$OS_ROOT/components/cloud/Kconfig"
+    source "$OS_ROOT/components/dlog/Kconfig"
+    source "$OS_ROOT/components/net/Kconfig"
+    source "$OS_ROOT/components/security/Kconfig"
+    source "$OS_ROOT/components/shell/Kconfig"
+    source "$OS_ROOT/components/fs/Kconfig"
+    source "$OS_ROOT/components/gui/Kconfig"
+    source "$OS_ROOT/components/ramdisk/Kconfig"
+    source "$OS_ROOT/components/diagnose/Kconfig"
+endmenu

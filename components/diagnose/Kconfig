@@ -1,0 +1,20 @@
+menu "Diagnose"
+	config OS_USING_CPU_USAGE
+		bool "Calculate CPU usage"
+		default n
+			
+	config OS_USING_TASK_MONITOR
+		bool "Task monitor"
+		default n
+
+
+	config OS_USING_CMDUMP
+		bool "Cortex-M back trace"
+		default n
+
+	if OS_USING_CMDUMP
+		config CM_DEBUG_BACKTRACE_DUMP_STACK
+			bool "Back trace dump stack"
+			default n
+	endif
+endmenu	

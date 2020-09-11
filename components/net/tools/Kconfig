@@ -1,0 +1,24 @@
+menu "Tools"
+
+config NET_USING_TOOLS
+    bool "Enable AT module network debug functions"
+    default n
+    select NET_USING_IP
+
+    if NET_USING_TOOLS
+
+        config MODULE_USING_IFCONFIG
+            bool "Enable module ifconfig features"
+            default y
+
+        config MODULE_USING_PING
+            bool "Enable module ping features"
+            default y
+
+        config MODULE_USING_SOCKETSTAT
+            bool "Enable module socket stat features"
+            default y
+
+    endif
+
+endmenu

@@ -1,0 +1,55 @@
+source "$OS_ROOT/arch/Kconfig"
+source "$OS_ROOT/kernel/Kconfig"
+source "$OS_ROOT/libc/Kconfig"
+source "$OS_ROOT/osal/Kconfig"
+source "$OS_ROOT/drivers/Kconfig"
+source "$OS_ROOT/components/Kconfig"
+source "$OS_ROOT/thirdparty/Kconfig"
+
+menu "Boot Config"
+    config OS_USE_BOOTLOADER
+	    bool "Enable OneOS bootloader"
+		default n
+        help
+            Use the OneOS bootloader and FOTA components
+endmenu
+
+menu "Debug"
+
+    config OS_DEBUG
+        bool "Enable debug"
+        default y
+        help
+            dlog and kernel log depends on this switch
+    if OS_DEBUG
+        config OS_DEBUG_LOG_WITH_FUNC_LINE
+            bool "Enable debug log with function name and line number"
+            default y
+    endif
+    
+    choice
+        prompt "The log buffer size"
+        default LOG_BUFF_SIZE_256
+        help
+            The temporary log buffer size for dlog, os_kprintf() and os_kernel_log()
+        
+        config LOG_BUFF_SIZE_128
+            bool "128"
+        config LOG_BUFF_SIZE_192
+            bool "192"
+        config LOG_BUFF_SIZE_256
+            bool "256"
+        config LOG_BUFF_SIZE_384
+            bool "384" 
+    endchoice
+    config OS_LOG_BUFF_SIZE
+        int
+        default 128 if LOG_BUFF_SIZE_128
+        default 192 if LOG_BUFF_SIZE_192
+        default 256 if LOG_BUFF_SIZE_256
+        default 384 if LOG_BUFF_SIZE_384
+         
+endmenu
+
+
+        

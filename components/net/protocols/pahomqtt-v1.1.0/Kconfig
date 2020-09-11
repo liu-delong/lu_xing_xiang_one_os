@@ -1,0 +1,20 @@
+menu "MQTT"
+
+config NET_USING_PAHO_MQTT
+    bool "Enable Paho MQTT"
+    select NET_USING_BSD
+    default n
+    
+    if NET_USING_PAHO_MQTT
+		
+        config MQTT_USING_TLS
+        bool "Enable Paho MQTT TLS encrypt"
+        select SECURITY_USING_MBEDTLS
+        default n   
+			
+        config MQTT_USING_SAMPLE
+        bool "Enable Paho MQTT sample"
+        default n 
+    endif
+	
+endmenu

@@ -1,0 +1,16 @@
+Import('OS_ROOT')
+from build_tools import *
+
+group = []
+
+if IsDefined('ONENET_NBIOT_USING_SAMPLE'):
+    src = Glob('*.c')
+else:
+    Return('group')
+    
+# The set of source files associated with this SConscript file.
+path = [PresentDir() ]
+
+group = AddCodeGroup('onenet-sample', src, depend = ['ONENET_NBIOT_USING_SAMPLE'], CPPPATH = path)
+
+Return('group')

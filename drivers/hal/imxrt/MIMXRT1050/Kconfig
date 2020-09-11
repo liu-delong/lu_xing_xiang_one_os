@@ -1,0 +1,17 @@
+config SOC_SERIES_MIMXRT
+    bool
+    select ARCH_ARM_CORTEX_M7
+    default n
+
+config SOC_IMX_MIMXRT1052
+    bool
+    select SOC_FAMILY_IMX
+    select SOC_SERIES_MIMXRT
+    default n
+
+config SOC_IMX_MIMXRT1064
+    bool
+    select SOC_FAMILY_IMX
+    select SOC_SERIES_MIMXRT
+    default n
+

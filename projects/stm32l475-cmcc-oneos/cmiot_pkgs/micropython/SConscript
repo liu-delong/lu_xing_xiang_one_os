@@ -1,0 +1,17 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+cwd = PresentDir()
+
+# add the general drivers.
+src = Split("""
+""")
+
+path =  [cwd]
+
+	
+
+group = AddCodeGroup('Drivers', src, depend = ['PKG_USING_MICROPYTHON'], CPPPATH = path)
+
+Return('group')

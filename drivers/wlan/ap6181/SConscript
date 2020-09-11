@@ -1,0 +1,26 @@
+import osconfig
+from build_tools import *
+
+pwd     = PresentDir()
+CPPPATH = [pwd]
+
+path =  [pwd]
+
+src = []
+group = []
+
+if IsDefined('BSP_USING_WIFI_AP6181'):
+    src += ['os_to_rt.c']
+    src += ['drv_wlan.c']
+
+    LIBPATH = [pwd]
+
+    if osconfig.CROSS_TOOL == 'gcc':
+        LIBS = ['wifi_6181_0.2.6_armcm4_gcc']
+    elif osconfig.CROSS_TOOL == 'keil':
+        LIBS = ['libwifi_6181_0.2.6_armcm4_keil']
+
+    group  = AddCodeGroup('wifi/task', src, depend = ['BSP_USING_WIFI_AP6181'], CPPPATH = path)
+    group += AddCodeGroup('wifi/ap6181', [], depend = ['BSP_USING_WIFI_AP6181'], LIBS=LIBS, LIBPATH = LIBPATH)
+
+Return('group')

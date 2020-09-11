@@ -1,0 +1,11 @@
+from build_tools import *
+
+pwd = PresentDir()
+src = Glob('*.c') + Glob('*.cpp')
+CPPPATH = [pwd + '/../../include/mmap']
+
+group = AddCodeGroup('mmap', src,
+    depend = ['OS_USING_VFS', 'OS_USING_POSIX_MMAP'],
+    CPPPATH = CPPPATH)
+
+Return('group')

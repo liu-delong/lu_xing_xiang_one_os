@@ -1,0 +1,6 @@
+menu "RT-Thread compatibility layer"
+
+config OS_USING_RTTHREAD_ADAPTER
+    bool "Enable RT-Thread compatibility layer"
+    default n	
+endmenu

@@ -1,0 +1,6 @@
+menu "Low power manager"
+    config OS_USING_LPMGR
+        bool "Enable low power manager drivers"
+        default n
+
+endmenu

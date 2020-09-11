@@ -1,0 +1,48 @@
+
+
+menu "CMIOT components"
+
+menu "bus test"
+config PKG_USING_BUSTEST
+    bool "Enable bus test"
+    default n
+    help 
+    the function depend on USE_DRIVER_TEST
+
+config USE_DRIVER_TEST
+    bool "Enable bus test driver"
+    default n
+    
+endmenu
+
+menu "mass storage"
+config PKG_USING_MASSSOTRAGE
+    bool "Enable mass storage"
+    select PKG_USING_USB_CTL_DRV
+    select PKG_USING_USB_CLASS
+    select PKG_USING_USB_CORE
+    default n
+
+config PKG_USING_USB_CTL_DRV
+    bool "Enable usb control driver"
+    default n
+
+config PKG_USING_USB_CLASS
+    bool "Enable usb device class"
+    default n
+
+config PKG_USING_USB_CORE
+    bool "Enable usb device core"
+    default n
+
+
+    
+endmenu
+
+menu "Hard SE"
+	config	PKG_USING_SE
+		bool "Enable hard se"
+		default n
+endmenu
+
+endmenu

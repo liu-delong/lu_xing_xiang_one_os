@@ -1,0 +1,51 @@
+import osconfig
+from build_tools import *
+
+# get current directory
+pwd = PresentDir()
+
+# The set of source files associated with this SConscript file.
+
+src = Split('''
+FM33A0xx_HAL_Driver/Src/fm33a0xx_aes.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_anac.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_btim.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_crc.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_dma.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_etim.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_gpio.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_hspi.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_lcd.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_lptim.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_pmu.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_rcc.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_scu.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_trng.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_u7816.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_wwdt.c
+FM33A0xx_HAL_Driver/Src/fm33a0xx_flash.c
+''')
+  
+if IsDefined(['OS_USING_SERIAL']):
+    src += ['FM33A0xx_HAL_Driver/Src/fm33a0xx_uart.c']
+    
+if IsDefined(['OS_USING_I2C']):
+    src += ['FM33A0xx_HAL_Driver/Src/fm33a0xx_i2c.c']
+
+if IsDefined(['OS_USING_SPI']):
+    src += ['FM33A0xx_HAL_Driver/Src/fm33a0xx_spi.c']
+
+if IsDefined(['OS_USING_RTC']):
+    src += ['FM33A0xx_HAL_Driver/Src/fm33a0xx_rtc.c']
+
+if IsDefined(['OS_USING_WDT']):
+    src += ['FM33A0xx_HAL_Driver/Src/fm33a0xx_iwdt.c']
+
+
+path = [pwd + '/FM33A0xx_HAL_Driver/Inc',
+        pwd + '/CMSIS']
+
+CPPDEFINES = ['USE_HAL_DRIVER']
+group = AddCodeGroup('hal', src, depend = ['SOC_SERIES_FM33A0'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

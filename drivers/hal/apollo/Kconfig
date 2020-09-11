@@ -1,0 +1,9 @@
+config SOC_FAMILY_APOLLO
+    bool
+    default n
+
+source "$OS_ROOT/drivers/hal/apollo/apollo/Kconfig"
+source "$OS_ROOT/drivers/hal/apollo/apollo2/Kconfig"
+source "$OS_ROOT/drivers/hal/apollo/apollo3/Kconfig"
+
+source "$OS_ROOT/drivers/hal/apollo/hal_drivers/Kconfig"

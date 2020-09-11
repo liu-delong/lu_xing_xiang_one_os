@@ -1,0 +1,11 @@
+config SOC_SERIES_LPC5500
+    bool
+    select ARCH_ARM_CORTEX_M33
+    default n
+
+config SOC_LPC55S69
+    bool
+    select SOC_FAMILY_NXP
+    select SOC_SERIES_LPC5500
+    default n
+

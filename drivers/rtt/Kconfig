@@ -1,0 +1,11 @@
+menu "RTT"
+    config OS_USING_RTT
+        bool "Using jlink rtt drivers"
+        default n
+
+    config OS_RTT_DEVICE_NAME
+        depends on OS_USING_RTT
+        string "jlink rtt device name"
+        default "uartRTT"
+
+endmenu

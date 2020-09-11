@@ -1,0 +1,8 @@
+menu "Thirdparty"
+    source "$OS_ROOT/thirdparty/cJSON-v1.7.12/Kconfig"
+    source "$OS_ROOT/thirdparty/easyflash-v4.1/Kconfig"
+    source "$OS_ROOT/thirdparty/netutils-v1.0.0/ntp/Kconfig"
+    source "$OS_ROOT/thirdparty/webclient-v2.0.0/Kconfig"    
+    source "$OS_ROOT/thirdparty/Aliiotkit-v3.1.0/Kconfig"
+    source "$OS_ROOT/thirdparty/MicroPython/Kconfig"
+endmenu

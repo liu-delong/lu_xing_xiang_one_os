@@ -1,0 +1,7 @@
+config SOC_FAMILY_FM
+    bool
+    default n
+
+source "$OS_ROOT/drivers/hal/fm/FM33A0xx_HAL/Kconfig"
+
+source "$OS_ROOT/drivers/hal/fm/hal_drivers/Kconfig"

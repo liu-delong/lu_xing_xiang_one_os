@@ -1,0 +1,13 @@
+from build_tools import *
+
+pwd  = PresentDir()
+path = [pwd + '/inc']
+
+src  = Glob('src/*.c')
+
+if IsDefined(['WEBCLIENT_USING_SAMPLES']):
+    src += Glob('samples/*.c')
+
+group = AddCodeGroup('webclient', src, depend = ['PKG_USING_WEBCLIENT'], CPPPATH = path)
+
+Return('group')

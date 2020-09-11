@@ -1,0 +1,40 @@
+config SOC_SERIES_STM32H7
+    bool
+    default n
+
+config SOC_SERIES_STM32H7_M4
+    bool
+    select SOC_SERIES_STM32H7
+    select ARCH_ARM_CORTEX_M4
+    default n
+
+config SOC_SERIES_STM32H7_M7
+    bool
+    select SOC_SERIES_STM32H7
+    select ARCH_ARM_CORTEX_M7
+    default n
+
+config SOC_STM32H743xx
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32H7_M7
+    default n
+
+config SOC_STM32H747XI_CM7
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32H7_M7
+    default n
+
+config SOC_STM32H747XI_CM4
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32H7_M4
+    default n
+
+config SOC_STM32H750xx
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32H7_M7
+    default n
+

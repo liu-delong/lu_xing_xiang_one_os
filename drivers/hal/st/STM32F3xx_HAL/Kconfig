@@ -1,0 +1,11 @@
+config SOC_SERIES_STM32F3
+    bool
+    select ARCH_ARM_CORTEX_M4
+    default n
+
+config SOC_STM32F3XX
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32F3
+    default n
+

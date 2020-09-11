@@ -1,0 +1,11 @@
+menu "FAL"
+    config OS_USING_FAL
+        bool "Using flash abstraction layer"
+        default n
+        
+    if OS_USING_FAL
+        config OS_FAL_DYNAMIC_FLASH
+            bool "Support fal dynamic flash"
+            default n
+    endif
+endmenu

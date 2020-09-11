@@ -1,0 +1,33 @@
+import osconfig
+Import('OS_ROOT')
+from build_tools import *
+
+# get current directory
+pwd = PresentDir()
+
+# The set of source files associated with this SConscript file.
+src = Split("""
+src/hc_sysctrl.c
+src/hc_ddl.c
+src/hc_gpio.c
+common/interrupts_hc32l19x.c
+common/system_hc32l19x.c
+""")
+
+if IsDefined(['BSP_USING_LPUART0']) or IsDefined(['BSP_USING_LPUART1']):
+    src += ['src/hc_lpuart.c']
+
+if IsDefined(['BSP_USING_UART0']) or IsDefined(['BSP_USING_UART1']):
+    src += ['src/hc_uart.c']
+	
+if IsDefined(['BSP_USING_ON_CHIP_FLASH']):
+    src += ['src/hc_flash.c']
+
+path = [pwd + '/inc']
+path += [pwd + '/common']
+
+CPPDEFINES = ['USE_HAL_DRIVER']
+group = AddCodeGroup('hal', src, depend = ['SOC_SERIES_HC32L19'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+
+Return('group')

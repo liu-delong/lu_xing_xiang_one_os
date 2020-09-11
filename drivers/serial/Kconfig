@@ -1,0 +1,13 @@
+menu "Serial"
+    config OS_USING_SERIAL
+        bool "Enable serial drivers"
+        default y
+
+    config OS_SERIAL_RX_BUFSZ
+        int "Set RX buffer size"
+        default 64
+        
+    config OS_SERIAL_TX_BUFSZ
+        int "Set TX buffer size"
+        default 64        
+endmenu

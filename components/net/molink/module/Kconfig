@@ -1,0 +1,72 @@
+menu "Modules"
+
+menu "4G Modules Support" 
+
+    config MOLINK_USING_EC200X
+        bool "EC200X"
+        default n
+        
+        if MOLINK_USING_EC200X
+            source "$OS_ROOT/components/net/molink/module/ec200x/Kconfig"
+        endif
+		
+    config MOLINK_USING_ML302
+        bool "ML302"
+        default n
+        
+        if MOLINK_USING_ML302
+            source "$OS_ROOT/components/net/molink/module/ml302/Kconfig"
+        endif
+
+endmenu
+
+menu "NB-IOT Modules Support" 
+
+    config MOLINK_USING_M5310A
+        bool "M5310A"
+        default n
+        
+        if MOLINK_USING_M5310A
+            source "$OS_ROOT/components/net/molink/module/m5310a/Kconfig"
+        endif
+
+    config MOLINK_USING_M5311
+        bool "M5311"
+        default n
+        
+        if MOLINK_USING_M5311
+            source "$OS_ROOT/components/net/molink/module/m5311/Kconfig"
+        endif
+
+    config MOLINK_USING_BC95
+        bool "BC95"
+        default n
+        
+        if MOLINK_USING_BC95
+            source "$OS_ROOT/components/net/molink/module/bc95/Kconfig"
+        endif
+
+    config MOLINK_USING_BC28
+        bool "BC28"
+        default n
+        
+        if MOLINK_USING_BC28
+            source "$OS_ROOT/components/net/molink/module/bc28/Kconfig"
+        endif
+
+
+endmenu
+
+menu "WiFi Modules Support" 
+
+    config MOLINK_USING_ESP8266
+        bool "ESP8266"
+        default n
+        
+        if MOLINK_USING_ESP8266
+            source "$OS_ROOT/components/net/molink/module/esp8266/Kconfig"
+        endif
+
+endmenu
+
+endmenu

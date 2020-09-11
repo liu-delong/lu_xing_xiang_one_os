@@ -1,0 +1,46 @@
+menu "WebClient"
+
+config PKG_USING_WEBCLIENT
+    bool "WebClient: A HTTP/HTTPS Client for OneOS"
+    default n
+    select NET_USING_BSD
+
+if PKG_USING_WEBCLIENT
+
+
+    if !PKG_USING_WEBCLIENT_V100
+                
+        config WEBCLIENT_USING_SAMPLES
+            bool "Enable webclient GET/POST samples"
+            default n
+            
+    endif
+                
+    if PKG_USING_WEBCLIENT_V201 || PKG_USING_WEBCLIENT_V200|| PKG_USING_WEBCLIENT_V100
+    
+        config WEBCLIENT_USING_TLS
+            bool "Enable support tls protocol"
+            default n
+            select SECURITY_USING_MBEDTLS
+    
+    endif 
+
+    choice
+
+        prompt "Version"
+        help
+            Select the webclient version
+        default PKG_USING_WEBCLIENT_V200
+            
+        config PKG_USING_WEBCLIENT_V200
+            bool "v2.0.0"
+
+    endchoice
+
+    config PKG_WEBCLIENT_VER
+        string
+        default "v2.0.0"    if PKG_USING_WEBCLIENT_V200
+
+endif
+
+endmenu

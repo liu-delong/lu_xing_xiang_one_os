@@ -1,0 +1,27 @@
+Import('osconfig')
+from build_tools import *
+
+pwd  = PresentDir()
+src  = []
+group = []
+path = []
+
+if IsDefined(['ARCH_ARM_CORTEX_M3']) == False:
+    Return('group')
+    
+# The set of source files associated with this SConscript file.
+if osconfig.COMPILER == 'armcc':
+    src += Glob('*.c')
+    src += Glob('*_rvds.S')      
+
+if osconfig.COMPILER == 'gcc':
+    src += Glob('*.c')
+    src += Glob('*_gcc.S')  
+
+if osconfig.COMPILER == 'iar':
+    src += Glob('*.c')
+    src += Glob('*_iar.S')  
+
+group = AddCodeGroup('cpu', src, depend = [''], CPPPATH = path)
+
+Return('group')

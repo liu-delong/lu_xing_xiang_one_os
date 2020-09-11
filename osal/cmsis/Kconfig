@@ -1,0 +1,8 @@
+menu "CMSIS compatibility layer"
+
+config OS_USING_CMSIS_API
+    bool "Enable CMSIS compatibility layer"
+	select OS_USING_EVENT
+    default n
+	
+endmenu

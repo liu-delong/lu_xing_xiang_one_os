@@ -1,0 +1,20 @@
+from build_tools import *
+
+pwd     = PresentDir()
+src     = []
+CPPPATH = []
+
+if IsDefined('OS_USING_DLOG'):
+    src = Glob('source/*.c')
+    CPPPATH = [pwd + '/include']
+    
+    if IsDefined('DLOG_BACKEND_USING_CONSOLE'):
+        src += Glob('source/backend/*.c')
+    
+    if IsDefined('DLOG_USING_SYSLOG'):
+        src += Glob('source/syslog/*.c')
+        CPPPATH.append(pwd + '/include/syslog')
+
+group = AddCodeGroup('dlog', src, depend = ['OS_USING_DLOG'], CPPPATH = CPPPATH)
+
+Return('group')

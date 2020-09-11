@@ -1,0 +1,179 @@
+menu "Dlog"
+    config OS_USING_DLOG
+    bool "Enable dlog"
+    default y
+    
+    if OS_USING_DLOG
+        config DLOG_USING_SYSLOG
+            bool "Enable syslog"
+            default n
+    
+        if !DLOG_USING_SYSLOG
+            choice
+                prompt "The global output log level."
+                default DLOG_OUTPUT_LVL_W
+                help
+                    When the log level is less than this option and it will stop output.
+
+                config DLOG_OUTPUT_LVL_E
+                    bool "Error"
+                config DLOG_OUTPUT_LVL_W
+                    bool "Warning"
+                config DLOG_OUTPUT_LVL_I
+                    bool "Information"
+                config DLOG_OUTPUT_LVL_D
+                    bool "Debug"
+            endchoice
+        endif
+
+        if DLOG_USING_SYSLOG
+            choice
+                prompt "The global output log level."
+                default DLOG_OUTPUT_LVL_WARNING
+                help
+                    When the log level is less than this option and it will stop output.
+                    
+                config DLOG_OUTPUT_LVL_EMERG
+                    bool "EMERG"
+                config DLOG_OUTPUT_LVL_ALERT
+                    bool "ALERT"
+                config DLOG_OUTPUT_LVL_CRIT
+                    bool "CRIT"
+                config DLOG_OUTPUT_LVL_ERROR
+                    bool "ERROR"
+                config DLOG_OUTPUT_LVL_WARNING
+                    bool "WARNING"
+                config DLOG_OUTPUT_LVL_NOTICE
+                    bool "NOTICE"
+                config DLOG_OUTPUT_LVL_INFO
+                    bool "INFOMATION"
+                config DLOG_OUTPUT_LVL_DEBUG
+                    bool "DEBUG"
+            endchoice
+        endif
+        
+        config DLOG_GLOBAL_LEVEL
+            int
+            default 0 if DLOG_OUTPUT_LVL_EMERG
+            default 1 if DLOG_OUTPUT_LVL_ALERT
+            default 2 if DLOG_OUTPUT_LVL_CRIT
+            default 3 if DLOG_OUTPUT_LVL_E
+            default 3 if DLOG_OUTPUT_LVL_ERROR
+            default 4 if DLOG_OUTPUT_LVL_W
+            default 4 if DLOG_OUTPUT_LVL_WARNING
+            default 5 if DLOG_OUTPUT_LVL_NOTICE
+            default 6 if DLOG_OUTPUT_LVL_I
+            default 6 if DLOG_OUTPUT_LVL_INFO
+            default 7 if DLOG_OUTPUT_LVL_D
+            default 7 if DLOG_OUTPUT_LVL_DEBUG
+
+        config DLOG_USING_ISR_LOG
+            bool "Enable ISR log."
+            default n
+            help
+                The log output API can be used in ISR (Interrupt Service Routines) also.
+
+        config DLOG_USING_ASYNC_OUTPUT
+            bool "Enable async output mode."
+            default n
+            help
+                When enable asynchronous output mode. The log output is not immediately and the log will stored to buffer.
+                The another task will read the buffer and output the log. So it will use more RAM.
+
+        if DLOG_USING_ASYNC_OUTPUT
+            config DLOG_ASYNC_OUTPUT_BUF_SIZE
+                int "The async output buffer size."
+                default 2048
+
+            config DLOG_ASYNC_OUTPUT_TASK_STACK
+                int "The async output task stack size."
+                default 2048
+
+            config DLOG_ASYNC_OUTPUT_TASK_PRIORITY
+                int "The async output task stack priority."
+                range 0 OS_TASK_PRIORITY_MAX
+                default 30
+        endif
+			
+		menu "Dlog backend option"
+			
+			config DLOG_BACKEND_USING_CONSOLE
+				bool "Enable console backend."
+				default y
+				help
+					The low level output using os_kprintf().
+
+			config DLOG_BACKEND_USING_FILESYSTEM
+				bool "Enable dlog backend use filesystem to record."
+				default n
+				select DLOG_USING_ASYNC_OUTPUT
+				select DLOG_BACKEND_USING_CONSOLE
+				help
+					When enable dlog using filesystem mode. The log output will be record in filesystem as file.
+
+				if DLOG_BACKEND_USING_FILESYSTEM											
+					config DLOG_FILE_DIR
+						string "The record file path."
+						default "/dlog/"
+						
+					config DLOG_FILE_NAME
+						string "The record file name."
+						default "log.txt"
+						
+					config DLOG_FILE_SIZE
+						int "The record file size."
+						default 2048
+				
+					config DLOG_FILE_NUM
+						int "The record file number."
+						default 5
+					
+				endif
+		endmenu		
+		
+        config DLOG_USING_FILTER
+            bool "Enable runtime log filter."
+            default y
+            help
+                It will enable the log filter.
+                Such as log tag filter, log keyword filter and tag's level filter.
+
+        menu "Log format"
+            config DLOG_OUTPUT_FLOAT
+                bool "Enable float number support. It will use more task stack."
+                select OS_USING_LIBC
+                default n
+                help
+                    The default formater is using os_vsnprint and it not supported float number.
+                    When enable this option then it will enable libc. The formater will change to vsnprint on libc.
+
+            config DLOG_USING_COLOR
+                bool "Enable color log."
+                default y
+                help
+                    The log will has different color by level.
+
+            config DLOG_OUTPUT_TIME_INFO
+                bool "Enable time information."
+                default y
+
+            config DLOG_TIME_USING_TIMESTAMP
+                bool "Enable timestamp format for time."
+                default n
+                select OS_USING_LIBC
+                depends on DLOG_OUTPUT_TIME_INFO
+
+            config DLOG_OUTPUT_LEVEL_INFO
+                bool "Enable level information."
+                default y
+
+            config DLOG_OUTPUT_TAG_INFO
+                bool "Enable tag information."
+                default y
+
+            config DLOG_OUTPUT_TASK_NAME_INFO
+                bool "Enable task information."
+                default n
+        endmenu
+    endif
+endmenu

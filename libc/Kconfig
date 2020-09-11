@@ -1,0 +1,7 @@
+menu "C standard library"
+
+config OS_USING_LIBC
+    bool "Enable libc APIs from toolchain"
+    default y
+	
+endmenu

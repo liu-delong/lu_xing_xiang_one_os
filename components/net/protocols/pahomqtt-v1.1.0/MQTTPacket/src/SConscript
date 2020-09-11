@@ -1,0 +1,12 @@
+Import('OS_ROOT')
+from build_tools import *
+
+if IsDefined('NET_USING_PAHO_MQTT'):
+    src = Glob('*.c')
+
+# The set of source files associated with this SConscript file.
+path = [PresentDir() ]
+
+group = AddCodeGroup('pahomqtt', src, depend = ['NET_USING_PAHO_MQTT'], CPPPATH = path)
+
+Return('group')

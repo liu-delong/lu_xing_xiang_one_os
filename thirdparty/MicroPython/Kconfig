@@ -1,0 +1,20 @@
+menu "MicroPython"
+config PKG_USING_MICROPYTHON
+    bool "Enable MicroPython"
+    default n
+	
+	if PKG_USING_MICROPYTHON
+		config MICROPY_PY_ONENET
+			bool "Enable micropython onenet module"
+			default n
+		config PKG_MICROPYTHON_DEVICE
+			bool "Enable micropython device module"
+			default n
+		
+		config MICROPY_USING_AMS
+			bool "Enable micropython application management system"
+			default n
+	endif
+	
+	
+endmenu

@@ -1,0 +1,14 @@
+from build_tools import *
+
+pwd = PresentDir()
+src = []
+
+src += ['fal.c']
+src += ['fal_part.c']
+
+if IsDefined('OS_USING_VFS'):
+    src += ['fal_block.c']
+	
+group = AddCodeGroup('drivers', src, depend = ['OS_USING_FAL'], CPPPATH = [pwd])
+
+Return('group')

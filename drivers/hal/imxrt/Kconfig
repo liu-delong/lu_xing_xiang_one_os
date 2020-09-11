@@ -1,0 +1,8 @@
+config SOC_FAMILY_IMX
+    bool
+    default n
+
+source "$OS_ROOT/drivers/hal/imxrt/MIMXRT1050/Kconfig"
+
+source "$OS_ROOT/drivers/hal/imxrt/drivers/Kconfig"
+comment "Configure base hal on mcuxpresso.nxp.com"

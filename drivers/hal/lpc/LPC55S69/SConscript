@@ -1,0 +1,32 @@
+import osconfig
+Import('OS_ROOT')
+from build_tools import *
+
+pwd = PresentDir()
+objs = []
+CPPPATH = [pwd]
+
+src = Split("""
+drivers/fsl_clock.c
+drivers/fsl_anactrl.c
+drivers/fsl_common.c
+drivers/fsl_gpio.c
+drivers/fsl_pint.c
+drivers/fsl_reset.c
+drivers/fsl_usart.c
+drivers/fsl_usart_dma.c
+drivers/fsl_utick.c
+drivers/fsl_power.c
+drivers/fsl_dma.c
+drivers/fsl_hashcrypt.c
+drivers/fsl_inputmux.c
+drivers/fsl_flexcomm.c
+arm/keil_lib_power_cm33_core0.lib
+""")
+
+CPPPATH += [pwd + '/CMSIS/Include']
+CPPPATH += [pwd + '/drivers']
+CPPDEFINES = ['USE_HAL_DRIVER']
+group = AddCodeGroup('hal/lowlevel', src, depend = ['SOC_LPC55S69'], CPPPATH = CPPPATH, CPPDEFINES = CPPDEFINES)
+
+Return('group')

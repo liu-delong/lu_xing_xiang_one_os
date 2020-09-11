@@ -1,0 +1,36 @@
+menu "POSIX compatibility layer"
+
+config OS_USING_PTHREADS
+    bool "Enable pthreads"
+    select OS_USING_LIBC
+    default n
+
+if OS_USING_PTHREADS
+    config PTHREAD_NUM_MAX
+    int "Maximum number of pthreads"
+    default 8
+endif
+
+if OS_USING_LIBC && OS_USING_VFS
+    config OS_USING_POSIX
+        bool "Enable POSIX layer for poll/select, stdin etc"
+        select OS_USING_VFS_DEVFS
+        select OS_USING_WAITQUEUE
+        default y
+
+    if OS_USING_POSIX
+    config OS_USING_POSIX_MMAP
+        bool "Enable mmap"
+        default n
+
+    config OS_USING_POSIX_TERMIOS
+        bool "Enable termios feature"
+        default n
+
+    config OS_USING_POSIX_AIO
+        bool "Enable aio"
+        default n
+    endif
+endif
+
+endmenu

@@ -1,0 +1,37 @@
+from build_tools import *
+
+pwd     = PresentDir()
+CPPPATH = [pwd]
+
+src = Split('''
+        wlan_dev.c
+        ''')
+
+if IsDefined(['OS_WLAN_MANAGE_ENABLE']):
+    src += ['wlan_mgnt.c']
+
+if IsDefined(['OS_WLAN_MSH_CMD_ENABLE']):
+    src += ['wlan_cmd.c']
+
+if IsDefined(['OS_WLAN_PROT_ENABLE']):
+    src += ['wlan_prot.c']
+
+if IsDefined(['OS_WLAN_PROT_LWIP_ENABLE']):
+    src += ['wlan_lwip.c']
+
+if IsDefined(['OS_WLAN_CFG_ENABLE']):
+    src += ['wlan_cfg.c']
+
+if IsDefined(['OS_WLAN_WORK_TASK_ENABLE']):
+    src += ['wlan_workqueue.c']
+
+group   = AddCodeGroup('drivers', src, depend = ['OS_USING_WIFI'], CPPPATH = CPPPATH)
+
+# sub dirs
+list = os.listdir(pwd)
+for d in list:
+    path = os.path.join(pwd, d)
+    if os.path.isfile(os.path.join(path, 'SConscript')):
+        group += SConscript(os.path.join(d, 'SConscript'))
+
+Return('group')

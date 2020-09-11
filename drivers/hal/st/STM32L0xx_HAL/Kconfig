@@ -1,0 +1,22 @@
+config SOC_SERIES_STM32L0
+    bool
+    select ARCH_ARM_CORTEX_M0
+    default n
+
+config SOC_STM32L0XX
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32L0
+    default n
+
+config SOC_STM32L053R8
+    bool
+    select SOC_FAMILY_STM32
+    select SOC_SERIES_STM32L0
+    default n
+	
+config SOC_STM32L051XX
+    bool
+	select SOC_FAMILY_STM32
+	select SOC_SERIES_STM32L0
+    default n

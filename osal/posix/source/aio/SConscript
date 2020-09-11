@@ -1,0 +1,9 @@
+from build_tools import *
+
+pwd     = PresentDir()
+src     = Glob('*.c') + Glob('*.cpp')
+CPPPATH = [pwd + '/../../include/aio']
+
+group = AddCodeGroup('aio', src, depend = ['OS_USING_POSIX', 'OS_USING_POSIX_AIO'], CPPPATH = CPPPATH)
+
+Return('group')

@@ -1,0 +1,14 @@
+from build_tools import *
+Import('osconfig')
+
+src = Glob('*.c') + Glob('*.cpp')
+pwd = PresentDir()
+group   = []
+CPPPATH = [pwd + '/../../include/dlfcn']
+
+if osconfig.COMPILER == 'gcc':
+    group = AddCodeGroup('libc', src,
+        depend = ['OS_USING_MODULE'], 
+        CPPPATH = CPPPATH)
+
+Return('group')

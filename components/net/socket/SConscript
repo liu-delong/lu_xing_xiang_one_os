@@ -1,0 +1,17 @@
+from build_tools import *
+
+pwd = PresentDir()
+src = []
+
+CPPPATH = []
+
+if IsDefined(['NET_USING_BSD']):
+    CPPPATH = [pwd + '/include']
+    CPPPATH += [pwd + '/include/sys_socket']
+    src += Glob('source/socket.c')
+    if not IsDefined('HAVE_SYS_SELECT_H'):
+        CPPPATH += [pwd + '/include/vfs_net']
+
+group = AddCodeGroup('socket', src, depend = ['NET_USING_BSD'], CPPPATH = CPPPATH)
+
+Return('group')

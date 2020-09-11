@@ -1,0 +1,52 @@
+# for module compiling
+import os
+
+from build_tools import *
+
+pwd  = PresentDir()
+
+CPPPATH = [pwd + "/include"]
+src  = Glob('source/*.c')
+
+if IsDefined('OS_USING_POSIX') == False:
+    DeleteSrcFile(src, ['source/poll.c', 'source/select.c'])
+
+if IsDefined('OS_USING_VFS_DEVFS') == True:
+    CPPPATH.append(pwd + '/include/devfs')
+
+if IsDefined('OS_USING_VFS_CUTEFS') == True:
+    CPPPATH.append(pwd + '/include/cutefs')
+	
+if IsDefined('OS_USING_VFS_FATFS') == True:
+    CPPPATH.append(pwd + '/include/fatfs')
+	
+if IsDefined('OS_USING_VFS_NFS') == True:
+    CPPPATH.append(pwd + '/include/nfs')
+	
+if IsDefined('OS_USING_VFS_NFS') == True:
+    CPPPATH.append(pwd + '/source/nfs')
+
+if IsDefined('OS_USING_VFS_DEVFS') == True:
+	src += Glob('source/devfs/*.c')
+
+if IsDefined('OS_USING_VFS_CUTEFS') == True:
+	src += Glob('source/cutefs/*.c')
+	
+if IsDefined('OS_USING_VFS_FATFS') == True:
+	src += Glob('source/fatfs/*.c')
+
+if IsDefined('OS_USING_VFS_NFS') == True:
+	src += Glob('source/nfs/*.c')
+	src += Glob('source/nfs/rpc/*.c')
+
+group = AddCodeGroup('filesystem', src, depend = ['OS_USING_VFS'], CPPPATH = CPPPATH)
+
+list = os.listdir(pwd + "/source")
+
+
+for d in list:
+    path = os.path.join(pwd, 'source',  d)
+    if os.path.isfile(os.path.join(path, 'SConscript')):
+        group = group + SConscript(os.path.join('source',  d, 'SConscript'))
+		
+Return('group')

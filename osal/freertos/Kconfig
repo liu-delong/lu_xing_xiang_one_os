@@ -1,0 +1,7 @@
+menu "FreeRTOS compatibility layer"
+
+config OS_USING_FREERTOS_API_V8_2_0
+    bool "Enable FreeRTOS compatibility layer V8.2.0"
+    default n
+	
+endmenu

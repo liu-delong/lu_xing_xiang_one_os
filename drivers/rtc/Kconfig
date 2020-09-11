@@ -1,0 +1,5 @@
+menu "RTC"
+    config OS_USING_RTC
+        bool "Using RTC drivers"
+        default n
+endmenu

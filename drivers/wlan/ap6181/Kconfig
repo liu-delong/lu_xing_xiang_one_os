@@ -1,0 +1,28 @@
+config BSP_USING_WIFI_AP6181
+    bool "Enable Wi-Fi AP6181"
+    select OS_USING_SDIO
+    select OS_USING_WIFI
+    select OS_WLAN_PROT_LWIP_PBUF_FORCE
+    select OS_USING_LWIP
+    select OS_USING_LIBC
+    select OS_USING_POSIX
+    select OS_USING_VFS
+    select OS_USING_SAL
+    select OS_USING_RTTHREAD_ADAPTER
+    default n
+
+    if BSP_USING_WIFI_AP6181
+        config BSP_AP6181_REG_ON_PIN
+            int "AP6181 wifi reg on pin"
+            default 49
+        config BSP_AP6181_IRQ_PIN
+            int "AP6181 interrupt pin"
+            default 37
+        config BSP_AP6181_THREAD_INIT
+            bool "Using Thread Initialize WiFi"
+            default n
+        config BSP_AP6181_AUTO_INIT
+            bool "Using WiFi Automatically Initialization"
+            default y
+    endif
+    

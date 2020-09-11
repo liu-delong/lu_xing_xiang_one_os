@@ -1,0 +1,40 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+pwd = PresentDir()
+
+# add the general drivers.
+src = Split("""
+drv_common.c
+""")
+
+path = [pwd]
+
+if IsDefined(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_HC32L13']):
+    src += ['flash/drv_flash_l1xx.c']
+
+if IsDefined(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_HC32L17']):
+    src += ['flash/drv_flash_l1xx.c']
+	
+if IsDefined(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_HC32L19']):
+    src += ['flash/drv_flash_l1xx.c']
+
+if IsDefined(['BSP_USING_GPIO']):
+    src += ['drv_gpio.c']
+	
+if IsDefined(['BSP_USING_UART', 'SOC_SERIES_HC32L13']):
+    src += ['drv_uart_l13x.c']
+	
+if IsDefined(['BSP_USING_UART', 'SOC_SERIES_HC32L17']):
+    src += ['drv_uart_l1xx.c']
+	
+if IsDefined(['BSP_USING_UART', 'SOC_SERIES_HC32L19']):
+    src += ['drv_uart_l1xx.c']
+
+path = [pwd]
+
+CPPDEFINES = ['USE_HAL_DRIVER']
+group = AddCodeGroup('bsp', src, depend = ['SOC_FAMILY_HC32'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

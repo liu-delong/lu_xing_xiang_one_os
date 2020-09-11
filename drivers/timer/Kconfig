@@ -1,0 +1,49 @@
+menu "Timer"
+    config OS_USING_TIMER_DRIVER
+        bool "Using timer driver"
+        default y
+
+    if OS_USING_TIMER_DRIVER
+        config OS_USING_CLOCKSOURCE
+            bool "Using clocksource driver"
+            default y
+            
+            if OS_USING_CLOCKSOURCE
+                config OS_CLOCKSOURCE_SHOW
+                    bool "clocksource show"
+                    default n
+                    
+                config OS_USING_CLOCKSOURCE_CORTEXM
+                    bool "Use cortex-M DWT or SysTick for clocksource"
+                    default y
+                    depends on ARCH_ARM_CORTEX_M
+            endif
+            
+        config OS_USING_TIMEKEEPING
+            bool "Enable Timekeeping"
+            select OS_USING_CLOCKSOURCE
+            default n
+            
+        config OS_USING_CLOCKEVENT
+            bool "Using clockevent driver"
+            default n
+            
+            if OS_USING_CLOCKEVENT
+                config OS_CLOCKEVENT_SHOW
+                    bool "Clockevent show"
+                    default n
+            endif
+            
+        config OS_USING_HRTIMER
+            bool "Using high-resolution timer"
+            select OS_USING_CLOCKSOURCE
+            select OS_USING_CLOCKEVENT
+            default n
+            
+            if OS_USING_HRTIMER
+                config OS_USING_HRTIMER_FOR_SYSTICK
+                    bool "Using high-resolution timer for systick"
+                    default y
+            endif
+    endif
+endmenu

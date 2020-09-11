@@ -1,0 +1,181 @@
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        bc28.c
+ *
+ * @brief       bc28 factory mode api
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-03-25   OneOS Team      First Version
+ ***********************************************************************************************************************
+ */
+
+#include "bc28.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#define DBG_EXT_TAG "bc28"
+#define DBG_EXT_LVL LOG_LVL_INFO
+#include <os_dbg_ext.h>
+
+#ifdef MOLINK_USING_BC28
+
+#ifdef BC28_USING_GENERAL_OPS
+static const struct mo_general_ops gs_general_ops = {
+    .at_test   = bc28_at_test,
+    .get_imei  = bc28_get_imei,
+    .get_imsi  = bc28_get_imsi,
+    .get_iccid = bc28_get_iccid,
+    .get_cfun  = bc28_get_cfun,
+    .set_cfun  = bc28_set_cfun,
+};
+#endif /* BC28_USING_GENERAL_OPS */
+
+#ifdef BC28_USING_NETSERV_OPS
+static const struct mo_netserv_ops gs_netserv_ops = {
+    .set_attach     = bc28_set_attach,
+    .get_attach     = bc28_get_attach,
+    .set_reg        = bc28_set_reg,
+    .get_reg        = bc28_get_reg,
+    .set_cgact      = bc28_set_cgact,
+    .get_cgact      = bc28_get_cgact,
+    .get_csq        = bc28_get_csq,
+    .get_radio      = bc28_get_radio,
+    .get_ipaddr     = bc28_get_ipaddr,
+    .set_netstat    = bc28_set_netstat,
+    .get_netstat    = bc28_get_netstat,
+    .set_dnsserver  = bc28_set_dnsserver,
+    .get_dnsserver  = bc28_get_dnsserver,
+    .ping           = bc28_ping,
+};
+#endif /* BC28_USING_NETSERV_OPS */
+
+#ifdef BC28_USING_NETCONN_OPS
+extern void bc28_netconn_init(mo_bc28_t *module);
+
+static const struct mo_netconn_ops gs_netconn_ops = {
+    .create        = bc28_netconn_create,
+    .destroy       = bc28_netconn_destroy,
+    .gethostbyname = bc28_netconn_gethostbyname,
+    .connect       = bc28_netconn_connect,
+    .send          = bc28_netconn_send,
+};
+#endif /* BC28_USING_NETCONN_OPS */
+
+#ifdef BC28_USING_ONENET_NB_OPS
+static const mo_onenet_ops_t gs_onenet_ops = {
+    .onenetnb_set_config  = bc28_onenetnb_set_config,
+    .onenetnb_create      = bc28_onenetnb_create,
+    .onenetnb_addobj      = bc28_onenetnb_addobj,
+    .onenetnb_discoverrsp = bc28_onenetnb_discoverrsp,
+    .onenetnb_nmi         = bc28_onenetnb_nmi,
+    .onenetnb_open        = bc28_onenetnb_open,
+    .onenetnb_notify      = bc28_onenetnb_notify,
+    .onenetnb_update      = bc28_onenetnb_update,
+    .onenetnb_get_write   = bc28_onenetnb_get_write,
+    .onenetnb_writersp    = bc28_onenetnb_writersp,
+#ifdef OS_USING_SHELL
+    .onenetnb_all         = bc28_onenetnb_all,
+#endif
+};
+#endif /* BC28_USING_ONENET_OPS */
+
+mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t recv_len)
+{
+    mo_bc28_t *module = (mo_bc28_t *)malloc(sizeof(mo_bc28_t));
+
+    os_err_t result = mo_object_init(&(module->parent), name, device, recv_len);
+    if (result != OS_EOK)
+    {
+        goto __exit;
+    }
+
+#ifdef BC28_USING_GENERAL_OPS
+    module->parent.ops_table[MODULE_OPS_GENERAL] = &gs_general_ops;
+#endif /* BC28_USING_GENERAL_OPS */
+
+#ifdef BC28_USING_NETSERV_OPS
+    module->parent.ops_table[MODULE_OPS_NETSERV] = &gs_netserv_ops;
+#endif /* BC28_USING_NETSERV_OPS */
+
+#ifdef BC28_USING_NETCONN_OPS
+    module->parent.ops_table[MODULE_OPS_NETCONN] = &gs_netconn_ops;
+    bc28_netconn_init(module);
+    os_mutex_init(&module->netconn_lock, name, OS_IPC_FLAG_FIFO, OS_TRUE);
+#endif /* BC28_USING_NETCONN_OPS */
+
+#ifdef BC28_USING_ONENET_NB_OPS
+    module->parent.ops_table[MODULE_OPS_ONENET_NB] = &gs_onenet_ops;
+#endif /* BC28_USING_ONENET_NB_OPS */
+	
+__exit:
+    if (result != OS_EOK)
+    {
+        free(module);
+        
+        return OS_NULL;
+    }
+
+    return &(module->parent);
+}
+
+os_err_t module_bc28_destroy(mo_object_t *self)
+{
+    mo_bc28_t *module = os_container_of(self, mo_bc28_t, parent);
+    
+    os_mutex_deinit(&module->netconn_lock);
+    
+    mo_object_deinit(self);
+
+    free(module);
+
+    return OS_EOK;
+}
+
+#ifdef BC28_AUTO_CREATE
+#include <serial.h>
+
+static struct serial_configure uart_config = OS_SERIAL_CONFIG_DEFAULT;
+
+int bc28_auto_create(void)
+{
+    os_device_t *device = os_device_find(BC28_DEVICE_NAME);
+
+    if (OS_NULL == device)
+    {
+        LOG_EXT_E("Auto create failed, Can not find BC28 interface device %s!", BC28_DEVICE_NAME);
+        return OS_ERROR;
+    }
+	
+	uart_config.baud_rate = BC28_DEVICE_RATE;
+
+    os_device_control(device, OS_DEVICE_CTRL_CONFIG, &uart_config);
+
+    mo_object_t *module = module_bc28_create(BC28_NAME, device, BC28_RECV_BUFF_LEN);
+
+    if (OS_NULL == module)
+    {
+        LOG_EXT_E("Auto create failed, Can not create %s module object!", BC28_NAME);
+        return OS_ERROR;
+    }
+
+    LOG_EXT_I("Auto create %s module object success!", BC28_NAME);
+    return OS_EOK;
+}
+OS_CMPOENT_INIT(bc28_auto_create);
+
+#endif /* BC28_AUTO_CREATE */
+
+#endif /* MOLINK_USING_BC28 */

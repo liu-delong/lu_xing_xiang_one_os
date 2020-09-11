@@ -1,0 +1,5 @@
+menu "Cloud"
+
+source "$OS_ROOT/components/cloud/onenet/Kconfig"
+
+endmenu

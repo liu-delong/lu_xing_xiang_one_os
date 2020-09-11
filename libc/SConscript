@@ -1,0 +1,54 @@
+import os
+Import('osconfig')
+from build_tools import *
+
+pwd  = PresentDir()
+src  = []
+list = os.listdir(pwd)
+
+CPPPATH    = []
+CPPDEFINES = []
+LIBS       = []
+
+#add common header files
+CPPPATH.append(pwd + '/include')
+
+#gcc with newlib
+if osconfig.COMPILER == 'gcc' and IsDefined('OS_USING_LIBC'):
+    CPPDEFINES += ['OS_USING_NEWLIB']
+    CPPPATH.append(pwd + '/include/newlib')
+    src += Glob('source/newlib/*.c')
+    src += Glob('source/common/*.c')
+    
+    # link with libc and libm:
+    # libm is a frequently used lib. Newlib is compiled with -ffunction-sections in
+    # recent GCC tool chains. The linker would just link in the functions that have
+    # been referenced. So setting this won't result in bigger text size.
+    LIBS += ['c', 'm']
+
+#gcc with armlibc    
+if (osconfig.COMPILER == 'armcc' or osconfig.COMPILER == 'armclang') and IsDefined('OS_USING_LIBC'):
+    CPPDEFINES += ['OS_USING_ARM_LIBC']
+    CPPPATH.append(pwd + '/include/armlibc')
+    src += Glob('source/armlibc/*.c')
+    src += Glob('source/common/*.c')
+
+#gcc with dlib
+if osconfig.COMPILER == 'iar' and IsDefined('OS_USING_LIBC'):
+    CPPDEFINES += ['OS_USING_DLIBC']
+    CPPPATH.append(pwd + '/include/dlib')
+    src += Glob('source/dlib/*.c')
+    src += Glob('source/common/*.c')
+
+    if IsDefined('OS_USING_DFS'):
+        from distutils.version import LooseVersion
+        from iar import IARVersion
+
+        CPPDEFINES += ['_DLIB_FILE_DESCRIPTOR']
+
+        if LooseVersion(IARVersion()) < LooseVersion("8.20.1"):
+            CPPDEFINES += ['_DLIB_THREAD_SUPPORT']
+
+group = AddCodeGroup('libc', src, depend = [''], CPPPATH = CPPPATH, CPPDEFINES = CPPDEFINES, LIBS = LIBS)
+
+Return('group')

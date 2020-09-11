@@ -1,0 +1,8 @@
+config SOC_FAMILY_NXP_LPC
+    bool
+    default n
+
+source "$OS_ROOT/drivers/hal/lpc/LPC55S69/Kconfig"
+
+source "$OS_ROOT/drivers/hal/lpc/drivers/Kconfig"
+comment "Configure base hal in MCUXpresso Config Tools"

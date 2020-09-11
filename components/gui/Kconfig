@@ -1,0 +1,26 @@
+menu "GUI"
+    config OS_USING_GUI
+        bool "Using GUI"
+        default n
+
+    if OS_USING_GUI
+        config OS_GUI_DISP_DEV_NAME
+            string "GUI display dev name"
+            default "lcd"
+                
+        config OS_GUI_INPUT_DEV_NAME
+            string "GUI input dev name"
+            default "touch"
+
+        config OS_USING_GUI_LVGL
+            bool "Enable LittlevGL"
+            default n
+            
+            if OS_USING_GUI_LVGL
+                config OS_USING_GUI_LVGL_CONSOLE
+                    bool "Enable LittlevGL console"
+                    default n
+            endif
+    endif
+
+endmenu

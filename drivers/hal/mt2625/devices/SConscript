@@ -1,0 +1,14 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+pwd = PresentDir()
+
+src = ['mt_devices.c']
+src += ['bsp.c']
+
+path =  [pwd]
+
+group = AddCodeGroup('hal/devices', src, depend = ['SOC_FAMILY_MT2625'], CPPPATH = path)
+
+Return('group')

@@ -1,0 +1,34 @@
+from build_tools import *
+import osconfig
+
+# get current directory
+cwd     = PresentDir()
+# The set of source files associated with this SConscript file.
+src     = Glob('modubinascii.c')
+src    += Glob('moduhashlib.c')
+src    += Glob('moduheapq.c')
+src    += Glob('modujson.c')
+src    += Glob('modure.c')
+src    += Glob('moduselect.c')
+src    += Glob('modussl_axtls.c')
+src    += Glob('modussl_mbedtls.c')
+src    += Glob('mpthreadport.c')
+src    += Glob('utime_mphal.c')
+if IsDefined(['MICROPY_PY_ONENET']): 
+	src    += Glob('modonenet.c')
+
+
+
+path    = [cwd + '/']
+
+
+LOCAL_CCFLAGS = ''
+
+if osconfig.CROSS_TOOL == 'gcc':
+    LOCAL_CCFLAGS += ' -std=c99'
+elif osconfig.CROSS_TOOL == 'keil':
+    LOCAL_CCFLAGS += ' --c99 --gnu'
+
+group = AddCodeGroup('micropython', src, depend = ['PKG_USING_MICROPYTHON'], CPPPATH = path, LOCAL_CCFLAGS = LOCAL_CCFLAGS)
+
+Return('group')

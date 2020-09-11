@@ -1,0 +1,18 @@
+from build_tools import *
+Import('osconfig')
+
+src = Glob('*.c')
+
+if IsDefined('ARCH_ARM') == True:
+	src += Glob('arch/elf_arm.c')
+
+pwd = PresentDir()
+group   = []
+CPPPATH = [pwd + '/../../include/dlfcn']
+
+
+group = AddCodeGroup('dlfcn', src,
+    depend = ['OS_USING_MODULE'], 
+    CPPPATH = CPPPATH)
+
+Return('group')

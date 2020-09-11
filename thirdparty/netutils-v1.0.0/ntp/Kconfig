@@ -1,0 +1,28 @@
+menu "NTP"
+
+config PKG_USING_NTP
+    bool "Enable NTP(Network Time Protocol) client"
+    select NET_USING_BSD
+    default n
+
+if PKG_USING_NTP
+    config NETUTILS_NTP_TIMEZONE
+        int "Timezone for calculate local time"
+        range -12 12
+        default 8
+
+    config NETUTILS_NTP_HOSTNAME
+        string "NTP server name1"
+        default "cn.ntp.org.cn"
+
+    config NETUTILS_NTP_HOSTNAME2
+        string "NTP server name2"
+        default "ntp.ntsc.ac.cn"
+
+    config NETUTILS_NTP_HOSTNAME3
+        string "NTP server name3"
+        default "edu.ntp.org.cn"
+
+endif
+
+endmenu

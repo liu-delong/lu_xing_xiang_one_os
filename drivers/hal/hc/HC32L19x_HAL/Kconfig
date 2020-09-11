@@ -1,0 +1,10 @@
+config SOC_SERIES_HC32L19
+    bool
+	select ARCH_ARM_CORTEX_M0
+    default n
+	
+config SOC_HC32L196KCTA
+	bool
+	select SOC_FAMILY_HC32
+	select SOC_SERIES_HC32L19
+	default n

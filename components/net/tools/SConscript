@@ -1,0 +1,11 @@
+from build_tools import *
+
+pwd = PresentDir()
+
+src = Glob('source/*.c')
+
+CPPPATH = [pwd + '/include']
+
+group = AddCodeGroup('tools', src, depend = ['NET_USING_TOOLS'], CPPPATH = CPPPATH)
+
+Return('group')

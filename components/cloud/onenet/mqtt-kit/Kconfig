@@ -1,0 +1,23 @@
+menu "MQTT kit"
+
+config OS_USING_ONENET_MQTTS
+    bool "Enable onenet mqtt-kit"
+    select NET_USING_PAHO_MQTT
+    select PKG_USING_CJSON
+    select NET_USING_BSD
+    default n
+    
+    if OS_USING_ONENET_MQTTS
+		
+        config ONENET_MQTTS_USING_AUTO_REGISTER
+            bool "Enable onenet device auto register"
+            default n       
+			
+        config ONENET_MQTTS_USING_TLS
+            bool "Enable mqtt-kit TLS encrypt"
+            select MQTT_USING_TLS
+            default n         
+         
+    endif
+    
+endmenu

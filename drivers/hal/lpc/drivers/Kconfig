@@ -1,0 +1,152 @@
+    menuconfig BSP_USING_SPI
+        bool "Enable SPI BUS"
+        default n
+        select OS_USING_SPI
+        if BSP_USING_SPI
+            config BSP_USING_SPI1
+                bool "Enable SPI1 BUS"
+                default n
+
+            config BSP_SPI1_TX_USING_DMA
+                bool "Enable SPI1 TX DMA"
+                depends on BSP_USING_SPI1
+                default n
+
+            config BSP_SPI1_RX_USING_DMA
+                bool "Enable SPI1 RX DMA"
+                depends on BSP_USING_SPI1
+                select BSP_SPI1_TX_USING_DMA
+                default n
+
+            config BSP_USING_SPI2
+                bool "Enable SPI2 BUS"
+                default n
+
+            config BSP_SPI2_TX_USING_DMA
+                bool "Enable SPI2 TX DMA"
+                depends on BSP_USING_SPI2
+                default n
+
+            config BSP_SPI2_RX_USING_DMA
+                bool "Enable SPI2 RX DMA"
+                depends on BSP_USING_SPI2
+                select BSP_SPI2_TX_USING_DMA
+                default n
+
+            config BSP_USING_SPI3
+                bool "Enable SPI3 BUS"
+                default n
+
+            config BSP_SPI3_TX_USING_DMA
+                bool "Enable SPI3 TX DMA"
+                depends on BSP_USING_SPI3
+                default n
+
+            config BSP_SPI3_RX_USING_DMA
+                bool "Enable SPI3 RX DMA"
+                depends on BSP_USING_SPI3
+                select BSP_SPI3_TX_USING_DMA
+                default n
+
+            config BSP_USING_SPI4
+                bool "Enable SPI4 BUS"
+                default n
+
+            config BSP_SPI4_TX_USING_DMA
+                bool "Enable SPI4 TX DMA"
+                depends on BSP_USING_SPI4
+                default n
+
+            config BSP_SPI4_RX_USING_DMA
+                bool "Enable SPI4 RX DMA"
+                depends on BSP_USING_SPI4
+                select BSP_SPI4_TX_USING_DMA
+                default n
+
+            config BSP_USING_SPI5
+                bool "Enable SPI5 BUS"
+                default n
+
+            config BSP_SPI5_TX_USING_DMA
+                bool "Enable SPI5 TX DMA"
+                depends on BSP_USING_SPI5
+                default n
+
+            config BSP_SPI5_RX_USING_DMA
+                bool "Enable SPI5 RX DMA"
+                depends on BSP_USING_SPI5
+                select BSP_SPI5_TX_USING_DMA
+                default n
+        endif
+
+    menuconfig BSP_USING_INPUT_CAPTURE
+        bool "Enable Input Capture"
+        default n
+        select OS_USING_INPUT_CAPTURE
+        if BSP_USING_INPUT_CAPTURE
+        menuconfig BSP_USING_INPUT_CAPTURE2
+            bool "Enable timer2 Input Capture"
+            default n
+            if BSP_USING_INPUT_CAPTURE2
+                config BSP_USING_INPUT_CAPTURE2_CH1
+                    bool "Enable timer2 Input Capture channel1"
+                    default n
+            endif
+        endif
+
+    menuconfig BSP_USING_USBD
+        bool "Enable OTGFS as USB device"
+        select OS_USING_USB_DEVICE
+        default n
+
+        if BSP_USING_USBD
+            config BSP_USBD_TYPE_FS
+                bool "USB Full Speed (FS) Core"
+                default n
+            config BSP_USBD_TYPE_HS
+                bool "USB High Speed (HS) Core"
+                default n
+            config BSP_USBD_SPEED_HS
+                bool "USB High Speed (HS) Mode"
+                default n
+            config BSP_USBD_SPEED_HSINFS
+                bool  "USB High Speed (HS) Core in FS mode"
+                default n
+            config BSP_USBD_PHY_EMBEDDED
+                bool "Using Embedded phy interface"
+                default n
+            config BSP_USBD_PHY_UTMI
+                bool "UTMI: USB 2.0 Transceiver Macrocell Interace"
+                default n
+            config BSP_USBD_PHY_ULPI
+                bool "ULPI: UTMI+ Low Pin Interface"
+                default n
+        endif
+
+    menuconfig BSP_USING_ETH
+        bool "Enable Ethernet"
+        select OS_USING_LWIP
+        default n
+        if BSP_USING_ETH
+            comment "config eth hw"
+            config ETH_RESET_PIN
+            int "ETH reset pin number(default:phy_reset pin -->51)"
+            range 1 176
+            default 51
+            choice
+                prompt "choose eth hardware"
+                default PHY_USING_LAN8720A
+                help
+                    Select the eth hardware
+
+                config PHY_USING_LAN8720A
+                    bool "LAN8720A"
+
+                config PHY_USING_DM9161CEP
+                    bool "DM9161CEP"
+
+                config PHY_USING_DP83848C
+                    bool "DP83848C"
+            endchoice
+        endif
+

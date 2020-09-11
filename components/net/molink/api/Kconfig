@@ -1,0 +1,37 @@
+config MOLINK_USING_GENERAL_OPS
+    bool
+    default n
+
+config MOLINK_USING_NETSERV_OPS
+    bool
+    select MOLINK_USING_IP
+    default n
+
+config MOLINK_USING_NETCONN_OPS
+    bool
+    select OS_USING_DATAQUEUE
+    select MOLINK_USING_IP
+    default n
+
+config MOLINK_USING_SOCKETS_OPS
+    bool
+    select MOLINK_USING_NETCONN_OPS
+    default n
+
+config MOLINK_USING_ONENET_NB_OPS
+    bool
+    default n
+
+config MOLINK_USING_WIFI_OPS
+    bool
+    default n
+
+config MOLINK_USING_IP
+    bool
+    default n
+
+    if MOLINK_USING_IP
+        config MOLINK_USING_IPV4
+        bool
+        default y
+    endif

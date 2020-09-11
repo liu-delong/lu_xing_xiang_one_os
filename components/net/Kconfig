@@ -1,0 +1,13 @@
+menu "Network"
+
+source "$OS_ROOT/components/net/lwip/Kconfig"
+
+source "$OS_ROOT/components/net/molink/Kconfig"
+
+source "$OS_ROOT/components/net/protocols/Kconfig"
+
+source "$OS_ROOT/components/net/socket/Kconfig"
+
+source "$OS_ROOT/components/net/tools/Kconfig"
+
+endmenu

@@ -1,0 +1,165 @@
+menu "USB"
+    config OS_USING_USB_DEVICE
+        bool "Using USB device"
+        default n
+        if OS_USING_USB_DEVICE || OS_USING_USB_HOST
+            config OS_USBD_THREAD_STACK_SZ
+                int "usb thread stack size"
+                default 4096
+        endif
+        if OS_USING_USB_DEVICE
+            config USB_VENDOR_ID
+                hex "USB Vendor ID"
+                default 0x0FFE
+            config USB_PRODUCT_ID
+                hex "USB Product ID"
+                default 0x0001
+
+            config OS_USB_DEVICE_COMPOSITE
+                bool "Enable composite device"
+                default n
+                choice
+                    prompt "Device type"
+                    default _OS_USB_DEVICE_NONE
+                    depends on !OS_USB_DEVICE_COMPOSITE
+                        config _OS_USB_DEVICE_NONE
+                            bool "Using custom class by register interface"
+                            select OS_USB_DEVICE_NONE
+                        config _OS_USB_DEVICE_CDC
+                            bool "Enable to use device as CDC device"
+                            select OS_USB_DEVICE_CDC
+                        config _OS_USB_DEVICE_MSTORAGE
+                            bool "Enable to use device as Mass Storage device"
+                            select OS_USB_DEVICE_MSTORAGE
+                        config _OS_USB_DEVICE_HID
+                            bool "Enable to use device as HID device"
+                            select OS_USB_DEVICE_HID
+                        config _OS_USB_DEVICE_RNDIS
+                            bool "Enable to use device as rndis device"
+                            select OS_USB_DEVICE_RNDIS
+                            depends on NET_USING_LWIP
+                        config _OS_USB_DEVICE_ECM
+                            bool "Enable to use device as ecm device"
+                            select OS_USB_DEVICE_ECM
+                            depends on NET_USING_LWIP
+                        config _OS_USB_DEVICE_WINUSB
+                            bool "Enable to use device as winusb device"
+                            select OS_USB_DEVICE_WINUSB
+                        config _OS_USB_DEVICE_AUDIO
+                            bool "Enable to use device as audio device"
+                            select OS_USB_DEVICE_AUDIO
+                endchoice
+
+                    config OS_USB_DEVICE_CDC
+                        bool "Enable to use device as CDC device"
+                        default n
+                    config OS_USB_DEVICE_NONE
+                        bool
+                        default y
+                    config OS_USB_DEVICE_MSTORAGE
+                        bool "Enable to use device as Mass Storage device"
+                        default n
+                    config OS_USB_DEVICE_HID
+                        bool "Enable to use device as HID device"
+                        default n
+                    config OS_USB_DEVICE_RNDIS
+                        bool "Enable to use device as rndis device"
+                        default n
+                        depends on NET_USING_LWIP
+                    config OS_USB_DEVICE_ECM
+                        bool "Enable to use device as ecm device"
+                        default n
+                        depends on NET_USING_LWIP
+                    config OS_USB_DEVICE_WINUSB
+                        bool "Enable to use device as winusb device"
+                        default n
+                    config OS_USB_DEVICE_AUDIO
+                        bool "Enable to use device as audio device"
+                        default n
+
+                if OS_USB_DEVICE_CDC
+                    config OS_VCOM_TASK_STK_SIZE
+                        int "virtual com thread stack size"
+                        default 512
+                    config OS_VCOM_TX_USE_DMA
+                        bool "Enable to use dma for vcom tx"
+                        default n
+                    config OS_VCOM_SERNO
+                        string "serial number of virtual com"
+                        default "32021919830108"
+                    config OS_VCOM_SER_LEN
+                        int "serial number length of virtual com"
+                        default 14
+                    config OS_VCOM_TX_TIMEOUT
+                        int "tx timeout(ticks) of virtual com"
+                        default 1000
+                endif
+                if OS_USB_DEVICE_WINUSB
+                    config OS_WINUSB_GUID
+                    string "Guid for winusb"
+                    default "{6860DC3C-C05F-4807-8807-1CA861CC1D66}"
+                endif
+                if OS_USB_DEVICE_MSTORAGE
+                    config OS_USB_MSTORAGE_DISK_NAME
+                    string "msc class disk name"
+                    default "flash0"
+                endif
+
+                if OS_USB_DEVICE_RNDIS
+                    config RNDIS_DELAY_LINK_UP
+                        bool "Delay linkup media connection"
+                        select OS_USING_TIMER_SOFT
+                        default n
+                endif
+
+                if OS_USB_DEVICE_HID
+                    config OS_USB_DEVICE_HID_KEYBOARD
+                        bool "Use to HID device as Keyboard"
+                        default n
+                    if OS_USB_DEVICE_HID_KEYBOARD
+                        config OS_USB_DEVICE_HID_KEYBOARD_NUMBER
+                        int "Number of Keyboard(max 3)"
+                        default 1
+                        range 1 3
+                    endif
+                    config OS_USB_DEVICE_HID_MOUSE
+                        bool "Use to HID device as Mouse"
+                        default n
+                    config OS_USB_DEVICE_HID_GENERAL
+                        bool "Use to HID device as General HID device"
+                        default y
+                        if OS_USB_DEVICE_HID_GENERAL
+                            config OS_USB_DEVICE_HID_GENERAL_OUT_REPORT_LENGTH
+                                int "General HID device out report length"
+                                default 63
+                                range 0 63
+
+                            config OS_USB_DEVICE_HID_GENERAL_IN_REPORT_LENGTH
+                                int "General HID device in report length"
+                                default 63
+                                range 0 63
+                        endif
+                    config OS_USB_DEVICE_HID_MEDIA
+                        bool "Use to HID device as media keyboard"
+                        default y
+                endif
+                if OS_USB_DEVICE_AUDIO
+                    config OS_USB_DEVICE_AUDIO_MIC
+                        bool "Use usb mic device as audio device"
+                        default n
+                        if OS_USB_DEVICE_AUDIO_MIC
+                            config OS_USBD_MIC_DEVICE_NAME
+                            string "audio mic device name"
+                            default "mic0"
+                        endif
+                    config OS_USB_DEVICE_AUDIO_SPEAKER
+                        bool "Use usb speaker device as audio device"
+                        default n
+                        if OS_USB_DEVICE_AUDIO_SPEAKER
+                            config OS_USBD_SPEAKER_DEVICE_NAME
+                            string "audio speaker device name"
+                            default "sound0"
+                        endif
+                endif
+        endif
+endmenu
