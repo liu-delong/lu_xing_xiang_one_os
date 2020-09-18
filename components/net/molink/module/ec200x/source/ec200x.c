@@ -40,7 +40,6 @@ static const struct mo_general_ops gs_general_ops = {
     .get_iccid = ec200x_get_iccid,
     .get_cfun  = ec200x_get_cfun,
     .set_cfun  = ec200x_set_cfun,
-    .set_echo  = ec200x_set_echo,
 };
 #endif /* EC200X_USING_GENERAL_OPS */
 
@@ -54,8 +53,6 @@ static const struct mo_netserv_ops gs_netserv_ops = {
     .get_cgact      = ec200x_get_cgact,
     .get_csq        = ec200x_get_csq,
     .get_ipaddr     = ec200x_get_ipaddr,
-    .set_netstat    = ec200x_set_netstat,
-    .get_netstat    = ec200x_get_netstat,
     .ping           = ec200x_ping,
 };
 #endif /* EC200X_USING_NETSERV_OPS */
@@ -68,6 +65,7 @@ static const struct mo_netconn_ops gs_netconn_ops = {
     .gethostbyname = ec200x_netconn_gethostbyname,
     .connect       = ec200x_netconn_connect,
     .send          = ec200x_netconn_send,
+    .get_info      = ec200x_netconn_get_info,
 };
 #endif /* EC200X_USING_NETCONN_OPS */
 

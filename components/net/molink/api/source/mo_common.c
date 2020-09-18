@@ -23,16 +23,39 @@
 
 #include "mo_common.h"
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Get molink module instance by name.
+ *
+ * @param[in]       name            The name of molink module instance
+ *
+ * @return          On success, return a molink module instance descriptor; on error, OS_NULL is returned.
+ ***********************************************************************************************************************
+ */
 mo_object_t *mo_get_by_name(const char *name)
 {
     return mo_object_get_by_name(name);
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Get default molink module instance.
+ *
+ * @return          On success, return a molink module instance descriptor; on error, OS_NULL is returned.
+ ***********************************************************************************************************************
+ */
 mo_object_t *mo_get_default(void)
 {
     return mo_object_get_default();
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Set default molink module instance.
+ *
+ * @param[in]       self            The molink module instance descriptor
+ ***********************************************************************************************************************
+ */
 void mo_set_default(mo_object_t *self)
 {
     mo_object_set_default(self);

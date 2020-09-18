@@ -48,4 +48,19 @@ menu "BC28 Config"
         select MOLINK_USING_ONENET_NB_OPS
         default y
 
+        if BC28_USING_ONENET_NB_OPS
+
+        config BC28_RESP_BUFF_SIZE
+            int "The OneNET AT Parser stack size"
+            default 128
+
+        config BC28_URC_MANAGER_TASK_PRIORITY
+            hex "The URC manager task priority"
+            default 0x10
+
+        config BC28_URC_MANAGER_STACK_SIZE
+            int "The URC manager task stack size"
+            default 2048
+    endif
+
 endmenu

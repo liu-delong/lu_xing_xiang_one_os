@@ -118,7 +118,7 @@ reconnect:
         IOT_CoAP_DeviceNameAuth(p_ctx);
         do
         {
-            if (count == 100 || 0 == count)
+            if (IOT_TRUE == IOT_CoAP_Check_Auth(p_ctx) && (100 == count || 0 == count))
             {
                 iotx_post_data_to_server((void *)p_ctx);
                 count = 1;

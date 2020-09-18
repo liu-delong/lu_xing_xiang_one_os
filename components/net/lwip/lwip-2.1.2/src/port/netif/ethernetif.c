@@ -586,7 +586,7 @@ void set_dns(uint8_t dns_num, char *dns_server)
 SH_CMD_EXPORT(set_dns, set_dns, "set DNS server address");
 #endif /* LWIP_DNS */
 
-void list_if(void)
+void lwip_ifconfig(void)
 {
     os_ubase_t    index;
     struct netif *netif = OS_NULL;
@@ -670,7 +670,7 @@ void list_if(void)
     os_exit_critical();
 }
 
-SH_CMD_EXPORT(list_if, list_if, "list network interface information");
+SH_CMD_EXPORT(lwip_ifconfig, lwip_ifconfig, "list network interface information");
 
 #if LWIP_TCP
 #include <lwip/priv/tcp_priv.h>

@@ -244,8 +244,6 @@ static void os_startup(void)
     /* Board initialization */
     os_hw_board_init();
 
-    OS_KERN_LOG(KERN_WARNING, STARTUP_TAG, "OneOS kernel start, version: %s", OS_KERNEL_VERSION);
-
     /* Timer system initialization */
     os_system_timer_init();
 

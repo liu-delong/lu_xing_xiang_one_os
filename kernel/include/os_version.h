@@ -34,7 +34,7 @@
  *                  - z:     Revision number.
  ***********************************************************************************************************************
  */
-#define ONEOS_VERSION   "OneOS-V1.1.0-T6"
+#define ONEOS_VERSION   "OneOS-V1.1.0"
 
 #endif /* __OS_VERSION__ */
 

@@ -111,8 +111,8 @@ static int coap_getopt(int argc, char *argv[], char *opts)
         LOG_EXT_E( ": illegal option -- %c", c);
         if (argv[coap_optind][++sp] == '\0') {
             coap_optind++;
-            sp = 1;
         }
+        sp = 1;
         return '?';
     }
     if (*++cp == ':') {
@@ -599,47 +599,45 @@ message_handler(struct coap_context_t *ctx,
 
 static void
 usage( const char *program, const char *version) {
-  const char *p;
-  char buffer[64];
+    const char *p;
+    char buffer[64];
 
-  p = strrchr( program, '/' );
-  if ( p )
-    program = ++p;
+    p = strrchr( program, '/' );
+    if ( p )
+        program = ++p;
 
-  fprintf(stdout, "%s v%s -- a small CoAP implementation\n"
-     "Copyright (C) 2010-2019 Olaf Bergmann <bergmann@tzi.org> and others\n\n"
-     "%s\n\n"
-     "Usage: %s [-b [num,]size] [-e text] [-m method] [-s duration] [-t type]\n"
-     "\t\t[-v num] [-A type] [-B seconds] [-K interval] [-N] [-O num,text]\n"
-     "\t\t[-T token] [-U]\n"
-     "\tURI can be an absolute URI or a URI prefixed with scheme and host\n\n"
-     "General Options\n"
-     "\t-b [num,]size\tBlock size to be used in GET/PUT/POST requests\n"
-     "\t       \t\t(value must be a multiple of 16 not larger than 1024)\n"
-     "\t       \t\tIf num is present, the request chain will start at\n"
-     "\t       \t\tblock num\n"
-     "\t-e text\t\tInclude text as payload (use percent-encoding for\n"
-     "\t       \t\tnon-ASCII characters)\n"
-     "\t-m method\tRequest method (get|put|post|delete|fetch|patch|ipatch),\n"
-     "\t       \t\tdefault is 'get'\n"
-     "\t-s duration\tSubscribe to / Observe resource for given duration\n"
-     "\t       \t\tin seconds\n"
-     "\t-t type\t\tContent format for given resource for PUT/POST\n"
-     "\t-v num \t\tVerbosity level (default 7, maximum is 7). \n"
-     "\t-A type\t\tAccepted media type\n"
-     "\t-B seconds\tBreak operation after waiting given seconds\n"
-     "\t       \t\t(default is %d)\n"
-     "\t-K interval\tsend a ping after interval seconds of inactivity\n"
-     "\t-N     \t\tSend NON-confirmable message\n"
-     "\t-O num,text\tAdd option num with contents text to request. If the\n"
-     "\t       \t\ttext begins with 0x, then the hex text is converted to\n"
-     "\t       \t\tbinary data\n"
-     "\t-T token\tInclude specified token\n"    
-     "\n"
-     "Examples:\n"
-     "\tcoap_client -b 512 -m get coap://wsncoap.org:5683\n"
-     ,program, version, coap_string_tls_version(buffer, sizeof(buffer))
-     ,program, wait_seconds);
+    os_kprintf("%s v%s -- a small CoAP implementation\n"
+        "Copyright (C) 2010-2019 Olaf Bergmann <bergmann@tzi.org> and others\n\n"
+        "%s\n\n", program, version, coap_string_tls_version(buffer, sizeof(buffer)));
+    os_kprintf("Usage: %s [-b [num,]size] [-e text] [-m method] [-s duration] [-t type]\n"
+        "\t\t[-v num] [-A type] [-B seconds] [-K interval] [-N] [-O num,text]\n"
+        "\t\t[-T token] [-U]\n", program);
+    os_kprintf("\tURI can be an absolute URI or a URI prefixed with scheme and host\n\n"
+        "General Options\n"
+        "\t-b [num,]size\tBlock size to be used in GET/PUT/POST requests\n"
+        "\t       \t\t(value must be a multiple of 16 not larger than 1024)\n");
+    os_kprintf("\t       \t\tIf num is present, the request chain will start at\n"
+        "\t       \t\tblock num\n"
+        "\t-e text\t\tInclude text as payload (use percent-encoding for\n"
+        "\t       \t\tnon-ASCII characters)\n");
+    os_kprintf("\t-m method\tRequest method (get|put|post|delete|fetch|patch|ipatch),\n"
+        "\t       \t\tdefault is 'get'\n"
+        "\t-s duration\tSubscribe to / Observe resource for given duration\n"
+        "\t       \t\tin seconds\n");
+    os_kprintf("\t-t type\t\tContent format for given resource for PUT/POST\n"
+        "\t-v num \t\tVerbosity level (default 7, maximum is 7). \n"
+        "\t-A type\t\tAccepted media type\n"
+        "\t-B seconds\tBreak operation after waiting given seconds\n");
+    os_kprintf("\t       \t\t(default is %d)\n"
+        "\t-K interval\tsend a ping after interval seconds of inactivity\n"
+        "\t-N     \t\tSend NON-confirmable message\n"
+        "\t-O num,text\tAdd option num with contents text to request. If the\n", wait_seconds);
+    os_kprintf("\t       \t\ttext begins with 0x, then the hex text is converted to\n"
+        "\t       \t\tbinary data\n"
+        "\t-T token\tInclude specified token\n"    
+        "\n");
+    os_kprintf("Examples:\n"
+        "\tcoap_client -b 512 -m get coap://wsncoap.org:5683\n");
 }
 
 typedef struct {
@@ -1126,7 +1124,8 @@ coap_client_main(int argc, char **argv) {
       break;
     default:
       usage( argv[0], LIBCOAP_PACKAGE_VERSION );
-      return 0;
+      //return 0;
+      goto finish;
     }
   }
 
@@ -1136,11 +1135,13 @@ coap_client_main(int argc, char **argv) {
 
   if (coap_optind < argc) {
     if (cmdline_uri(argv[coap_optind], create_uri_opts) < 0) {
-      return 0;
+      //return 0;
+      goto finish;
     }
   } else {
     usage( argv[0], LIBCOAP_PACKAGE_VERSION );
-    return 0;
+    //return 0;
+    goto finish;
   }
 
   if ( ( user_length < 0 ) || ( key_length < 0 ) ) {
@@ -1162,7 +1163,8 @@ coap_client_main(int argc, char **argv) {
 
   if (res < 0) {
     LOG_EXT_E("failed to resolve address");
-    return 0;
+    //return 0;
+    goto finish;
   }
 
   ctx = coap_new_context( NULL );
@@ -1284,8 +1286,6 @@ coap_client_main(int argc, char **argv) {
   result = 0;
 
  finish:
-  
-  LOG_EXT_D("COAP TEST OVER");
   coap_delete_optlist(optlist);
   coap_session_release( session );
   coap_free_context( ctx );
@@ -1303,16 +1303,14 @@ coap_client_main(int argc, char **argv) {
   if(payload.s)
     coap_free(payload.s);
   memset(&payload, 0, sizeof(payload));
-  
-  LOG_EXT_D("COAP TEST OVER2");
   return result;
 }
 
 
 #ifdef OS_USING_SHELL
 #include <shell.h>
-#if SHELL_TASK_STACK_SIZE < 8196
-#error "SHELL_TASK_STACK_SIZE need more than 8196 bytes if use coap sample in shell"
+#if SHELL_TASK_STACK_SIZE < 8192
+#error "SHELL_TASK_STACK_SIZE need more than 8192 bytes if use coap sample in shell"
 #endif
 SH_CMD_EXPORT(coap_client, coap_client_main, "input coap_client to see usage");
 #endif /* OS_USING_SHELL */

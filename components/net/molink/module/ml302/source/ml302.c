@@ -20,7 +20,7 @@
  * 2020-08-14   OneOS Team      First Version
  ***********************************************************************************************************************
  */
- 
+
 #include "ml302.h"
 #include <stdlib.h>
 
@@ -38,30 +38,26 @@ static const struct mo_general_ops gs_general_ops = {
     .get_iccid = ml302_get_iccid,
     .get_cfun  = ml302_get_cfun,
     .set_cfun  = ml302_set_cfun,
-	  .set_echo  = ml302_set_echo,
 };
 #endif /* ML302_USING_GENERAL_OPS */
 
 #ifdef ML302_USING_NETSERV_OPS
 static const struct mo_netserv_ops gs_netserv_ops = {
-    .set_attach     = ml302_set_attach,
-    .get_attach     = ml302_get_attach,
-    .set_reg        = ml302_set_reg,
-    .get_reg        = ml302_get_reg,
-    .set_cgact      = ml302_set_cgact,
-    .get_cgact      = ml302_get_cgact,
-    .get_csq        = ml302_get_csq,
-    .get_ipaddr     = ml302_get_ipaddr,
-    .set_netstat    = ml302_set_netstat,
-    .get_netstat    = ml302_get_netstat,
-    .ping           = ml302_ping,
-	  .get_cell_info  = ml302_get_cell_info,
-
+    .set_attach    = ml302_set_attach,
+    .get_attach    = ml302_get_attach,
+    .set_reg       = ml302_set_reg,
+    .get_reg       = ml302_get_reg,
+    .set_cgact     = ml302_set_cgact,
+    .get_cgact     = ml302_get_cgact,
+    .get_csq       = ml302_get_csq,
+    .get_ipaddr    = ml302_get_ipaddr,
+    .ping          = ml302_ping,
+    .get_cell_info = ml302_get_cell_info,
 };
 #endif /* ML302_USING_NETSERV_OPS */
 
 #ifdef ML302_USING_NETCONN_OPS
-extern void ml302_netconn_init(mo_ml302_t *module);
+extern os_err_t ml302_netconn_init(mo_ml302_t *module);
 
 static const struct mo_netconn_ops gs_netconn_ops = {
     .create        = ml302_netconn_create,
@@ -69,18 +65,39 @@ static const struct mo_netconn_ops gs_netconn_ops = {
     .gethostbyname = ml302_netconn_gethostbyname,
     .connect       = ml302_netconn_connect,
     .send          = ml302_netconn_send,
+    .get_info      = ml302_netconn_get_info,
 };
 #endif /* ML302_USING_NETCONN_OPS */
+
+static os_err_t ml302_set_echo(mo_object_t *self, os_bool_t is_echo)
+{
+    at_parser_t *parser = &self->parser;
+
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "ATE%d", is_echo ? OS_TRUE : OS_FALSE);
+}
 
 mo_object_t *module_ml302_create(const char *name, os_device_t *device, os_size_t recv_len)
 {
     mo_ml302_t *module = (mo_ml302_t *)malloc(sizeof(mo_ml302_t));
 
+    os_task_mdelay(5000);
+    /* make sure ml302 power on and be ready */
     os_err_t result = mo_object_init(&(module->parent), name, device, recv_len);
-	if (result != OS_EOK)
+    if (result != OS_EOK)
     {
         goto __exit;
     }
+
+    result = ml302_set_echo(&(module->parent), OS_FALSE);
+    if (result != OS_EOK)
+    {
+        goto __exit;
+    }
+
 
 #ifdef ML302_USING_GENERAL_OPS
     module->parent.ops_table[MODULE_OPS_GENERAL] = &gs_general_ops;
@@ -93,23 +110,35 @@ mo_object_t *module_ml302_create(const char *name, os_device_t *device, os_size_
 #ifdef ML302_USING_NETCONN_OPS
     module->parent.ops_table[MODULE_OPS_NETCONN] = &gs_netconn_ops;
 
-		ml302_netconn_init(module);
+    result = ml302_netconn_init(module);
+    if (result != OS_EOK)
+    {
+        goto __exit;
+    }
 
     os_event_init(&module->netconn_evt, name, OS_IPC_FLAG_FIFO);
 
     os_mutex_init(&module->netconn_lock, name, OS_IPC_FLAG_FIFO, OS_TRUE);
 
     module->curr_connect = -1;
+
 #endif /* ML302_USING_NETCONN_OPS */
 
 __exit:
     if (result != OS_EOK)
     {
+
+        if (mo_object_get_by_name(name) != OS_NULL)
+        {
+            mo_object_deinit(&module->parent);
+        }
+
         free(module);
-        
+
         return OS_NULL;
     }
-   return &(module->parent);	
+
+    return &(module->parent);
 }
 
 os_err_t module_ml302_destroy(mo_object_t *self)
@@ -135,21 +164,21 @@ os_err_t module_ml302_destroy(mo_object_t *self)
 int ml302_auto_create(void)
 {
     os_device_t *device = os_device_find(ML302_DEVICE_NAME);
-	if(OS_NULL == device)
-	{
+    if(OS_NULL == device)
+    {
         LOG_EXT_E("Auto create failed, Can not find M5311 interface device %s!", ML302_DEVICE_NAME);
-		return OS_ERROR;
-	}
+        return OS_ERROR;
+    }
 
     mo_object_t *module = module_ml302_create(ML302_NAME, device,ML302_RECV_BUFF_LEN);
-	if(OS_NULL == module)
-	{
+    if(OS_NULL == module)
+    {
         LOG_EXT_E("Auto create failed, Can not create %s module object!", ML302_NAME);
-		return OS_ERROR;
-	}
+        return OS_ERROR;
+    }
 
-	LOG_EXT_I("Auto create %s module object success!",ML302_NAME);
-	return OS_EOK;
+    LOG_EXT_I("Auto create %s module object success!",ML302_NAME);
+    return OS_EOK;
 }
 OS_CMPOENT_INIT(ml302_auto_create);
 

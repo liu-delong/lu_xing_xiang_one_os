@@ -3,6 +3,7 @@
  */
 
 #include <os_task.h>
+#include <os_clock.h>
 
 #ifdef LWIP_USING_ICMP    /* don't build if not configured for use in oneos_config.h */
 #include <lwip/opt.h>
@@ -252,7 +253,7 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
 #ifdef OS_USING_SHELL
 #include <shell.h>
 
-FINSH_FUNCTION_EXPORT(ping, ping network host);
+SH_CMD_EXPORT(ping, ping, "ping network host");
 
 /*Note that:  uint32: 0~4294967295 */
 static os_uint32_t strnum_to_uint(char *strnum)
@@ -343,7 +344,7 @@ int cmd_ping(int argc, char **argv)
 
     return ret;
 }
-FINSH_FUNCTION_EXPORT_ALIAS(cmd_ping, __cmd_ping, ping network host);
+SH_CMD_EXPORT(lwip_ping, cmd_ping, "ping network host");
 #endif /* OS_USING_SHELL */
 
 #endif /* LWIP_USING_PING */

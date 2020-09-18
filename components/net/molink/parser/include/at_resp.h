@@ -33,9 +33,9 @@ extern "C" {
 #define AT_RESP_ERROR "ERROR"
 #define AT_RESP_FAIL  "FAIL"
 
-#define AT_RESP_BUFF_SIZE_DEF 64    /* AT response default buffer size */
-#define AT_RESP_LINE_NUM_DEF  0     /* The expected response data linenum */    
-#define AT_RESP_TIMEOUT_DEF   3000  /* The expected at response timeout, uint ms */
+#define AT_RESP_BUFF_SIZE_DEF 64                   /* AT response default buffer size */
+#define AT_RESP_LINE_NUM_DEF  0                    /* The expected response data linenum */
+#define AT_RESP_TIMEOUT_DEF   os_tick_from_ms(300) /* The expected at response timeout, uint ms */
 
 /**
  ***********************************************************************************************************************
@@ -46,10 +46,11 @@ extern "C" {
  */
 typedef enum resp_stat
 {
-    RESP_STAT_OK,        /* PARSER response end is OK */
-    RESP_STAT_ERROR,     /* PARSER response end is ERROR */
-    RESP_STAT_TIMEOUT,   /* PARSER response is timeout */
-    RESP_STAT_BUFF_FULL, /* PARSER response buffer is full */
+    RESP_STAT_NULL = 0,      /* Parser response end is NULL */
+    RESP_STAT_OK,        /* Parser response end is OK */
+    RESP_STAT_ERROR,     /* Parser response end is ERROR */
+    RESP_STAT_TIMEOUT,   /* Parser response is timeout */
+    RESP_STAT_BUFF_FULL, /* Parser response buffer is full */
 } resp_stat_t;
 
 /**
@@ -62,24 +63,20 @@ typedef enum resp_stat
 typedef struct at_resp
 {
     resp_stat_t stat;          /* the status of current response */
-    os_sem_t    resp_notice;   /* the response notice semaphore */
 
     os_size_t   line_num;      /* the number of setting response lines */
     os_size_t   line_counts;   /* the count of received response lines */
     os_int32_t  timeout;       /* the maximum response time */
 
     os_size_t   curr_buff_len; /* the length of current response buffer */
-    os_size_t   max_buff_size; /* the maximum response buffer size */
+    os_size_t   buff_size;     /* the maximum response buffer size */
     char       *buff;          /* response buffer */
 } at_resp_t;
 
-os_err_t at_resp_init(at_resp_t *resp, const char *name, os_size_t buff_size, os_size_t line_num, os_int32_t timeout);
-os_err_t at_resp_deinit(at_resp_t *resp);
-os_err_t at_resp_set(at_resp_t *resp, os_size_t buff_size, os_size_t line_num, os_int32_t timeout);
-os_err_t at_resp_reset(at_resp_t *resp);
-
 const char *at_resp_get_line(at_resp_t *resp, os_size_t resp_line);
 const char *at_resp_get_line_by_kw(at_resp_t *resp, const char *keyword);
+os_int32_t  at_resp_get_data_by_line(at_resp_t *resp, os_size_t resp_line, const char *resp_expr, ...);
+os_int32_t  at_resp_get_data_by_kw(at_resp_t *resp, const char *keyword, const char *resp_expr, ...);
 
 #ifdef __cplusplus
 }

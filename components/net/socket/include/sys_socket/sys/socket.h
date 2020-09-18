@@ -37,27 +37,35 @@
 
 #if defined(BSD_USING_MOLINK) || defined(BSD_USING_LWIP)
 int socket(int domain, int type, int protocol);
-int closesocket(int socket);
-int shutdown(int socket, int how);
-int bind(int socket, const struct sockaddr *name, socklen_t namelen);
-int listen(int s, int backlog);
-int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
-int connect(int socket, const struct sockaddr *name, socklen_t namelen);
-int sendto(int socket, const void *data, size_t size, int flags, const struct sockaddr *to, socklen_t tolen);
-int send(int socket, const void *data, size_t size, int flags);
-int recvfrom(int socket, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen);
-int recv(int socket, void *mem, size_t len, int flags);
-int getsockopt(int socket, int level, int optname, void *optval, socklen_t *optlen);
-int setsockopt(int socket, int level, int optname, const void *optval, socklen_t optlen);
-int ioctlsocket(int s, long cmd, void *argp);
+int closesocket(int fd);
+int shutdown(int fd, int how);
+int bind(int fd, const struct sockaddr *name, socklen_t namelen);
+int listen(int fd, int backlog);
+int accept(int fd, struct sockaddr *addr, socklen_t *addrlen);
+int connect(int fd, const struct sockaddr *name, socklen_t namelen);
+int sendto(int fd, const void *data, size_t size, int flags, const struct sockaddr *to, socklen_t tolen);
+int send(int fd, const void *data, size_t size, int flags);
+int recvfrom(int fd, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen);
+
+int recv(int fd, void *mem, size_t len, int flags);
+int getsockopt(int fd, int level, int optname, void *optval, socklen_t *optlen);
+int setsockopt(int fd, int level, int optname, const void *optval, socklen_t optlen);
+int ioctlsocket(int fd, long cmd, void *argp);
+#ifndef OS_USING_POSIX
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
+#endif
 
 struct hostent *gethostbyname(const char *name);
 int  getaddrinfo(const char *nodename, const char *servname, const struct addrinfo *hints, struct addrinfo **res);
 void freeaddrinfo(struct addrinfo *ai);
-int getpeername (int s, struct sockaddr *name, socklen_t *namelen);
-int getsockname (int s, struct sockaddr *name, socklen_t *namelen);
+int getpeername (int fd, struct sockaddr *name, socklen_t *namelen);
+int getsockname (int fd, struct sockaddr *name, socklen_t *namelen);
+
+#ifdef NET_USING_LWIP212
 const char *inet_ntop(int af, const void *src, char *dst, int32_t size);
 int inet_pton(int af, const char *src, void *dst);
+#endif
+
 #endif
 
 #endif

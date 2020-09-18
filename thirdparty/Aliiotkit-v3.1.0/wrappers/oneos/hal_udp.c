@@ -88,7 +88,7 @@ intptr_t HAL_UDP_create(char *host, unsigned short port)
                 break;
             }
 
-            close(socket_id);
+            closesocket(socket_id);
         }
     }
     freeaddrinfo(res);
@@ -103,7 +103,7 @@ void HAL_UDP_close(intptr_t p_socket)
     long socket_id = -1;
 
     socket_id = p_socket;
-    close(socket_id);
+    closesocket(socket_id);
 }
 
 int HAL_UDP_write(intptr_t p_socket, const unsigned char *p_data, unsigned int datalen)
@@ -145,11 +145,11 @@ int HAL_UDP_readTimeout(intptr_t p_socket, unsigned char *p_data, unsigned int d
     tv.tv_sec  = timeout / 1000;
     tv.tv_usec = (timeout % 1000) * 1000;
 
-    ret = lwip_select(socket_id + 1, &read_fds, NULL, NULL, timeout == 0 ? NULL : &tv);
+    ret = select(socket_id + 1, &read_fds, NULL, NULL, timeout == 0 ? NULL : &tv);
 
     /* Zero fds ready means we timed out */
     if (ret == 0)
-    {
+    {        
         return -2; /* receive timeout */
     }
 
@@ -164,7 +164,7 @@ int HAL_UDP_readTimeout(intptr_t p_socket, unsigned char *p_data, unsigned int d
     }
 
     /* This call will not block */
-    return read(p_socket, p_data, datalen);
+    return recv(p_socket, p_data, datalen, 0);
 }
 
 intptr_t HAL_UDP_create_without_connect(const char *host, unsigned short port)
@@ -192,7 +192,7 @@ intptr_t HAL_UDP_create_without_connect(const char *host, unsigned short port)
     if (0 != setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_BROADCAST, &opt_val, sizeof(opt_val)))
     {
         LOG_EXT_E("setsockopt error");
-        close(sockfd);
+        closesocket(sockfd);
         return -1;
     }
 
@@ -212,7 +212,7 @@ intptr_t HAL_UDP_create_without_connect(const char *host, unsigned short port)
             if (!hp)
             {
                 LOG_EXT_E("can't resolute the host address");
-                close(sockfd);
+                closesocket(sockfd);
                 return -1;
             }
             ip = *(uint32_t *)(hp->h_addr);
@@ -224,7 +224,7 @@ intptr_t HAL_UDP_create_without_connect(const char *host, unsigned short port)
 
     if (-1 == bind(sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)))
     {
-        close(sockfd);
+        closesocket(sockfd);
         return -1;
     }
     LOG_EXT_D("success to establish udp, fd=%d", (int)sockfd);
@@ -276,7 +276,7 @@ int HAL_UDP_connect(intptr_t sockfd, const char *host, unsigned short port)
 
 int HAL_UDP_close_without_connect(intptr_t sockfd)
 {
-    return close((int)sockfd);
+    return closesocket((int)sockfd);
 }
 
 int HAL_UDP_joinmulticast(intptr_t sockfd, char *p_group)
@@ -329,7 +329,7 @@ int HAL_UDP_recvfrom(intptr_t       sockfd,
     FD_ZERO(&read_fds);
     FD_SET(sockfd, &read_fds);
 
-    ret = lwip_select(sockfd + 1, &read_fds, NULL, NULL, &timeout);
+    ret = select(sockfd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret == 0)
     {
         return 0; /* receive timeout */
@@ -392,7 +392,7 @@ int HAL_UDP_sendto(intptr_t             sockfd,
     FD_ZERO(&write_fds);
     FD_SET(sockfd, &write_fds);
 
-    ret = lwip_select(sockfd + 1, NULL, &write_fds, NULL, &timeout);
+    ret = select(sockfd + 1, NULL, &write_fds, NULL, &timeout);
     if (ret == 0)
     {
         return 0; /* write timeout */

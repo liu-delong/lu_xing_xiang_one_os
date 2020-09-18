@@ -42,24 +42,26 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_create, ONENET_NB_FUNC_ARGS)
     os_err_t     result = OS_ERROR;
     os_uint8_t   ref    = 0;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[128] = "AT+MIPLCREATE=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+MIPLCREATE:", "+MIPLCREATE:%d", &ref) > 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATE:", "+MIPLCREATE:%d", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
         result              = OS_EOK;
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -72,25 +74,27 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_createex, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     os_uint8_t ref            = 0;
     char       tmp_format[64] = "AT+MIPLCREATEEX=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+MIPLCREATEEX:", "+MIPLCREATEEX:%d", &ref) > 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATEEX:", "+MIPLCREATEEX:%d", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
         result              = OS_EOK;
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -102,17 +106,18 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_addobj, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[64] = "AT+MIPLADDOBJ=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
     {
         result = OS_EOK;
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -124,17 +129,18 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_discoverrsp, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[128] = "AT+MIPLDISCOVERRSP=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
     {
         result = OS_EOK;
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -146,17 +152,18 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_set_nmi, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[28] = "AT+MIPLNMI=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
     {
         result = OS_EOK;
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -168,28 +175,33 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_open, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 128, 6, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[28] = "AT+MIPLOPEN=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    char resp_buff[128] = {0};
+
+    at_resp_t at_resp = {.buff      = resp_buff,
+                        .buff_size = sizeof(resp_buff),
+                        .line_num  = 6,
+                        .timeout   = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
         goto __exit;
     }
 
-    if (OS_NULL != at_parser_get_line_by_kw(parser, "+MIPLEVENT:0,6"))
+    if (OS_NULL != at_resp_get_line_by_kw(&at_resp, "+MIPLEVENT:0,6"))
     {
         result = OS_EOK; /* success */
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
 
-os_err_t get_onenetnb_notify_ackid(const char *format, va_list args, os_uint16_t *id)
+os_err_t m5310_get_onenetnb_notify_ackid(const char *format, va_list args, os_uint16_t *id)
 {
     /* if has ackid, must be the 11 element */
     int        num_count = 1;
@@ -294,7 +306,7 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_notify, ONENET_NB_FUNC_ARGS)
 
     os_uint16_t ackid_in  = 0;
     os_int32_t  ackid_out = 0;
-    if (get_onenetnb_notify_ackid(format, args, &ackid_in) == OS_EOK) /* whether has ackid */
+    if (m5310_get_onenetnb_notify_ackid(format, args, &ackid_in) == OS_EOK) /* whether has ackid */
     {
         is_ack = OS_TRUE;
     }
@@ -306,9 +318,14 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_notify, ONENET_NB_FUNC_ARGS)
     line_num = ((nmi.nsmi == 1) ? line_num + 2 : line_num);
     line_num = (is_ack ? line_num + 2 : line_num);
 
-    at_parser_set_resp(parser, 64, line_num, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    at_resp_t at_resp = {.buff      = resp_buff,
+                        .buff_size = sizeof(resp_buff),
+                        .line_num  = line_num,
+                        .timeout   = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
         goto __exit;
     }
@@ -319,7 +336,7 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_notify, ONENET_NB_FUNC_ARGS)
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+MIPLEVENT:0,26", "+MIPLEVENT:0,26,%d", &ackid_out) <= 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLEVENT:0,26", "+MIPLEVENT:0,26,%d", &ackid_out) <= 0)
     {
         goto __exit;
     }
@@ -330,7 +347,6 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_notify, ONENET_NB_FUNC_ARGS)
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -342,19 +358,22 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_update, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 4, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     os_uint8_t  ref            = 0;
     os_uint16_t event_id       = 0;
     char        tmp_format[64] = "AT+MIPLUPDATE=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .line_num = 4,.timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+MIPLEVENT:", "+MIPLEVENT:%d,%d", &ref, &event_id) <= 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLEVENT:", "+MIPLEVENT:%d,%d", &ref, &event_id) <= 0)
     {
         goto __exit;
     }
@@ -364,7 +383,6 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_update, ONENET_NB_FUNC_ARGS)
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -383,34 +401,36 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_get_write, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[128] = "AT+MIPLMGR=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    char resp_buff[256] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser,
-                                 "+MIPLWRITE:",
-                                 "+MIPLWRITE:%d,%d,%d,%d,%d,%d,%d,%s",
-                                 &mgr->ref,
-                                 &mgr->mid,
-                                 &mgr->objid,
-                                 &mgr->insid,
-                                 &mgr->resid,
-                                 &mgr->type,
-                                 &mgr->len,
-                                 mgr->value) > 0)
+    if (at_resp_get_data_by_kw(&at_resp,
+                               "+MIPLWRITE:",
+                               "+MIPLWRITE:%d,%d,%d,%d,%d,%d,%d,%s",
+                               &mgr->ref,
+                               &mgr->mid,
+                               &mgr->objid,
+                               &mgr->insid,
+                               &mgr->resid,
+                               &mgr->type,
+                               &mgr->len,
+                               mgr->value) > 0)
     {
         mgr->value[mgr->len] = '\0';
         result               = OS_EOK;
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -422,17 +442,18 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_writersp, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout));
 
     char tmp_format[128] = "AT+MIPLWRITERSP=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
     {
         result = OS_EOK;
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -445,15 +466,21 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_get_nmi, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    if (at_parser_exec_cmd(parser, "AT+MIPLNMI?") != OS_EOK) /* get nmi config */
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd(parser, &at_resp, "AT+MIPLNMI?") != OS_EOK) /* get nmi config */
     {
         goto __exit;
     }
 
     int ref, nnmi, nsmi;
     ref = nnmi = nsmi = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLNMI:", "+MIPLNMI:%d,%d,%d", &ref, &nnmi, &nsmi) <=
-        0) /* parser nmi config */
+    
+    /* parser nmi config */
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLNMI:", "+MIPLNMI:%d,%d,%d", &ref, &nnmi, &nsmi) <= 0)
     {
         goto __exit;
     }
@@ -475,14 +502,15 @@ DEFINE_M5310A_ONENET_FUNC(m5310_onenetnb_all, ONENET_NB_FUNC_ARGS)
 
     os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
-    if (at_parser_exec_cmd_valist(parser, format, args) == OS_EOK)
+    char resp_buff[256] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, format, args) == OS_EOK)
     {
         result = OS_EOK;
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }

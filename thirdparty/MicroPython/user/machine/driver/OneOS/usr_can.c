@@ -43,10 +43,10 @@ int can_open(void *device, uint16_t oflag)
 	os_device_t *can_device = os_device_find(((device_info_t *)device)->owner.name);
 	if(os_device_open(can_device, OS_DEVICE_OFLAG_RDWR) != OS_EOK)
 	{
-		return -1;
+		return MP_CAN_OP_ERROR;
 	}
 	((device_info_t *)device)->open_flag = MP_CAN_INIT_FLAG;
-	return 0;
+	return MP_CAN_OP_OK;
 }
 
 int can_close(void *device)
@@ -54,7 +54,7 @@ int can_close(void *device)
 	os_device_t *can_device = os_device_find(((device_info_t *)device)->owner.name);
 	
 	if (can_device == NULL){
-		return -1;
+		return MP_CAN_OP_ERROR;
 	}
 	((device_info_t *)device)->open_flag = MP_CAN_DEINIT_FLAG;
 	return os_device_close(can_device);
@@ -73,7 +73,7 @@ static uint32_t Byte2HexStr(uint8_t *buf, uint32_t bufsize, char *dest)
 static os_err_t can_rx_call(os_device_t *dev, os_size_t size)
 {
     rx_count++;
-    return OS_EOK;
+    return MP_CAN_OP_OK;
 }
 
 
@@ -87,7 +87,7 @@ static int can_read(void *device, uint32_t offset, void *buf, uint32_t bufsize)
 	if(NULL == can_device)
 	{
 		os_kprintf("can_read find name error\n");
-		return -1;
+		return MP_CAN_OP_ERROR;
 	}
 	os_device_set_rx_indicate(can_device, can_rx_call);
 	if (os_device_read(can_device, offset, &msg, sizeof(msg)) > 0){
@@ -97,31 +97,39 @@ static int can_read(void *device, uint32_t offset, void *buf, uint32_t bufsize)
 		id_buf[0] = (msg.id >> 24) & 0xff;
 
 		Byte2HexStr(id_buf, 4, res_msg->id);
+		res_msg->ide = msg.ide;
+		res_msg->rtr = msg.rtr;
 		res_msg->len = Byte2HexStr(msg.data, msg.len, res_msg->data);
 		return res_msg->len;
 	}
-	return 0;
+	return MP_CAN_OP_OK;
 }
 
-static char CharNum2intNum(uint8_t data)
+static int CharNum2intNum(uint8_t data)
 {
 	if(data <=  '9'){
 		return  data - '0';
-	} else if (data <=  'A'){
-		return data - 'A';
-	} 	 
-	return data - 'a';
+	} else if (data >=  'A' && data <= 'F'){
+		return data - 'A' + 10;
+	} else if  (data >=  'a' && data <= 'f'){	 
+		return data - 'a'+ 10;
+	}
+	return MP_CAN_OP_ERROR;
 }
 
-static uint32_t HexStr2Byte(char *buf, uint32_t bufsize, uint8_t *dest)
+static int HexStr2Byte(char *buf, uint32_t bufsize, uint8_t *dest)
 {
-	uint8_t j=0, h_4bit, l_4bit;
+	uint8_t j=0;
+	int h_4bit, l_4bit;
 	if (strlen((char *)buf) != bufsize || bufsize%2 != 0){
-		return 0;
+		return MP_CAN_OP_ERROR;
 	}
 	for (int i=0; i < bufsize; i+=2){
 		h_4bit = CharNum2intNum(buf[i]);
 		l_4bit = CharNum2intNum(buf[i+1]);
+		if (h_4bit == MP_CAN_OP_ERROR || l_4bit == MP_CAN_OP_ERROR){
+			return 0;
+		}
 		dest[j] = h_4bit << 4 |  l_4bit;
 		j++;
 	}
@@ -132,30 +140,36 @@ static uint32_t HexStr2Byte(char *buf, uint32_t bufsize, uint8_t *dest)
 static struct os_can_msg *check_data(uint32_t *buf, uint32_t bufsize, struct os_can_msg *msg)
 {
 	int len ;
-	uint8_t dest[20];
-	if (bufsize <4 || strlen((char *)buf) != bufsize ||  bufsize%2 != 0){
+	uint8_t dest[30];
+	if (bufsize <7 || bufsize > 30|| strlen((char *)buf) != bufsize ||  bufsize%2 != 0){
 		os_kprintf("the parameter is invalid!\n");
 		return NULL;
 	}
-
+	
 	len = HexStr2Byte((char*)buf, bufsize, dest);
 	if (!len){
 		os_kprintf("[check_data] Failed to convert data! \n");
 		return NULL;
 	}
-	msg->id  = dest[0];
-    msg->ide = dest[1];//OS_CAN_STDID;
-    msg->rtr = dest[2];//OS_CAN_DTR;
-    msg->len = dest[3];
-	
-	memcpy(msg->data, dest+4, msg->len);	
+	msg->id  = dest[0] << 24 | dest[1] << 16 | dest[2] << 8 | dest[3];
+	if (dest[4] > 1 || dest[5] > 1){
+		os_kprintf("the parameter is invalid! id is 4 bytes of data, ide is wrong or rtr is wrong!\n"); 
+		return NULL;
+	} else {
+		msg->ide = dest[4];//OS_CAN_STDID; // id 扩展帧
+		msg->rtr = dest[5];//OS_CAN_DTR;   // 表示数据帧的有无
+	}
+	msg->len = dest[6];
+	if (len > 7){
+		memcpy(msg->data, dest+7, msg->len);
+	}		
 	return msg;
 }
 
 static os_err_t can_tx_done(os_device_t *uart, void *buffer)
 {
     tx_count++;
-    return 0;
+    return MP_CAN_OP_OK;
 }
 
 static int can_write(void *device, uint32_t offset, void *buf, uint32_t bufsize)
@@ -166,11 +180,11 @@ static int can_write(void *device, uint32_t offset, void *buf, uint32_t bufsize)
 	if(NULL == can_device)
 	{
 		os_kprintf("can_write find name error\n");
-		return -1;
+		return MP_CAN_OP_ERROR;
 	}
 	if (! check_data(buf, bufsize, &msg)){
 		os_kprintf("can_write failed! \n");
-		return -1;
+		return MP_CAN_OP_ERROR;
 	}
 	os_device_set_tx_complete(can_device, can_tx_done);
 	return os_device_write(can_device, offset, &msg, sizeof(msg));
@@ -183,7 +197,7 @@ int can_ioctl(void *device, int cmd, void* arg)
 	os_device_t *can_device  =  os_device_find(((device_info_t *)device)->owner.name);
 	if (can_device == NULL){
 		os_kprintf("can_ioctl find device error\n");
-		return -1;
+		return MP_CAN_OP_ERROR;
 	}
 	
 	switch(cmd){

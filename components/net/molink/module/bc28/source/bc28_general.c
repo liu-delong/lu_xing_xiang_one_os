@@ -37,7 +37,11 @@ os_err_t bc28_at_test(mo_object_t *self)
 {
     at_parser_t *parser = &self->parser;
 
-    return at_parser_exec_cmd(parser, "AT");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "AT");
 }
 
 os_err_t bc28_get_imei(mo_object_t *self, char *value, os_size_t len)
@@ -46,13 +50,17 @@ os_err_t bc28_get_imei(mo_object_t *self, char *value, os_size_t len)
 
     at_parser_t *parser = &self->parser;
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CGSN=1");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CGSN=1");
     if (result != OS_EOK)
     {
         return OS_ERROR;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+CGSN:", "+CGSN:%s", value) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CGSN:", "+CGSN:%s", value) <= 0)
     {
         LOG_EXT_E("Get %s module imei failed", self->name);
         return OS_ERROR;
@@ -71,13 +79,17 @@ os_err_t bc28_get_imsi(mo_object_t *self, char *value, os_size_t len)
 
     at_parser_t *parser = &self->parser;
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CIMI");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CIMI");
     if (result != OS_EOK)
     {
         return OS_ERROR;
     }
 
-    if (at_parser_get_data_by_line(parser, 2, "%s", value) <= 0)
+    if (at_resp_get_data_by_line(&resp, 2, "%s", value) <= 0)
     {
         LOG_EXT_E("Get %s module imsi failed", self->name);
         return OS_ERROR;
@@ -96,13 +108,17 @@ os_err_t bc28_get_iccid(mo_object_t *self, char *value, os_size_t len)
 
     at_parser_t *parser = &self->parser;
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+NCCID");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+NCCID");
     if (result != OS_EOK)
     {
         return OS_ERROR;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+NCCID:", "+NCCID:%s", value) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+NCCID:", "+NCCID:%s", value) <= 0)
     {
         LOG_EXT_E("Get %s module iccid failed", self->name);
         return OS_ERROR;
@@ -119,13 +135,17 @@ os_err_t bc28_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl)
 {
     at_parser_t *parser = &self->parser;
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CFUN?");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CFUN?");
     if (result != OS_EOK)
     {
         return OS_ERROR;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+CFUN:", "+CFUN:%d", fun_lvl) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CFUN:", "+CFUN:%d", fun_lvl) <= 0)
     {
         LOG_EXT_E("Get %s module level of functionality failed", self->name);
         return OS_ERROR;
@@ -138,7 +158,11 @@ os_err_t bc28_set_cfun(mo_object_t *self, os_uint8_t fun_lvl)
 {
     at_parser_t *parser = &self->parser;
 
-    return at_parser_exec_cmd(parser, "AT+CFUN=%d", fun_lvl);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "AT+CFUN=%d", fun_lvl);
 }
 
 #endif /* BC28_USING_GENERAL_OPS */

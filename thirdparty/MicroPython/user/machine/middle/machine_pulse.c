@@ -26,7 +26,7 @@
 
 #include "py/runtime.h"
 #include "py/mperrno.h"
-#include "Include/machine_pulse.h"
+#include "machine_pulse.h"
 
 #if MICROPY_PY_MACHINE_PULSE
 

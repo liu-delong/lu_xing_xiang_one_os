@@ -160,7 +160,6 @@ char *    net_ip4addr_ntoa(const ip4_addr_t *addr);
 char *    net_ip4addr_ntoa_r(const ip4_addr_t *addr, char *buf, int buflen);
 #endif /* MOLINK_USING_IPV4 */
 
-#if defined(MOLINK_USING_IPV6)
 struct in6_addr
 {
     union
@@ -170,6 +169,8 @@ struct in6_addr
     } un;
 #define s6_addr un.u8_addr
 };
+
+#if defined(MOLINK_USING_IPV6)
 
 typedef struct ip6_addr
 {

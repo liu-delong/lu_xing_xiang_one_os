@@ -1,0 +1,99 @@
+menu "OnePos"
+	config OS_USING_OnePos
+    bool "Enable OnePos"
+    default n
+	
+	if OS_USING_OnePos
+		config OS_USING_GNSS_POS
+		bool "Enable GNSS Position(NMEA 0183 paraser)."
+		default n
+
+		if OS_USING_GNSS_POS
+			config NMEA_SERIAL_DEVICE_NAME
+				string "Uart name of GNSS using."
+				default "uart3"
+				
+			config GNSS_POS_DEBUG
+				bool "Enable GNSS Position debug."
+				default n
+		endif
+		
+		config ONEPOS_DEVICE_ID
+			string "Device ID by onepos platform alloted."
+		
+		config ONEPOS_PASSWORD
+			string "Password by onepos platform alloted."
+		
+		config ONEPOS_COMM_REC_BUFF_LEN
+			int "Receive buff size of OnePos communication(bytes)."
+			default 2048
+		
+		config ONEPOS_COMM_SEND_BUFF_LEN
+			int "Send buff size of OnePos communication(bytes)."
+			default 2048
+
+		config ONEPOS_DEFAULT_INTERVAL
+			int "Interval of OnePos(should 3 or over)(s)."
+			range 3 65535
+			default 3	
+
+		config ONEPOS_DEVICE_REC_POS_INFO
+            bool "Enable device receive position result."
+            default n
+			
+			if ONEPOS_DEVICE_REC_POS_INFO
+				config ONEPOS_REC_SUB_MSG_TIMEOUT
+					int "Timeout while device receive position result(ms)."
+					range 2900 65535
+					default 2900
+			endif
+		
+		config ONEPOS_SUPP_REMOTE_CONF
+			bool "Enable remote config."
+			default n
+		
+        config ONEPOS_WIFI_POS
+            bool "Enable wifi position."
+            default n
+			
+			if ONEPOS_WIFI_POS
+				config ONEPOS_WIFI_DEVICE_NAME
+				string "Device name of wifi_pos using."
+				default "esp8266"
+			endif
+		
+		config ONEPOS_CELL_POS
+            bool "Enable cell position."
+            default n
+		
+			if ONEPOS_CELL_POS
+				config ONEPOS_CELL_DEVICE_NAME
+				string "Device name of cell_pos using."
+				default "ml302"
+			endif
+		
+		config ONEPOS_DEFAULT_POS_MODE
+			int "Default position mode(1:sifle wifi; 2:multiple wifis; 3:mutipl cells)."
+			range 1 3
+			default 2
+		
+		config ONEPOS_DEFAULT_SEV_PRO
+			int "Default position server peovider(0:own;1:OneNET)."
+			range 0 1
+			default 0
+			
+		config ONEPOS_DEFAULT_SEV_TYPE
+			int "Default position server run type(0:period ciculation;1:single)."
+			range 0 1
+			default 1
+		
+		config ONEPOS_DEBUG
+            bool "Enable OnePos debug."
+            default n
+			
+		config ONEPOS_CMD
+            bool "Enable OnePos CMD."
+            default n
+		
+    endif
+endmenu

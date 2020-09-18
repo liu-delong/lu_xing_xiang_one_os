@@ -49,6 +49,11 @@
 #include "lwip/inet.h"
 #include "lwip/errno.h"
 
+#ifdef OS_USING_POSIX
+#include <os_waitqueue.h>
+#include <vfs_poll.h>
+#endif
+
 #include <string.h>
 
 #ifdef __cplusplus
@@ -528,6 +533,10 @@ struct timeval {
 #define lwip_socket_init() /* Compatibility define, no init needed. */
 void lwip_socket_thread_init(void); /* LWIP_NETCONN_SEM_PER_THREAD==1: initialize thread-local semaphore */
 void lwip_socket_thread_cleanup(void); /* LWIP_NETCONN_SEM_PER_THREAD==1: destroy thread-local semaphore */
+
+#ifdef OS_USING_POSIX
+int lwip_posix_poll(int socket, os_pollreq_t *req);
+#endif
 
 #if LWIP_COMPAT_SOCKETS == 2
 /* This helps code parsers/code completion by not having the COMPAT functions as defines */

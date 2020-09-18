@@ -28,8 +28,8 @@
 #include <string.h>
 
 #include "py/runtime.h"
-#include "Include/machine_spi.h"
-#include "Include/spi.h"
+#include "machine_spi.h"
+#include "spi.h"
 #include "mphalport.h"
 
 #if MICROPY_PY_MACHINE_SPI

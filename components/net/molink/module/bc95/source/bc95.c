@@ -34,31 +34,29 @@
 
 #ifdef BC95_USING_GENERAL_OPS
 static const struct mo_general_ops gs_general_ops = {
-    .at_test   = bc95_at_test,
-    .get_imei  = bc95_get_imei,
-    .get_imsi  = bc95_get_imsi,
-    .get_iccid = bc95_get_iccid,
-    .get_cfun  = bc95_get_cfun,
-    .set_cfun  = bc95_set_cfun,
+    .at_test               = bc95_at_test,
+    .get_imei              = bc95_get_imei,
+    .get_imsi              = bc95_get_imsi,
+    .get_iccid             = bc95_get_iccid,
+    .get_cfun              = bc95_get_cfun,
+    .set_cfun              = bc95_set_cfun,
 };
 #endif /* BC95_USING_GENERAL_OPS */
 
 #ifdef BC95_USING_NETSERV_OPS
 static const struct mo_netserv_ops gs_netserv_ops = {
-    .set_attach     = bc95_set_attach,
-    .get_attach     = bc95_get_attach,
-    .set_reg        = bc95_set_reg,
-    .get_reg        = bc95_get_reg,
-    .set_cgact      = bc95_set_cgact,
-    .get_cgact      = bc95_get_cgact,
-    .get_csq        = bc95_get_csq,
-    .get_radio      = bc95_get_radio,
-    .get_ipaddr     = bc95_get_ipaddr,
-    .set_netstat    = bc95_set_netstat,
-    .get_netstat    = bc95_get_netstat,
-    .set_dnsserver  = bc95_set_dnsserver,
-    .get_dnsserver  = bc95_get_dnsserver,
-    .ping           = bc95_ping,
+    .set_attach            = bc95_set_attach,
+    .get_attach            = bc95_get_attach,
+    .set_reg               = bc95_set_reg,
+    .get_reg               = bc95_get_reg,
+    .set_cgact             = bc95_set_cgact,
+    .get_cgact             = bc95_get_cgact,
+    .get_csq               = bc95_get_csq,
+    .get_radio             = bc95_get_radio,
+    .get_ipaddr            = bc95_get_ipaddr,
+    .set_dnsserver         = bc95_set_dnsserver,
+    .get_dnsserver         = bc95_get_dnsserver,
+    .ping                  = bc95_ping,
 };
 #endif /* BC95_USING_NETSERV_OPS */
 
@@ -66,38 +64,52 @@ static const struct mo_netserv_ops gs_netserv_ops = {
 extern void bc95_netconn_init(mo_bc95_t *module);
 
 static const struct mo_netconn_ops gs_netconn_ops = {
-    .create        = bc95_netconn_create,
-    .destroy       = bc95_netconn_destroy,
-    .gethostbyname = bc95_netconn_gethostbyname,
-    .connect       = bc95_netconn_connect,
-    .send          = bc95_netconn_send,
+    .create                = bc95_netconn_create,
+    .destroy               = bc95_netconn_destroy,
+    .gethostbyname         = bc95_netconn_gethostbyname,
+    .connect               = bc95_netconn_connect,
+    .send                  = bc95_netconn_send,
+    .get_info              = bc95_netconn_get_info,
 };
 #endif /* BC95_USING_NETCONN_OPS */
 
 #ifdef BC95_USING_ONENET_NB_OPS
+extern os_err_t bc95_onenetnb_init(mo_bc95_t *module);
+extern void     bc95_onenetnb_deinit(mo_bc95_t *module);
+
 static const mo_onenet_ops_t gs_onenet_ops = {
-    .onenetnb_get_config  = bc95_onenetnb_get_config,
-    .onenetnb_set_config  = bc95_onenetnb_set_config,
-    .onenetnb_create      = bc95_onenetnb_create,
-    .onenetnb_addobj      = bc95_onenetnb_addobj,
-    .onenetnb_discoverrsp = bc95_onenetnb_discoverrsp,
-    .onenetnb_nmi         = bc95_onenetnb_nmi,
-    .onenetnb_open        = bc95_onenetnb_open,
-    .onenetnb_notify      = bc95_onenetnb_notify,
-    .onenetnb_update      = bc95_onenetnb_update,
-    .onenetnb_get_write   = bc95_onenetnb_get_write,
-    .onenetnb_writersp    = bc95_onenetnb_writersp,
-#ifdef OS_USING_SHELL
-    .onenetnb_all         = bc95_onenetnb_all,
-#endif
+    .onenetnb_get_config   = bc95_onenetnb_get_config,
+    .onenetnb_set_config   = bc95_onenetnb_set_config,
+    .onenetnb_create       = bc95_onenetnb_create,
+    .onenetnb_delete       = bc95_onenetnb_delete,
+    .onenetnb_addobj       = bc95_onenetnb_addobj,
+    .onenetnb_delobj       = bc95_onenetnb_delobj,
+    .onenetnb_open         = bc95_onenetnb_open,
+    .onenetnb_close        = bc95_onenetnb_close,
+    .onenetnb_discoverrsp  = bc95_onenetnb_discoverrsp,
+    .onenetnb_observersp   = bc95_onenetnb_observersp,
+    .onenetnb_readrsp      = bc95_onenetnb_readrsp,
+    .onenetnb_writersp     = bc95_onenetnb_writersp,
+    .onenetnb_executersp   = bc95_onenetnb_executersp,
+    .onenetnb_parameterrsp = bc95_onenetnb_parameterrsp,
+    .onenetnb_notify       = bc95_onenetnb_notify,
+    .onenetnb_update       = bc95_onenetnb_update,
+    .onenetnb_cb_register  = bc95_onenetnb_cb_register,
 };
 #endif /* BC95_USING_ONENET_OPS */
 
 mo_object_t *module_bc95_create(const char *name, os_device_t *device, os_size_t recv_len)
 {
-    mo_bc95_t *module = (mo_bc95_t *)malloc(sizeof(mo_bc95_t));
-
-    os_err_t result = mo_object_init(&(module->parent), name, device, recv_len);
+    os_err_t result = OS_ERROR;
+    
+    mo_bc95_t *module = (mo_bc95_t *)calloc(1, sizeof(mo_bc95_t));
+    if (OS_NULL == module)
+    {
+        LOG_EXT_E("Create BC95 failed, no enough memory.");
+        result = OS_ENOMEM;
+        goto __exit;
+    }
+    result = mo_object_init(&(module->parent), name, device, recv_len);
     if (result != OS_EOK)
     {
         goto __exit;
@@ -118,12 +130,32 @@ mo_object_t *module_bc95_create(const char *name, os_device_t *device, os_size_t
 #endif /* BC95_USING_NETCONN_OPS */
 
 #ifdef BC95_USING_ONENET_NB_OPS
+    result = bc95_onenetnb_init(module);
+    if (OS_EOK != result)
+    {
+        goto __exit;
+    }
     module->parent.ops_table[MODULE_OPS_ONENET_NB] = &gs_onenet_ops;
 #endif /* BC95_USING_ONENET_NB_OPS */
 	
 __exit:
     if (result != OS_EOK)
     {
+#ifdef BC95_USING_NETCONN_OPS
+        /* 0xFF means module netconn_lock has been init */
+        if (0xFF    == module->netconn_lock.original_priority)
+        {
+            os_mutex_deinit(&module->netconn_lock);
+        }
+#endif /* BC95_USING_NETCONN_OPS */
+
+#ifdef BC95_USING_ONENET_NB_OPS
+        if (OS_NULL != module->regist_cb)
+        {
+            bc95_onenetnb_deinit(module);
+        }
+#endif /* BC95_USING_ONENET_NB_OPS */
+
         free(module);
         
         return OS_NULL;
@@ -135,9 +167,15 @@ __exit:
 os_err_t module_bc95_destroy(mo_object_t *self)
 {
     mo_bc95_t *module = os_container_of(self, mo_bc95_t, parent);
-    
+
+#ifdef BC95_USING_NETCONN_OPS
     os_mutex_deinit(&module->netconn_lock);
-    
+#endif /* BC95_USING_NETCONN_OPS */
+
+#ifdef BC95_USING_ONENET_NB_OPS
+    bc95_onenetnb_deinit(module);
+#endif /* BC95_USING_ONENET_NB_OPS */
+
     mo_object_deinit(self);
 
     free(module);

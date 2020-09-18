@@ -29,7 +29,7 @@ static int os_hw_mpu6xxx_port(void)
     const char *name = NULL;
     struct os_sensor_config cfg;
 
-    cfg.irq_pin.pin    = OS_MPU6XXX_INT_PIN;
+    cfg.irq_pin.pin    = OS_PIN_NONE;
     cfg.intf.dev_name  = OS_MPU6XXX_BUS_NAME;
     cfg.intf.user_data = (void *)OS_MPU6XXX_ADDR;
 

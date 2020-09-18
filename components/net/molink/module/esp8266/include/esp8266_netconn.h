@@ -32,6 +32,7 @@ extern "C" {
 
 #ifdef ESP8266_USING_NETCONN_OPS
 
+os_err_t      esp8266_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info);
 mo_netconn_t *esp8266_netconn_create(mo_object_t *module, mo_netconn_type_t type);
 os_err_t      esp8266_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn);
 os_err_t      esp8266_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_addr_t addr, os_uint16_t port);

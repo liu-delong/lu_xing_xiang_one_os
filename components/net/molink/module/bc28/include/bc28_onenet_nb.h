@@ -35,17 +35,24 @@ extern "C" {
 os_err_t bc28_onenetnb_get_config(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
 os_err_t bc28_onenetnb_set_config(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
 os_err_t bc28_onenetnb_create(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_delete(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+
 os_err_t bc28_onenetnb_addobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
-os_err_t bc28_onenetnb_discoverrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
-os_err_t bc28_onenetnb_nmi(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_delobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
 os_err_t bc28_onenetnb_open(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_close(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+
+os_err_t bc28_onenetnb_discoverrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_observersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_readrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_writersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_executersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+os_err_t bc28_onenetnb_parameterrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
+
 os_err_t bc28_onenetnb_notify(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
 os_err_t bc28_onenetnb_update(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
-os_err_t bc28_onenetnb_get_write(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
-os_err_t bc28_onenetnb_writersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
-#ifdef OS_USING_SHELL
-os_err_t bc28_onenetnb_all(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args);
-#endif
+
+os_err_t bc28_onenetnb_cb_register(mo_object_t *self, mo_onenet_cb_t user_callbacks);
 
 #endif /* BC28_USING_ONENET_NB_OPS */
 

@@ -33,6 +33,13 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_general_ops_t
+ *
+ * @brief       molink module general ops table
+ ***********************************************************************************************************************
+ */
 typedef struct mo_general_ops
 {
     os_err_t (*at_test)(mo_object_t *self);
@@ -41,7 +48,6 @@ typedef struct mo_general_ops
     os_err_t (*get_iccid)(mo_object_t *self, char *value, os_size_t len);
     os_err_t (*get_cfun)(mo_object_t *self, os_uint8_t *fun_lvl);
     os_err_t (*set_cfun)(mo_object_t *self, os_uint8_t fun_lvl);
-    os_err_t (*set_echo)(mo_object_t *self, os_bool_t is_echo);
     os_err_t (*soft_reset)(mo_object_t *self);
     os_err_t (*clear_stored_earfcn)(mo_object_t *self);
     os_err_t (*get_app_version)(mo_object_t *self, char *value, os_size_t len);
@@ -53,7 +59,6 @@ os_err_t mo_get_imsi(mo_object_t *self, char *value, os_size_t len);
 os_err_t mo_get_iccid(mo_object_t *self, char *value, os_size_t len);
 os_err_t mo_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl);
 os_err_t mo_set_cfun(mo_object_t *self, os_uint8_t fun_lvl);
-os_err_t mo_set_echo(mo_object_t *self, os_bool_t is_echo);
 os_err_t mo_soft_reset(mo_object_t *self);
 os_err_t mo_clear_stored_earfcn(mo_object_t *self);
 os_err_t mo_get_app_version(mo_object_t *self, char *value, os_size_t len);

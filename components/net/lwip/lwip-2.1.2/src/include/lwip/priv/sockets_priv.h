@@ -45,6 +45,11 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 
+#ifdef OS_USING_POSIX
+#include <os_waitqueue.h>
+#include <vfs_poll.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -83,6 +88,9 @@ struct lwip_sock {
   /** counter of how many threads are waiting for this socket using select */
   SELWAIT_T select_waiting;
 #endif /* LWIP_SOCKET_SELECT || LWIP_SOCKET_POLL */
+#ifdef OS_USING_POSIX
+  os_waitqueue_t wait_head;
+#endif
 #if LWIP_NETCONN_FULLDUPLEX
   /* counter of how many threads are using a struct lwip_sock (not the 'int') */
   u8_t fd_used;

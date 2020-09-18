@@ -50,7 +50,8 @@ int adc_sample(int argc, char **argv)
     }
     
     /* open adc */
-    ret = os_device_open(adc_dev, OS_DEVICE_OFLAG_RDONLY);
+    os_device_open(adc_dev, OS_DEVICE_OFLAG_RDONLY);
+    ret = os_device_control(adc_dev, OS_ADC_CMD_ENABLE, OS_NULL);
     if (ret != OS_EOK)
     {
         os_kprintf("adc device cannot open! \r\n");
@@ -67,7 +68,7 @@ int adc_sample(int argc, char **argv)
         os_kprintf("adc read failed %d.\r\n", ret);
     }
 
-    os_device_close(adc_dev);
+    os_device_control(adc_dev, OS_ADC_CMD_DISABLE, OS_NULL);
     return ret;
 }
 

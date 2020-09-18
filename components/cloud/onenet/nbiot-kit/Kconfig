@@ -3,6 +3,7 @@ menu "NB-IoT kit"
 config OS_USING_ONENET_NBIOT
     bool "Enable onenet nbiot-kit"
     select BSP_USING_ONCHIP_RTC
+    select OS_USING_RTC
     select NET_USING_BSD
 	default n
     

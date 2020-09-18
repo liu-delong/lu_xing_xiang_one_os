@@ -105,6 +105,19 @@ static const mo_destory_fn gs_mo_destroy_t[] = {
     [MODULE_TYPE_MAX] = OS_NULL,
 };
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Create an instance of a molink module object
+ *
+ * @param[in]       name            The molink module instance name
+ * @param[in]       type            The type of molink module object. @ref mo_type_t
+ * @param[in]       device          The device used by molink module instance at parser
+ * @param[in]       recv_len        The receive buffer length of at parser
+ * 
+ * @return          On success, return a molink module instance descriptor; 
+ *                  On error, OS_NULL is returned.
+ ***********************************************************************************************************************
+ */
 mo_object_t *mo_create(const char *name, mo_type_t type, os_device_t *device, os_size_t recv_len)
 {
     OS_ASSERT(OS_NULL != name);
@@ -125,6 +138,18 @@ mo_object_t *mo_create(const char *name, mo_type_t type, os_device_t *device, os
     return gs_mo_create_t[type](name, device, recv_len);
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Destroy an instance of a molink module object
+ *
+ * @param[in]       self            The molink module instance descriptor
+ * @param[in]       type            The type of molink module object. @ref mo_type_t
+ * 
+ * @return          Returns the result of the operation
+ * @retval          OS_ERROR        Destroy failed
+ * @retval          OS_EOK          Destroy successfully
+ ***********************************************************************************************************************
+ */
 os_err_t mo_destroy(mo_object_t *self, mo_type_t type)
 {
     OS_ASSERT(OS_NULL != self);

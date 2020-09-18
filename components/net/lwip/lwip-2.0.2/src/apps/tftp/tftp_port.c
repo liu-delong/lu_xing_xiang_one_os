@@ -41,7 +41,7 @@ static void* tftp_open(const char* fname, const char* mode, u8_t write)
     }
     else
     {
-        rt_kprintf("tftp: No support this mode(%s).", mode);
+        os_kprintf("tftp: No support this mode(%s).", mode);
     }
 
     return (void *) fd;
@@ -55,7 +55,7 @@ static int tftp_write(void* handle, struct pbuf* p)
 }
 
 #if defined(OS_USING_SHELL)
-#include <finsh.h>
+#include <shell.h>
 
 static void tftp_server(uint8_t argc, char **argv)
 {
@@ -66,17 +66,13 @@ static void tftp_server(uint8_t argc, char **argv)
 
     if (tftp_init(&ctx) == ERR_OK)
     {
-        rt_kprintf("TFTP server start successfully.\n");
+        os_kprintf("TFTP server start successfully.\n");
     }
     else
     {
-        rt_kprintf("TFTP server start failed.\n");
+        os_kprintf("TFTP server start failed.\n");
     }
 }
-FINSH_FUNCTION_EXPORT(tftp_server, start tftp server.);
+SH_CMD_EXPORT(tftp_server, tftp_server, "ping network host");
 
-#if defined(FINSH_USING_MSH)
-MSH_CMD_EXPORT(tftp_server, start tftp server.);
-#endif /* defined(FINSH_USING_MSH) */
-
-#endif /* defined(RT_USING_FINSH) */
+#endif /* defined(OS_USING_SHELL) */

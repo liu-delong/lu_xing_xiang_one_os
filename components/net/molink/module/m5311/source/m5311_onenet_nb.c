@@ -39,29 +39,31 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_create, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(resp != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
+    os_uint8_t   ref    = 0;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[128] = "AT+MIPLCREATE=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
-        at_parser_reset_resp(parser);
-        return OS_ERROR;
+        goto __exit;
     }
 
-    at_parser_reset_resp(parser);
-
-    os_uint8_t ref = 0;
-
-    if (at_parser_get_data_by_kw(parser, "+MIPLCREATE:", "+MIPLCREATE:%d", &ref) > 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATE:", "+MIPLCREATE:%d", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
-        return OS_EOK;
+        result              = OS_EOK;
     }
 
-    return OS_ERROR;
+__exit:
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_createex, ONENET_NB_FUNC_ARGS)
@@ -70,27 +72,31 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_createex, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(resp != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
-    char tmp_format[64] = "AT+MIPLCREATEEX=";
+    os_uint8_t ref            = 0;
+    char       tmp_format[64] = "AT+MIPLCREATEEX=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_ERROR;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    os_uint8_t ref = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLCREATEEX:", "+MIPLCREATEEX:%d", &ref) > 0)
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
+    {
+        goto __exit;
+    }
+
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATEEX:", "+MIPLCREATEEX:%d", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
-        return OS_EOK;
+        result              = OS_EOK;
     }
 
-    return OS_ERROR;
+__exit:
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_addobj, ONENET_NB_FUNC_ARGS)
@@ -98,20 +104,22 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_addobj, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[64] = "AT+MIPLADDOBJ=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_EOK;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    return OS_ERROR;
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
+    {
+        result = OS_EOK;
+    }
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_discoverrsp, ONENET_NB_FUNC_ARGS)
@@ -119,20 +127,22 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_discoverrsp, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[128] = "AT+MIPLDISCOVERRSP=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_EOK;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    return OS_ERROR;
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
+    {
+        result = OS_EOK;
+    }
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_set_nmi, ONENET_NB_FUNC_ARGS)
@@ -140,20 +150,22 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_set_nmi, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[28] = "AT+MIPLNMI=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_EOK;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    return OS_ERROR;
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
+    {
+        result = OS_EOK;
+    }
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_open, ONENET_NB_FUNC_ARGS)
@@ -161,28 +173,35 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_open, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 128, 6, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[28] = "AT+MIPLOPEN=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_ERROR;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[128] = {0};
 
-    if (OS_NULL != at_parser_get_line_by_kw(parser, "+MIPLEVENT:0,6"))
+    at_resp_t at_resp = {.buff      = resp_buff,
+                        .buff_size = sizeof(resp_buff),
+                        .line_num  = 6,
+                        .timeout   = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
-        return OS_EOK; /* success */
+        goto __exit;
     }
 
-    return OS_ERROR;
+    if (OS_NULL != at_resp_get_line_by_kw(&at_resp, "+MIPLEVENT:0,6"))
+    {
+        result = OS_EOK; /* success */
+    }
+
+__exit:
+
+    return result;
 }
 
-os_err_t get_onenetnb_notify_ackid(const char *format, va_list args, os_uint16_t *id)
+os_err_t m5311_get_onenetnb_notify_ackid(const char *format, va_list args, os_uint16_t *id)
 {
     /* if has ackid, must be the 11 element */
     int        num_count = 1;
@@ -276,8 +295,8 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_notify, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
-    os_bool_t is_ack = OS_FALSE;
-
+    os_bool_t    is_ack = OS_FALSE;
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
     m5311_nmi_t nmi;
     if (m5311_onenetnb_get_nmi(self, -1, &nmi, OS_NULL, args) != OS_EOK) /* get nsmi */
@@ -285,54 +304,51 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_notify, ONENET_NB_FUNC_ARGS)
         return OS_ERROR;
     }
 
-    os_uint16_t ackid_in = 0;
-    if (get_onenetnb_notify_ackid(format, args, &ackid_in) == OS_EOK) /* whether has ackid */
+    os_uint16_t ackid_in  = 0;
+    os_int32_t  ackid_out = 0;
+    if (m5311_get_onenetnb_notify_ackid(format, args, &ackid_in) == OS_EOK) /* whether has ackid */
     {
         is_ack = OS_TRUE;
-    }
-
-    char value[20] = {0};
-    if (mo_get_app_version(self, value, 20) != OS_EOK) /* get app version */
-    {
-        return OS_ERROR;
     }
 
     char tmp_format[128] = "AT+MIPLNOTIFY=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
     int line_num = 2; /* normal: \r\n OK\r\n */
-    if (strstr(value, "MCM") != OS_NULL)
-    {
-        line_num = ((nmi.nsmi == 1) ? line_num + 2 : line_num);
-    }
+    line_num = ((nmi.nsmi == 1) ? line_num + 2 : line_num);
     line_num = (is_ack ? line_num + 2 : line_num);
 
-    at_parser_set_resp(parser, 64, line_num, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
+    at_resp_t at_resp = {.buff      = resp_buff,
+                        .buff_size = sizeof(resp_buff),
+                        .line_num  = line_num,
+                        .timeout   = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
-        at_parser_reset_resp(parser);
-        return OS_ERROR;
+        goto __exit;
     }
-    at_parser_reset_resp(parser);
 
     if (!is_ack)
     {
-        return OS_EOK;
+        result = OS_EOK;
+        goto __exit;
     }
 
-    os_int32_t ackid_out = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLEVENT:0,26", "+MIPLEVENT:0,26,%d", &ackid_out) <= 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLEVENT:0,26", "+MIPLEVENT:0,26,%d", &ackid_out) <= 0)
     {
-        return OS_ERROR;
+        goto __exit;
     }
 
     if (ackid_in == ackid_out)
     {
-        return OS_EOK;
+        result = OS_EOK;
     }
 
-    return OS_ERROR;
+__exit:
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_update, ONENET_NB_FUNC_ARGS)
@@ -340,31 +356,35 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_update, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 4, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
-    char tmp_format[64] = "AT+MIPLUPDATE=";
+    os_uint8_t  ref            = 0;
+    os_uint16_t event_id       = 0;
+    char        tmp_format[64] = "AT+MIPLUPDATE=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_ERROR;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    os_uint8_t  ref      = 0;
-    os_uint16_t event_id = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLEVENT:", "+MIPLEVENT:%d,%d", &ref, &event_id) <= 0)
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .line_num = 4,.timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
     {
-        return OS_ERROR;
+        goto __exit;
+    }
+
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLEVENT:", "+MIPLEVENT:%d,%d", &ref, &event_id) <= 0)
+    {
+        goto __exit;
     }
     if (event_id == 11)
     {
-        return OS_EOK;
+        result = OS_EOK;
     }
 
-    return OS_ERROR;
+__exit:
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_get_write, ONENET_NB_FUNC_ARGS)
@@ -379,36 +399,40 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_get_write, ONENET_NB_FUNC_ARGS)
         return OS_ERROR;
     }
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
     char tmp_format[128] = "AT+MIPLMGR=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_ERROR;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[256] = {0};
 
-    if (at_parser_get_data_by_kw(parser,
-                                 "+MIPLWRITE:",
-                                 "+MIPLWRITE:%d,%d,%d,%d,%d,%d,%d,%s",
-                                 &mgr->ref,
-                                 &mgr->mid,
-                                 &mgr->objid,
-                                 &mgr->insid,
-                                 &mgr->resid,
-                                 &mgr->type,
-                                 &mgr->len,
-                                 mgr->value) > 0)
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) != OS_EOK)
+    {
+        goto __exit;
+    }
+
+    if (at_resp_get_data_by_kw(&at_resp,
+                               "+MIPLWRITE:",
+                               "+MIPLWRITE:%d,%d,%d,%d,%d,%d,%d,%s",
+                               &mgr->ref,
+                               &mgr->mid,
+                               &mgr->objid,
+                               &mgr->insid,
+                               &mgr->resid,
+                               &mgr->type,
+                               &mgr->len,
+                               mgr->value) > 0)
     {
         mgr->value[mgr->len] = '\0';
-        return OS_EOK;
+        result               = OS_EOK;
     }
 
-    return OS_ERROR;
+__exit:
+
+    return result;
 }
 
 DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_writersp, ONENET_NB_FUNC_ARGS)
@@ -416,20 +440,22 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_writersp, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 64, 0, timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout));
 
     char tmp_format[128] = "AT+MIPLWRITERSP=";
     strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        at_parser_reset_resp(parser);
-        return OS_EOK;
-    }
-    at_parser_reset_resp(parser);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    return OS_ERROR;
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args) == OS_EOK)
+    {
+        result = OS_EOK;
+    }
+
+    return result;
 }
 
 /* for inner */
@@ -438,22 +464,34 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_get_nmi, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(resp != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    if (at_parser_exec_cmd(parser, "AT+MIPLNMI?") != OS_EOK) /* get nmi config */
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd(parser, &at_resp, "AT+MIPLNMI?") != OS_EOK) /* get nmi config */
     {
-        return OS_ERROR;
+        goto __exit;
     }
 
     int ref, nnmi, nsmi;
     ref = nnmi = nsmi = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLNMI:", "+MIPLNMI:%d,%d,%d", &ref, &nnmi, &nsmi) <= 0) /* parser nmi config */
+    
+    /* parser nmi config */
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLNMI:", "+MIPLNMI:%d,%d,%d", &ref, &nnmi, &nsmi) <= 0)
     {
-        return OS_ERROR;
+        goto __exit;
     }
     ((m5311_nmi_t *)resp)->ref  = ref;
     ((m5311_nmi_t *)resp)->nnmi = nnmi;
     ((m5311_nmi_t *)resp)->nsmi = nsmi;
-    return OS_EOK;
+    result                       = OS_EOK;
+
+__exit:
+
+    return result;
 }
 
 #ifdef OS_USING_SHELL
@@ -462,16 +500,18 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_all, ONENET_NB_FUNC_ARGS)
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(format != OS_NULL);
 
+    os_err_t     result = OS_ERROR;
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, (timeout < 0 ? parser->resp.timeout : os_tick_from_ms(timeout)));
 
-    if (at_parser_exec_cmd_valist(parser, format, args) == OS_EOK)
+    char resp_buff[256] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = os_tick_from_ms(timeout)};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, format, args) == OS_EOK)
     {
-        at_parser_reset_resp(parser);
-        return OS_EOK;
+        result = OS_EOK;
     }
-    at_parser_reset_resp(parser);
 
-    return OS_ERROR;
+    return result;
 }
 #endif

@@ -32,122 +32,6 @@
 
 /**
  ***********************************************************************************************************************
- * @brief           Initializes an instance of AT parser response
- *
- * @param[in]       resp            A pointer to AT Parser response instance
- * @param[in]       name            The name of AT Parser response instance
- * @param[in]       buff_size       The maximum response buffer size
- * @param[in]       line_num        The number of setting response lines
- *                                  = 0: the response data will auto return when received 'OK' or 'ERROR'
- *                                  != 0: the response data will return when received setting lines number data
- * @param[in]       timeout         The maximum response time
- *
- * @return          Returns the result of an initialization operation
- * @retval          OS_EOK          Successfully
- * @retval          OS_ENOMEM       Apply for buffer memory failure
- ***********************************************************************************************************************
- */
-os_err_t at_resp_init(at_resp_t *resp, const char *name, os_size_t buff_size, os_size_t line_num, os_int32_t timeout)
-{
-    OS_ASSERT(resp != OS_NULL);
-    OS_ASSERT(name != OS_NULL);
-    OS_ASSERT(buff_size > 0);
-
-    resp->buff = (char *)calloc(1, buff_size);
-    if (resp->buff == OS_NULL)
-    {
-        LOG_EXT_E("AT create response object failed! No memory for response buffer!");
-        return OS_ENOMEM;
-    }
-
-    os_sem_init(&(resp->resp_notice), name, 0, OS_IPC_FLAG_FIFO);
-
-    resp->max_buff_size = buff_size;
-    resp->line_num      = line_num;
-    resp->timeout       = timeout;
-
-    return OS_EOK;
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Destroy an instance of AT parser response
- *
- * @param[in]       resp            An instance of AT Parser response to be destroyed
- ***********************************************************************************************************************
- */
-os_err_t at_resp_deinit(at_resp_t *resp)
-{
-    OS_ASSERT(resp != OS_NULL);
-
-    os_sem_deinit(&(resp->resp_notice));
-
-    if (resp->buff != OS_NULL)
-    {
-        free(resp->buff);
-    }
-
-    return OS_EOK;
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Set an AT parser response instance information
- *
- * @param[in]       resp            A pointer to AT Parser response instance
- * @param[in]       buff_size       The maximum response buffer size
- * @param[in]       line_num        The number of setting response lines
- *                                  = 0: the response data will auto return when received 'OK' or 'ERROR'
- *                                  != 0: the response data will return when received setting lines number data
- * @param[in]       timeout         The maximum response time
- *
- * @return          Return operation result
- * @retval          OS_EOK          Set successfully
- * @retval          OS_ENOMEM       Set failed
- ***********************************************************************************************************************
- */
-os_err_t at_resp_set(at_resp_t *resp, os_size_t buff_size, os_size_t line_num, os_int32_t timeout)
-{
-    OS_ASSERT(resp != OS_NULL);
-
-    if (resp->max_buff_size != buff_size)
-    {
-        resp->max_buff_size = buff_size;
-
-        char *temp = resp->buff;
-
-        resp->buff = (char *)realloc(resp->buff, buff_size);
-        if (OS_NULL == resp->buff)
-        {
-            free(temp);
-            resp->max_buff_size = 0;
-            LOG_EXT_E("No memory for realloc response buffer size(%d).", buff_size);
-            return OS_ENOMEM;
-        }
-    }
-
-    resp->line_num = line_num;
-    resp->timeout  = timeout;
-
-    return OS_EOK;
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Set an AT parser response instance default information
- *
- * @param[in]       resp            A pointer to AT Parser response instance
- *
- * @return          Return operation result, @see at_resp_set
- ***********************************************************************************************************************
- */
-os_err_t at_resp_reset(at_resp_t *resp)
-{
-    return at_resp_set(resp, AT_RESP_BUFF_SIZE_DEF, AT_RESP_LINE_NUM_DEF, os_tick_from_ms(AT_RESP_TIMEOUT_DEF));
-}
-
-/**
- ***********************************************************************************************************************
  * @brief           Get one line form AT parser response buffer by line number
  *
  * @param[in]       resp            A pointer to AT Parser response instance
@@ -217,4 +101,75 @@ const char *at_resp_get_line_by_kw(at_resp_t *resp, const char *keyword)
     }
 
     return OS_NULL;
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Get data form AT parser response buffer by line
+ *
+ * @param[in]       resp            A pointer to AT response instance
+ * @param[in]       resp_line       The line number of response data, , start from '1
+ * @param[in]       resp_expr       The data parser expression
+ * @param[in]       ...             The data parser arguments
+ * 
+ * @return          Return get data nums
+ ***********************************************************************************************************************
+ */
+os_int32_t at_resp_get_data_by_line(at_resp_t *resp, os_size_t resp_line, const char *resp_expr, ...)
+{
+    OS_ASSERT(resp != OS_NULL);
+    OS_ASSERT(resp_expr != OS_NULL);
+
+    const char *resp_line_buf = at_resp_get_line(resp, resp_line);
+
+    if (OS_NULL == resp_line_buf)
+    {
+        return -1;
+    }
+
+    va_list args = {0};
+
+    va_start(args, resp_expr);
+
+    os_int32_t resp_args_num = vsscanf(resp_line_buf, resp_expr, args);
+
+    va_end(args);
+
+    return resp_args_num;
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Get data form AT parser response buffer by line
+ *
+ * @param[in]       resp            A pointer to AT response instance
+ * @param[in]       keyword         The keyword of response data
+ * @param[in]       resp_expr       The data parser expression
+ * @param[in]       ...             The data parser arguments
+ * 
+ * @return          Return get data nums
+ ***********************************************************************************************************************
+ */
+os_int32_t at_resp_get_data_by_kw(at_resp_t *resp, const char *keyword, const char *resp_expr, ...)
+{
+    OS_ASSERT(resp != OS_NULL);
+    OS_ASSERT(keyword != OS_NULL);
+    OS_ASSERT(resp_expr != OS_NULL);
+
+    const char *resp_line_buf = at_resp_get_line_by_kw(resp, keyword);
+
+    if (OS_NULL == resp_line_buf)
+    {
+        return -1;
+    }
+
+    va_list args = {0};
+
+    va_start(args, resp_expr);
+
+    os_int32_t resp_args_num = vsscanf(resp_line_buf, resp_expr, args);
+
+    va_end(args);
+
+    return resp_args_num;
 }

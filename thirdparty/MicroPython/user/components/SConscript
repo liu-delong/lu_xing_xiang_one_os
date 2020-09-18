@@ -9,7 +9,7 @@ cwd     = PresentDir()
 src = []
 objs = []
 
-path    = [cwd + '/Include']
+path    = [cwd + '/include']
 
 
 

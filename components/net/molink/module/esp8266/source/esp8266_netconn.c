@@ -64,11 +64,13 @@ static mo_netconn_t *esp8266_netconn_alloc(mo_object_t *module)
 
     at_parser_t *parser = &module->parser;
 
-    char check_kw[12] = {0};
+    char check_kw[13] = {0};
 
-    at_parser_set_resp(parser, 256, 0, os_tick_from_ms(5000));
+    char resp_buff[256] = {0};
 
-    at_parser_exec_cmd(parser, "AT+CIPSTATUS");
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
+
+    at_parser_exec_cmd(parser, &resp, "AT+CIPSTATUS");
 
     for (int i = 0; i < ESP8266_NETCONN_NUM; i++)
     {
@@ -76,7 +78,7 @@ static mo_netconn_t *esp8266_netconn_alloc(mo_object_t *module)
         {
             snprintf(check_kw, sizeof(check_kw), "+CIPSTATUS:%d", i);
 
-            if (at_parser_get_line_by_kw(parser, check_kw) == OS_NULL)
+            if (at_resp_get_line_by_kw(&resp, check_kw) == OS_NULL)
             {
                 esp8266->netconn[i].connect_id = i;
 
@@ -97,8 +99,21 @@ static mo_netconn_t *esp8266_get_netconn_by_id(mo_object_t *module, os_int32_t c
     return &esp8266->netconn[connect_id];
 }
 
+os_err_t esp8266_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
+{
+    mo_esp8266_t *esp8266 = os_container_of(module, mo_esp8266_t, parent);
+
+    info->netconn_array = esp8266->netconn;
+    info->netconn_nums  = sizeof(esp8266->netconn) / sizeof(esp8266->netconn[0]);
+
+    return OS_EOK;
+}
+
 mo_netconn_t *esp8266_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
+    mo_esp8266_t *esp8266 = os_container_of(module, mo_esp8266_t, parent);
+
+    esp8266_lock(&esp8266->netconn_lock);
 
     mo_netconn_t *netconn = esp8266_netconn_alloc(module);
 
@@ -112,6 +127,8 @@ mo_netconn_t *esp8266_netconn_create(mo_object_t *module, mo_netconn_type_t type
     netconn->stat = NETCONN_STAT_INIT;
     netconn->type = type;
 
+    esp8266_unlock(&esp8266->netconn_lock);
+
     return netconn;
 }
 
@@ -122,10 +139,14 @@ os_err_t esp8266_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
 
     LOG_EXT_D("Module %s in %d netconnn status", module->name, netconn->stat);
 
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
+
     switch (netconn->stat)
     {
     case NETCONN_STAT_CONNECT:
-        result = at_parser_exec_cmd(parser, "AT+CIPCLOSE=%d", netconn->connect_id);
+        result = at_parser_exec_cmd(parser, &resp, "AT+CIPCLOSE=%d", netconn->connect_id);
         if (result != OS_EOK)
         {
             LOG_EXT_E("Module %s destroy %s netconn failed",
@@ -157,7 +178,9 @@ os_err_t esp8266_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_
 {
     at_parser_t *parser = &module->parser;
 
-    at_parser_set_resp(parser, 64, 0, os_tick_from_ms(150 * 1000));
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 150 * OS_TICK_PER_SECOND};
 
     char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
 
@@ -169,6 +192,7 @@ os_err_t esp8266_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_
     {
     case NETCONN_TYPE_TCP:
         result = at_parser_exec_cmd(parser,
+                                    &resp,
                                     "AT+CIPSTART=%d,\"TCP\",\"%s\",%d,60", 
                                     netconn->connect_id, 
                                     remote_ip, 
@@ -176,6 +200,7 @@ os_err_t esp8266_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_
         break;
     case NETCONN_TYPE_UDP:
         result = at_parser_exec_cmd(parser,
+                                    &resp,
                                     "AT+CIPSTART=%d,\"UDP\",\"%s\",%d", 
                                     netconn->connect_id, 
                                     remote_ip, 
@@ -206,8 +231,6 @@ __exit:
         LOG_EXT_E("Module %s connect to %s:%d failed!", module->name, remote_ip, port);
     }
 
-    at_parser_reset_resp(parser);
-
     return result;
 }
 
@@ -225,7 +248,12 @@ os_size_t esp8266_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const
 
     esp8266->curr_connect = netconn->connect_id;
 
-    at_parser_set_resp(parser, 128, 2, 5 * OS_TICK_PER_SECOND);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 3,
+                      .timeout   = 5 * OS_TICK_PER_SECOND};
 
     at_parser_set_end_mark(parser, ">", 1);
 
@@ -240,7 +268,7 @@ os_size_t esp8266_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const
             curr_size = SEND_DATA_MAX_SIZE;
         }
 
-        result = at_parser_exec_cmd(parser, "AT+CIPSEND=%d,%d", netconn->connect_id, curr_size);
+        result = at_parser_exec_cmd(parser, &resp, "AT+CIPSEND=%d,%d", netconn->connect_id, curr_size);
         if (result != OS_EOK)
         {
             goto __exit;
@@ -294,8 +322,6 @@ __exit:
 
     at_parser_set_end_mark(parser, OS_NULL, 0);
 
-    at_parser_reset_resp(parser);
-
     esp8266_unlock(&esp8266->netconn_lock);
     
     if (result != OS_EOK)
@@ -316,15 +342,19 @@ os_err_t esp8266_netconn_gethostbyname(mo_object_t *module, const char *domain_n
 
     at_parser_t *parser = &module->parser;
 
-    at_parser_set_resp(parser, 128, 0, os_tick_from_ms(20000));
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF * 2] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CIPDOMAIN=\"%s\"", domain_name);
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .timeout   = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CIPDOMAIN=\"%s\"", domain_name);
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+CIPDOMAIN:", "+CIPDOMAIN:%s", recvip) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CIPDOMAIN:", "+CIPDOMAIN:%s", recvip) <= 0)
     {
         LOG_EXT_E("Module %s domain resolve: resp parse fail, try again, host: %s", module->name, domain_name);
         result = OS_ERROR;
@@ -358,8 +388,6 @@ os_err_t esp8266_netconn_gethostbyname(mo_object_t *module, const char *domain_n
     }
 
 __exit:
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -406,9 +434,9 @@ static void urc_close_func(struct at_parser *parser, const char *data, os_size_t
 
     LOG_EXT_W("Module %s receive close urc data of connect %d", module->name, connect_id);
 
-    netconn->stat = NETCONN_STAT_CLOSE;
+    mo_netconn_pasv_close_notice(netconn);
 
-    os_data_queue_reset(&netconn->data_queue);
+    return;
 }
 
 static void urc_send_bfsz_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -476,15 +504,10 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
         LOG_EXT_E("Module %s netconnt id %d recv %d bytes data failed!", module->name, netconn->connect_id, data_size);
         return;
     }
+    
+    mo_netconn_data_recv_notice(netconn, recv_buff, data_size);
 
-    if (netconn->stat == NETCONN_STAT_CONNECT)
-    {
-        os_data_queue_push(&netconn->data_queue, recv_buff, data_size, OS_IPC_WAITING_FOREVER);
-    }
-    else
-    {
-        LOG_EXT_E("Module %s netconn id %d receive state error", module->name, connect_id);
-    }
+    return;
 }
 
 static at_urc_t gs_urc_table[] = {
@@ -500,7 +523,11 @@ os_err_t esp8266_netconn_init(mo_esp8266_t *module)
 {
     at_parser_t *parser = &(module->parent.parser);
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CIPMUX=1");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CIPMUX=1");
     if (result != OS_EOK)
     {
         goto __exit;

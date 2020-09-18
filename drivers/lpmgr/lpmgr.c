@@ -249,12 +249,12 @@ void os_low_power_manager(void)
  ***********************************************************************************************************************
  * @brief           Upper application or device driver requests the system stall in corresponding power mode
  *
- * @param[in]       mode                the parameter of run mode or sleep mode
+ * @param[in]       sleep_mode                the parameter of run mode or sleep mode
  *
  * @return          no return value
  ***********************************************************************************************************************
  */
-void os_lpmgr_request(os_uint8_t mode)
+void os_lpmgr_request(os_uint8_t sleep_mode)
 {
     os_base_t     level;
     struct lpmgr *lpm;
@@ -262,13 +262,13 @@ void os_lpmgr_request(os_uint8_t mode)
     if (gs_lpmgr_init_flag == 0)
         return;
 
-    if (mode > (SYS_SLEEP_MODE_MAX - 1))
+    if (sleep_mode > (SYS_SLEEP_MODE_MAX - 1))
         return;
 
     level = os_hw_interrupt_disable();
     lpm   = &gs_lpmgr;
-    if (lpm->modes[mode] < 255)
-        lpm->modes[mode]++;
+    if (lpm->modes[sleep_mode] < 255)
+        lpm->modes[sleep_mode]++;
     os_hw_interrupt_enable(level);
 }
 
@@ -276,12 +276,12 @@ void os_lpmgr_request(os_uint8_t mode)
  ***********************************************************************************************************************
  * @brief           Upper application or device driver releases the system stall in corresponding power mode
  *
- * @param[in]       mode                the parameter of run mode or sleep mode
+ * @param[in]       sleep_mode                the parameter of run mode or sleep mode
  *
  * @return          no return value
  ***********************************************************************************************************************
  */
-void os_lpmgr_release(os_uint8_t mode)
+void os_lpmgr_release(os_uint8_t sleep_mode)
 {
     os_ubase_t    level;
     struct lpmgr *lpm;
@@ -289,13 +289,13 @@ void os_lpmgr_release(os_uint8_t mode)
     if (gs_lpmgr_init_flag == 0)
         return;
 
-    if (mode > (SYS_SLEEP_MODE_MAX - 1))
+    if (sleep_mode > (SYS_SLEEP_MODE_MAX - 1))
         return;
 
     level = os_hw_interrupt_disable();
     lpm   = &gs_lpmgr;
-    if (lpm->modes[mode] > 0)
-        lpm->modes[mode]--;
+    if (lpm->modes[sleep_mode] > 0)
+        lpm->modes[sleep_mode]--;
     os_hw_interrupt_enable(level);
 }
 
@@ -462,12 +462,12 @@ static os_err_t lpmgr_device_control(struct os_device *dev, int cmd, void *args)
  ***********************************************************************************************************************
  * @brief           lpmgr run enter function
  *
- * @param[in]       mode            lpmgr mode
+ * @param[in]       run_mode            lpmgr mode
  *
  * @return          no return value
  ***********************************************************************************************************************
  */
-int os_lpmgr_run_enter(os_uint8_t mode)
+int os_lpmgr_run_enter(os_uint8_t run_mode)
 {
     os_base_t     level;
     struct lpmgr *lpm;
@@ -475,26 +475,26 @@ int os_lpmgr_run_enter(os_uint8_t mode)
     if (gs_lpmgr_init_flag == 0)
         return OS_EIO;
 
-    if (mode >= SYS_RUN_MODE_MAX)
+    if (run_mode >= SYS_RUN_MODE_MAX)
     {
-        os_kprintf("invalid mode: %d\n", mode);
+        os_kprintf("invalid mode: %d\n", run_mode);
         return OS_EINVAL;
     }
 
     level = os_hw_interrupt_disable();
     lpm   = &gs_lpmgr;
-    if (mode < lpm->run_mode)
+    if (run_mode < lpm->run_mode)
     {
         /* change system runing mode */
-        lpm->ops->run(lpm, mode);
+        lpm->ops->run(lpm, run_mode);
         /* changer device frequency */
-        lpmgr_device_frequency_change(mode);
+        lpmgr_device_frequency_change(run_mode);
     }
     else
     {
         lpm->flags |= LPMGR_FREQUENCY_PENDING;
     }
-    lpm->run_mode = mode;
+    lpm->run_mode = run_mode;
     os_hw_interrupt_enable(level);
 
     return OS_EOK;

@@ -38,68 +38,25 @@
 #ifdef NET_USING_MOLINK
 #include <mo_api.h>
 
-
 #if defined(MODULE_USING_IFCONFIG) && defined(MOLINK_USING_NETSERV_OPS) && defined(MOLINK_USING_GENERAL_OPS)
-static void intf_status_parser(os_int8_t val, char status[])
-{
-    switch(val)
-    {
-    case MO_NET_DETACH:
-        strcpy(status, "Module detach from PS");
-        break;
-
-    case MO_NET_ATTACH:
-        strcpy(status, "Module attach to PS");
-        break;
-
-    case MO_NET_EPS_REG_FAIL:
-        strcpy(status, "Module reg EPS fail");
-        break;
-
-    case MO_NET_EPS_REG_OK:
-        strcpy(status, "Module reg EPS OK");
-        break;
-
-    case MO_NET_DEACTIVATED:
-        strcpy(status, "Module deactivate PDP context");
-        break;
-    
-    case MO_NET_ACTIVATED:
-        strcpy(status, "Module activate PDP context");
-        break;
-
-    case MO_NET_NETWORK_REG_OK:
-        strcpy(status, "Module network reg success");
-        break;
-
-    case MO_NET_NETWORK_REG_FAIL:
-        strcpy(status, "Module network reg fail");
-        break;
-
-    default:
-        os_kprintf("AT intf status parser fail: status type[0x%02x] error", val);
-        strcpy(status, "Unknown status");
-        break;
-    }
-
-    return;
-}
-
 void at_module_show_info(void)
 {
     mo_object_t  *defmo_obj  = OS_NULL;
     radio_info_t  radio_info = {0};
     os_uint16_t   i          = 0;
-    os_uint8_t    stat_val   = 0;
     os_uint8_t    rssi       = 0;
     os_uint8_t    ber        = 0;
 
     char imei[16]            = {0};
     char ipaddr[16]          = {0}; 
-    char status[32]          = {0};
 
     /* Step 1: get atintf obj and ops interface */
     defmo_obj = mo_get_default();
+    if (defmo_obj == OS_NULL)
+    {
+        os_kprintf("Ifconfig: get defmo obj failed, module is not create.\n");
+        return;
+    }
 
     /* Step 2: get IMEI number */
     if (mo_get_imei(defmo_obj, imei, sizeof(imei)) != OS_EOK)
@@ -119,15 +76,7 @@ void at_module_show_info(void)
         LOG_EXT_D("AT tool: get radio information fail\n");
     }
     
-    /* Step 5: get atintf network status */
-    if (mo_get_netstat(defmo_obj, &stat_val) != OS_EOK)
-    {
-        LOG_EXT_D("AT tool: get netstat fail\n");
-    }
-    /* Always parser the status, even if it fails */
-    intf_status_parser(stat_val, status);
-    
-    /* Step 6: get atintf IP address */
+    /* Step 5: get atintf IP address */
     if (mo_get_ipaddr(defmo_obj, ipaddr) != OS_EOK)
     {
         LOG_EXT_D("AT tool: get ipaddress fail\n");
@@ -144,7 +93,6 @@ void at_module_show_info(void)
     os_kprintf("Network Interface Controller: %s\n", defmo_obj->name);
     os_kprintf("IMEI   Number  : %s\n", imei);
     os_kprintf("Signal Quality : rssi(%d), ber(%d)\n", rssi, ber);
-    os_kprintf("Network Status : %s\n", status);
     os_kprintf("Intf IP Address: %s\n", strlen(ipaddr) ? ipaddr : "0.0.0.0");
     os_kprintf("Radio  Info    : cell ID(%s), ecl(%d), snr(%d), rsrq(%d)\n",
                radio_info.cell_id,
@@ -392,7 +340,6 @@ SH_CMD_EXPORT(mo_ping, at_module_cmd_ping, "Ping AT network host: ping <host add
 
 
 #if defined(MODULE_USING_SOCKETSTAT) && defined(MOLINK_USING_NETCONN_OPS)
-#if 0
 static void socket_status_convert_to_char_info(os_uint8_t stat, char status[])
 {
     switch(stat)
@@ -435,22 +382,21 @@ static void socket_type_convert_to_char_info(os_uint8_t type, char type_info[])
         break;
 
     default:
-        os_kprintf("Convert fail: socket type[0x%02x] error", type);
         strcpy(type_info, "Unknown");
         break;
     }
 
     return;
 }
-#endif
 
 void at_module_show_socket_stat(void)
-{   
-    mo_object_t *defmo_obj       = OS_NULL;
-    os_uint8_t   i               = 0;
-    //char         socket_type[8]  = {0};
-    //char         socket_stat[32] = {0};
-    char         ipaddr[32]      = {0};
+{
+    mo_object_t      *defmo_obj       = OS_NULL;
+    os_uint8_t        i               = 0;
+    char              socket_type[8]  = {0};
+    char              socket_stat[32] = {0};
+    char              ipaddr[32]      = {0};
+    mo_netconn_info_t netconn_info    = {0};
 
     /* Get at intf obj, if it failed to get address that means module sockets are not ready */
     defmo_obj = mo_get_default();
@@ -467,8 +413,12 @@ void at_module_show_socket_stat(void)
         return;
     }
 
+    mo_netconn_get_info(defmo_obj, &netconn_info);
+
     /* Show socket information */
-    os_kprintf("\nThe max socket connections supported by module %s is xxx\n", defmo_obj->name);
+    os_kprintf("\nThe max socket connections supported by module %s is %d\n",
+               defmo_obj->name,
+               netconn_info.netconn_nums);
     os_kprintf("\nThe connected socket status information list\n");
     for (i = 0; i < 50; i++)
     {
@@ -476,28 +426,38 @@ void at_module_show_socket_stat(void)
     }
     os_kprintf("\n");
 
-    os_kprintf("%-8s", "socket");
-    os_kprintf("%-6s", "type");
+    os_kprintf("%-8s", "index");
+    os_kprintf("%-10s", "socket");
+    os_kprintf("%-10s", "type");
     os_kprintf("%-18s", "ip address");
     os_kprintf("%-8s", "port");
     os_kprintf("%-16s\n", "status");
 
-#if 0
-    for (i = 0; i < MAX_SOCKETS_NUM; i++)
-    {
-        if (mo_netconn[i] != OS_NULL)
-        {
-            socket_type_convert_to_char_info(mo_netconn[i].type, socket_type);
-            socket_status_convert_to_char_info(mo_netconn[i].stat, socket_stat);
+    mo_netconn_get_info(defmo_obj, &netconn_info);
 
-            os_kprintf("%-8d", mo_netconn[i].connect_id);
-            os_kprintf("%-6s", socket_type);
-            os_kprintf("%-18s", net_ip4addr_ntoa(mo_netconn[i].ipaddr));
-            os_kprintf("%-8d", mo_netconn[i].port);
-            os_kprintf("%-16s\n", socket_stat);
-        }  
+    for (i = 0; i < netconn_info.netconn_nums; i++)
+    {
+        const mo_netconn_t *netconn = &netconn_info.netconn_array[i];
+		
+        socket_type_convert_to_char_info(netconn->type, socket_type);
+        socket_status_convert_to_char_info(netconn->stat, socket_stat);
+
+        os_kprintf("  %-6d", i + 1);
+
+        if (netconn->connect_id > -1)
+        {
+            os_kprintf("%-10d", netconn->connect_id);
+        }
+        else
+        {
+            os_kprintf("          ");
+        }
+        
+        os_kprintf("%-10s", socket_type);
+        os_kprintf("%-18s", inet_ntoa(netconn->remote_ip));
+        os_kprintf("%-8d", netconn->remote_port);
+        os_kprintf("%-16s\n", socket_stat);
     }
-#endif
 
     for (i = 0; i < 50; i++)
     {
@@ -525,4 +485,200 @@ SH_CMD_EXPORT(mo_socketstat, at_module_cmd_socket_stat, "List the informations o
 #endif /* defined(MODULE_USING_SOCKETSTAT) && defined(MOLINK_USING_NETCONN_OPS) */
 
 #endif /* NET_USING_MOLINK */
+
+#ifdef NET_USING_BSD
+
+#include <sys/socket.h>
+#ifdef OS_USING_POSIX
+#include <sys/select.h>
+#endif
+
+os_task_t *gs_socket_select_task = OS_NULL;
+int gs_select_fd = -1;
+
+static void socket_dump_hex(const os_uint8_t *ptr, os_size_t buflen)
+{
+    unsigned char *buf;
+    int i;
+    int j;
+
+    buf = (unsigned char *)ptr;
+
+    for (i = 0; i < buflen; i += 16)
+    {
+        os_kprintf("%08X: ", i);
+
+        for (j = 0; j < 16; j++)
+        {
+            if (i + j < buflen)
+            {
+                os_kprintf("%02X ", buf[i + j]);
+            }
+            else
+            {
+                os_kprintf("   ");
+            }
+        }
+            
+        os_kprintf("\n");
+    }
+}
+
+static void socket_do_select_task(void *parm)
+{
+    os_uint8_t recv_buf[128];
+    fd_set readfds;    
+    fd_set exfds;
+    int maxfd;
+    int err;
+    int fd;
+
+    while (1)
+    {
+        if (gs_select_fd < 0)
+        {
+            os_task_sleep(100);
+            continue;
+        }
+        
+        fd = gs_select_fd;
+        maxfd = fd + 1;
+        
+        do
+        {    
+            FD_ZERO(&readfds);
+            FD_SET(fd, &readfds);
+            FD_ZERO(&exfds);
+            FD_SET(fd, &exfds);
+
+            err = select(maxfd, &readfds, OS_NULL, OS_NULL, OS_NULL);
+            os_kprintf("select op = %d\n", err);
+            if (err > 0)
+            {
+                if (FD_ISSET(fd, &readfds))
+                {
+                    err = recv(fd, recv_buf, sizeof(recv_buf), 0);
+                    
+                    os_kprintf("recv = %d\n", err);
+                    if (err > 0)
+                    {
+                        socket_dump_hex(recv_buf, err);
+                    }
+                    else
+                    {
+                        os_kprintf("find socket error = %d\n", err);
+                        
+                        closesocket(fd);
+                        gs_select_fd = -1;
+                        break;
+                    }
+                }
+            }
+            
+            if (gs_select_fd != fd)
+            {
+                os_kprintf("socket may closed\n");
+                break;
+            }
+        } while (err >= 0);
+        os_task_sleep(5);
+    }
+}
+
+static int socket_cmd_socket_select(int argc, char **argv)
+{
+    struct sockaddr_in server_addr;
+    char send_buf[] = "hello world";
+    register os_base_t level;
+    int type;
+    int flag;
+    int port;
+    int err;
+
+    if (argc != 5)
+    {
+        os_kprintf("Input errror, please input: socket_select flag ip port type\n");
+        return OS_ERROR;
+    }
+    flag = atoi(argv[1]);
+    port = atoi(argv[3]);
+
+    if (!strcmp(argv[4], "udp"))
+    {
+        type = SOCK_DGRAM;
+    }
+    else if (!strcmp(argv[4], "tcp"))
+    {
+        type = SOCK_STREAM;
+    }
+    else
+    {
+        type = SOCK_RAW;
+    }
+    
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(argv[2]); 
+    
+    if (!flag)
+    {        
+        os_kprintf("stop socket select fd = %d\n", gs_select_fd);
+        if (gs_select_fd >= 0)
+        {
+            level = os_hw_interrupt_disable();
+            closesocket(gs_select_fd);
+            gs_select_fd = -1;
+            os_hw_interrupt_enable(level); 
+        }
+        return OS_ERROR;
+    }
+    else
+    {
+        if (gs_select_fd < 0)
+        {
+            gs_select_fd = socket(AF_INET, type, 0);
+            if (gs_select_fd < 0)
+            {
+                os_kprintf("why socket failed = %d\n", gs_select_fd);
+                return OS_ERROR;
+            }
+        }
+        
+        err = connect(gs_select_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
+        if (err < 0)
+        {
+            os_kprintf("connect socket =%d failed\n", gs_select_fd);
+            gs_select_fd = -1;
+            return OS_ERROR;
+        }
+
+        if (SOCK_DGRAM == type)
+        {
+            err = sendto(gs_select_fd, send_buf, sizeof(send_buf), 0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));           
+            os_kprintf("udp[fd = %d] send = %d\n", gs_select_fd, err);
+        }
+        
+        if (OS_NULL == gs_socket_select_task)
+        {
+            gs_socket_select_task = os_task_create("slt_task", socket_do_select_task, 
+                                    OS_NULL, 1024, OS_TASK_PRIORITY_MAX - 5, 5);
+            if (OS_NULL != gs_socket_select_task)
+            {
+            
+                os_task_startup(gs_socket_select_task);
+            }
+            else
+            {
+                os_kprintf("select task create failed\n");
+            }
+        }
+    }
+
+    return 0;
+}
+
+SH_CMD_EXPORT(socket_select, socket_cmd_socket_select, "socket select test");
+#endif /* NET_USING_BSD */
+
 #endif /* OS_USING_SHELL */

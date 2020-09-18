@@ -54,19 +54,6 @@ typedef enum network_reg_state
     UNDEF_NET_REG_STATE
 } network_reg_state_t;
 
-typedef enum mo_net_state
-{
-    MO_NET_DETACH = 0,         /* module detach from PS */
-    MO_NET_ATTACH,             /* module attach to PS */
-    MO_NET_EPS_REG_FAIL,       /* module reg EPS fail */
-    MO_NET_EPS_REG_OK,         /* module reg EPS OK */
-    MO_NET_DEACTIVATED,        /* module deactivate PDP context */
-    MO_NET_ACTIVATED,          /* module activate PDP context */
-    MO_NET_NETWORK_REG_OK,     /* module get IP address successfully indicates network registration OK */
-    MO_NET_NETWORK_REG_FAIL,   /* module fail to get IP address indicates network registration fail */
-    MO_NET_UNDEFINE_STATE
-} mo_net_state_t;
-
 typedef enum ps_attach_state
 {
     DETACHED = 0,
@@ -134,12 +121,10 @@ typedef struct mo_netserv_ops
     os_err_t (*get_csq)(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber);
     os_err_t (*get_radio)(mo_object_t *self, radio_info_t *radio_info);
     os_err_t (*get_ipaddr)(mo_object_t *self, char ip[]);
-    os_err_t (*set_netstat)(mo_object_t *self, os_uint8_t stat);
-    os_err_t (*get_netstat)(mo_object_t *self, os_uint8_t *stat);
     os_err_t (*set_dnsserver)(mo_object_t *self, dns_server_t dns);
     os_err_t (*get_dnsserver)(mo_object_t *self, dns_server_t *dns);
     os_err_t (*ping)(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp);
-	  os_err_t (*get_cell_info)(mo_object_t *self, onepos_cell_info_t* onepos_cell_info);
+    os_err_t (*get_cell_info)(mo_object_t *self, onepos_cell_info_t *onepos_cell_info);
 } mo_netserv_ops_t;
 
 os_err_t mo_set_attach(mo_object_t *self, os_uint8_t attach_stat);
@@ -151,14 +136,10 @@ os_err_t mo_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_stat);
 os_err_t mo_get_csq(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber);
 os_err_t mo_get_radio(mo_object_t *self, radio_info_t *radio_info);
 os_err_t mo_get_ipaddr(mo_object_t *self, char ip[]);
-os_err_t mo_set_netstat(mo_object_t *self, os_uint8_t stat);
-os_err_t mo_get_netstat(mo_object_t *self, os_uint8_t *stat);
 os_err_t mo_set_dnsserver(mo_object_t *self, dns_server_t dns);
 os_err_t mo_get_dnsserver(mo_object_t *self, dns_server_t *dns);
 os_err_t mo_ping(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp);
 os_err_t mo_get_cell_info(mo_object_t *self, onepos_cell_info_t* onepos_cell_info);
-
-
 
 #ifdef __cplusplus
 }

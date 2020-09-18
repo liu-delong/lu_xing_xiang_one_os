@@ -253,18 +253,37 @@ static uint32_t stm32_timer_get_freq(TIM_HandleTypeDef *tim)
 
 static os_uint8_t stm32_timer_mode_judge(TIM_HandleTypeDef *tim)
 {
-    uint32_t tmpccmrx1;
-    uint32_t tmpccmrx2;
-    uint32_t tmpsmcr;
+    uint32_t tmpccmrx1 = 0;
+    uint32_t tmpccmrx2 = 0;
+    uint32_t tmpsmcr = 0;
     
+#ifdef TIM_CCMR3_OC5FE
+    uint32_t tmpccmrx3 = 0;
+    tmpccmrx3 = tim->Instance->CCMR3;
+#endif
     tmpccmrx1 = tim->Instance->CCMR1;
     tmpccmrx2 = tim->Instance->CCMR2;
-
     tmpsmcr = tim->Instance->SMCR;
 
-    if ((tmpccmrx1 & TIM_OCMODE_PWM1) || (tmpccmrx1 & TIM_OCMODE_PWM2) || (tmpccmrx2 & TIM_OCMODE_PWM1) || (tmpccmrx2 & TIM_OCMODE_PWM2))
-        return TIMER_MODE_PWM;
-    else if ((tmpsmcr & TIM_ENCODERMODE_TI1) || (tmpsmcr & TIM_ENCODERMODE_TI2) || (tmpsmcr & TIM_ENCODERMODE_TI12))
+    for (int i = 0;i < 4;i++)
+    {
+        if ((tmpccmrx1 >> (i * 8)) & TIM_OCMODE_PWM1)
+            return TIMER_MODE_PWM;
+        if ((tmpccmrx1 >> (i * 8)) & TIM_OCMODE_PWM2)
+            return TIMER_MODE_PWM;
+        if ((tmpccmrx2 >> (i * 8)) & TIM_OCMODE_PWM1)
+            return TIMER_MODE_PWM;
+        if ((tmpccmrx2 >> (i * 8)) & TIM_OCMODE_PWM2)
+            return TIMER_MODE_PWM;
+#ifdef TIM_CCMR3_OC5FE
+        if ((tmpccmrx3 >> (i * 8)) & TIM_OCMODE_PWM1)
+            return TIMER_MODE_PWM;
+        if ((tmpccmrx3 >> (i * 8)) & TIM_OCMODE_PWM2)
+            return TIMER_MODE_PWM;
+#endif
+    }
+    
+    if ((tmpsmcr & TIM_ENCODERMODE_TI1) || (tmpsmcr & TIM_ENCODERMODE_TI2) || (tmpsmcr & TIM_ENCODERMODE_TI12))
         return TIMER_MODE_PULSE_ENCODER;
     else 
         return TIMER_MODE_TIM;

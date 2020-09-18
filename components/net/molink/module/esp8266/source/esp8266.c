@@ -36,7 +36,6 @@
 static const struct mo_general_ops gs_general_ops = {
     .soft_reset = esp8266_soft_reset,
     .at_test    = esp8266_at_test,
-    .set_echo   = esp8266_set_echo,
 };
 #endif /* ESP8266_USING_GENERAL_OPS */
 
@@ -56,6 +55,7 @@ static const struct mo_netconn_ops gs_netconn_ops = {
     .gethostbyname = esp8266_netconn_gethostbyname,
     .connect       = esp8266_netconn_connect,
     .send          = esp8266_netconn_send,
+    .get_info      = esp8266_netconn_get_info,
 };
 #endif /* ESP8266_USING_NETCONN_OPS */
 

@@ -7,6 +7,7 @@ menu "Components"
     source "$OS_ROOT/components/shell/Kconfig"
     source "$OS_ROOT/components/fs/Kconfig"
     source "$OS_ROOT/components/gui/Kconfig"
+    source "$OS_ROOT/components/position/Kconfig"
     source "$OS_ROOT/components/ramdisk/Kconfig"
     source "$OS_ROOT/components/diagnose/Kconfig"
 endmenu

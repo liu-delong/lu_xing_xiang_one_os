@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "middle/Include/virtpin.h"
+#include "middle/include/virtpin.h"
 
 int mp_virtual_pin_read(mp_obj_t pin) {
     mp_obj_base_t* s = (mp_obj_base_t*)MP_OBJ_TO_PTR(pin);

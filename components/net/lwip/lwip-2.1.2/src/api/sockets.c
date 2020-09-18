@@ -542,6 +542,11 @@ alloc_socket(struct netconn *newconn, int accepted)
       sockets[i].sendevent  = (NETCONNTYPE_GROUP(newconn->type) == NETCONN_TCP ? (accepted != 0) : 1);
       sockets[i].errevent   = 0;
 #endif /* LWIP_SOCKET_SELECT || LWIP_SOCKET_POLL */
+
+#ifdef OS_USING_POSIX
+      os_waitqueue_init(&sockets[i].wait_head);
+#endif
+
       return i + LWIP_SOCKET_OFFSET;
     }
     SYS_ARCH_UNPROTECT(lev);
@@ -2490,6 +2495,10 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
 {
   int s, check_waiters;
   struct lwip_sock *sock;
+#ifdef OS_USING_POSIX
+    unsigned int evt_key = 0;
+#endif
+  
   SYS_ARCH_DECL_PROTECT(lev);
 
   LWIP_UNUSED_ARG(len);
@@ -2534,6 +2543,12 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
       if (sock->rcvevent > 1) {
         check_waiters = 0;
       }
+#ifdef OS_USING_POSIX
+     else
+     {
+       evt_key = POLLIN;
+     }
+#endif
       break;
     case NETCONN_EVT_RCVMINUS:
       sock->rcvevent--;
@@ -2543,6 +2558,12 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
       if (sock->sendevent) {
         check_waiters = 0;
       }
+#ifdef OS_USING_POSIX
+      else
+      {
+       evt_key = POLLOUT;
+      }
+#endif
       sock->sendevent = 1;
       break;
     case NETCONN_EVT_SENDMINUS:
@@ -2551,11 +2572,21 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
       break;
     case NETCONN_EVT_ERROR:
       sock->errevent = 1;
+#ifdef OS_USING_POSIX
+      evt_key = POLLERR;
+#endif
       break;
     default:
       LWIP_ASSERT("unknown event", 0);
       break;
   }
+  
+#ifdef OS_USING_POSIX
+  if (evt_key)
+  {
+      os_waitqueue_wakeup(&sock->wait_head, (void *)evt_key);        
+  }
+#endif
 
   if (sock->select_waiting && check_waiters) {
     /* Save which events are active */
@@ -2571,6 +2602,46 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
   }
   done_socket(sock);
 }
+
+#ifdef OS_USING_POSIX
+int lwip_posix_poll(int socket, os_pollreq_t *req)
+{
+    struct lwip_sock *sock;
+    int level;
+    int mask;
+    
+    mask = 0;
+
+    sock = get_socket(socket);    
+    if (OS_NULL != sock)
+    {
+        os_poll_add(&sock->wait_head, req);
+        
+        level = os_hw_interrupt_disable();
+
+        if (sock->rcvevent || NULL != sock->lastdata.pbuf)
+        {
+            mask |= POLLIN;
+        }
+        if (sock->sendevent)
+        {
+            mask |= POLLOUT;
+        }
+        if (sock->errevent)
+        {
+            mask |= POLLERR;
+        }
+        
+        os_hw_interrupt_enable(level);
+    }
+    else
+    {
+        mask = POLLERR;
+    }
+
+    return mask;
+}
+#endif
 
 /**
  * Check if any select waiters are waiting on this socket and its events

@@ -28,6 +28,13 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/time.h>
+#include <libc_fdset.h>
+
+#ifdef OS_USING_POSIX
+#include <os_waitqueue.h>
+#include <vfs_poll.h>
+#endif
 
 #ifdef MOLINK_USING_SOCKETS_OPS
 
@@ -38,6 +45,8 @@ extern "C" {
 #ifndef MOLINK_NUM_SOCKETS
 #define MOLINK_NUM_SOCKETS 16
 #endif
+
+#define MOLINK_SOCKETS_FD_MAX   MOLINK_NUM_SOCKETS
 
 #ifndef MOLINK_DNS_MAX_NAME_LEN
 #define MOLINK_DNS_MAX_NAME_LEN 256
@@ -242,17 +251,35 @@ typedef struct mo_sock
 {
     mo_netconn_t *netconn;
 
-    void       *lastdata;   /* data that was left from the previous read */
-    os_size_t   lastlen;    /* data length that was left from the previous read */ 
-    os_uint16_t lastoffset; /* offset in the data that was left from the previous read */
+    void       *lastdata;       /* data that was left from the previous read */
+    os_size_t   lastlen;        /* data length that was left from the previous read */
+    os_uint16_t lastoffset;     /* offset in the data that was left from the previous read */
+    os_int32_t  recv_timeout;   /* timeout to wait for received data in milliseconds */
 
-    os_int32_t recv_timeout; /* timeout to wait for received data in milliseconds */
+    os_int8_t   rcvevent;       /* number of times data was received, set by event_callback(), 
+                                   tested by the receive and select functions */
+    os_uint8_t  sendevent;      /* number of times data was ACKed (free send buffer), 
+                                   set by event_callback(),tested by select */
+    os_uint8_t  errevent;       /* error happened for this socket, set by event_callback(), tested by select */
+    os_uint32_t select_waiting; /* counter of how many threads are waiting for this socket using select */
+#ifdef OS_USING_POSIX
+    os_waitqueue_t wait_head;
+#endif
 } mo_sock_t;
+
+#ifndef fd_set
+#error "no find fd_set"
+#elif FD_SETSIZE < MOLINK_SOCKETS_FD_MAX
+#error "external FD_SETSIZE too small for mo_socket"
+#else
+#endif /* FD_SET */
+
+#if MOLINK_SOCKETS_FD_MAX < MOLINK_NUM_SOCKETS
+#error "sockets fd max config error"
+#endif
 
 int mo_socket(mo_object_t *module, int domain, int type, int protocol);
 int mo_closesocket(mo_object_t *module, int socket);
-// int module_shutdown(int socket, int how);
-// int module_bind(int socket, const struct sockaddr *name, socklen_t namelen);
 int mo_connect(mo_object_t *module, int socket, const struct sockaddr *name, socklen_t namelen);
 int mo_sendto(mo_object_t           *module,
               int                    socket,
@@ -273,8 +300,13 @@ int mo_recv(mo_object_t *module, int socket, void *mem, size_t len, int flags);
 int mo_getsockopt(mo_object_t *module, int socket, int level, int optname, void *optval, socklen_t *optlen);
 int mo_setsockopt(mo_object_t *module, int socket, int level, int optname, const void *optval, socklen_t optlen);
 struct hostent *mo_gethostbyname(mo_object_t *module, const char *name);
-int mo_getaddrinfo(const char *nodename, const char *servname, const struct addrinfo *hints, struct addrinfo **res);
+int  mo_getaddrinfo(const char *nodename, const char *servname, const struct addrinfo *hints, struct addrinfo **res);
 void mo_freeaddrinfo(struct addrinfo *ai);
+int  mo_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
+
+#ifdef OS_USING_POSIX
+int mo_poll(int socket, os_pollreq_t *req);
+#endif
 
 #ifdef __cplusplus
 }

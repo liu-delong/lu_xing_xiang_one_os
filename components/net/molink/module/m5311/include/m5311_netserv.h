@@ -41,8 +41,6 @@ os_err_t m5311_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_sta
 os_err_t m5311_get_csq(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber);
 os_err_t m5311_get_radio(mo_object_t *self, radio_info_t *radio_info);
 os_err_t m5311_get_ipaddr(mo_object_t *self, char ip[]);
-os_err_t m5311_set_netstat(mo_object_t *self, os_uint8_t stat);
-os_err_t m5311_get_netstat(mo_object_t *self, os_uint8_t *stat);
 os_err_t m5311_ping(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp);
 
 #endif /* M5311_USING_NETSERV_OPS */

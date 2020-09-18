@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <board.h>
-#include <errno.h>
+
 // options to control how MicroPython is built
 //add by zxc
 #define MICROPY_KBD_EXCEPTION       (1)

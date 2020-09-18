@@ -91,14 +91,15 @@ typedef struct at_parser
     os_size_t recv_buff_len; /* The receive buffer length of AT parser */
     os_size_t curr_recv_len; /* The current receive data length of AT parser */
 
-    os_sem_t   rx_sem;    /* The receive notice semaphore of at parser */
-    os_mutex_t recv_lock; /* The receive lock of at parser */
+    os_sem_t   rx_notice; /* The receive notice semaphore of at parser */
+    os_mutex_t rx_lock;   /* The receive lock of at parser */
+
+    os_sem_t resp_notice; /* the response notice semaphore */
 
     os_size_t end_mark_len;               /* The special end mark length */
     char      end_mark[END_MARK_LEN + 1]; /* The special end mark */
 
-    at_resp_t resp;      /* AT command response object */
-    os_bool_t resp_need; /* Whether module response is needed */
+    at_resp_t *resp; /* AT command response object */
 
     os_slist_node_t urc_list; /* URC handle list , Used to process URC data */
 
@@ -109,20 +110,13 @@ os_err_t at_parser_init(at_parser_t *parser, const char *name, os_device_t *devi
 os_err_t at_parser_startup(at_parser_t *parser);
 os_err_t at_parser_deinit(at_parser_t *parser);
 
-os_err_t  at_parser_exec_cmd_valist(at_parser_t *parser, const char *cmd_expr, va_list args);
-os_err_t  at_parser_exec_cmd(at_parser_t *parser, const char *cmd_expr, ...);
+os_err_t  at_parser_exec_cmd_valist(at_parser_t *parser, at_resp_t *resp, const char *cmd_expr, va_list args);
+os_err_t  at_parser_exec_cmd(at_parser_t *parser, at_resp_t *resp, const char *cmd_expr, ...);
 os_size_t at_parser_send(at_parser_t *parser, const char *buf, os_size_t size);
 os_size_t at_parser_recv(at_parser_t *parser, char *buf, os_size_t size, os_int32_t timeout);
 
 os_err_t at_parser_set_end_mark(at_parser_t *parser, const char *end_mark, os_size_t end_mark_len);
 void     at_parser_set_urc_table(at_parser_t *parser, at_urc_t urc_table[], os_size_t table_size);
-os_err_t at_parser_set_resp(at_parser_t *parser, os_size_t buff_size, os_size_t line_num, os_int32_t timeout);
-os_err_t at_parser_reset_resp(at_parser_t *parser);
-
-const char *at_parser_get_line(at_parser_t *parser, os_size_t resp_line);
-const char *at_parser_get_line_by_kw(at_parser_t *parser, const char *keyword);
-os_int32_t  at_parser_get_data_by_line(at_parser_t *parser, os_size_t resp_line, const char *resp_expr, ...);
-os_int32_t  at_parser_get_data_by_kw(at_parser_t *parser, const char *keyword, const char *resp_expr, ...);
 
 #ifdef __cplusplus
 }

@@ -47,6 +47,10 @@
 #include "std_object/std_object.h"
 #endif
 
+#if defined(NET_USING_MOLINK) && !defined(MOLINK_USING_ESP8266)
+    #include <mo_api.h>
+#endif
+
 void testThread(void *lpParam);
 
 static char cissys_imsi[20] = {0};
@@ -58,7 +62,6 @@ extern void *g_lockImsi;
 int get_module_imsi()
 {
 #if defined(NET_USING_MOLINK) && !defined(MOLINK_USING_ESP8266)
-    #include <mo_api.h>
 
     mo_object_t  *defmo_obj  = OS_NULL;
 
@@ -79,7 +82,6 @@ int get_module_imsi()
 int get_module_imei()
 {
 #if defined(NET_USING_MOLINK) && !defined(MOLINK_USING_ESP8266)
-    #include <mo_api.h>
 
     mo_object_t  *defmo_obj  = OS_NULL;
 

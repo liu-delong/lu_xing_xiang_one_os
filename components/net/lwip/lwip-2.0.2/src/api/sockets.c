@@ -218,6 +218,9 @@ struct lwip_sock {
   u8_t err;
   /** counter of how many threads are waiting for this socket using select */
   SELWAIT_T select_waiting;
+#ifdef OS_USING_POSIX
+  os_waitqueue_t wait_head;
+#endif  
 };
 
 #if LWIP_NETCONN_SEM_PER_THREAD
@@ -434,6 +437,9 @@ alloc_socket(struct netconn *newconn, int accepted)
       sockets[i].sendevent  = (NETCONNTYPE_GROUP(newconn->type) == NETCONN_TCP ? (accepted != 0) : 1);
       sockets[i].errevent   = 0;
       sockets[i].err        = 0;
+#ifdef OS_USING_POSIX
+      os_waitqueue_init(&sockets[i].wait_head);
+#endif
       return i + LWIP_SOCKET_OFFSET;
     }
     SYS_ARCH_UNPROTECT(lev);
@@ -1589,6 +1595,10 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
   struct lwip_select_cb *scb;
   int last_select_cb_ctr;
   SYS_ARCH_DECL_PROTECT(lev);
+#ifdef OS_USING_POSIX
+  int do_check_waiter = 0;
+  unsigned int evt_key;
+#endif
 
   LWIP_UNUSED_ARG(len);
 
@@ -1626,11 +1636,19 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
   switch (evt) {
     case NETCONN_EVT_RCVPLUS:
       sock->rcvevent++;
+#ifdef OS_USING_POSIX
+      do_check_waiter = 1;
+      evt_key = POLLIN;
+#endif 
       break;
     case NETCONN_EVT_RCVMINUS:
       sock->rcvevent--;
       break;
     case NETCONN_EVT_SENDPLUS:
+#ifdef OS_USING_POSIX
+      do_check_waiter = 1;
+      evt_key = POLLOUT;
+#endif
       sock->sendevent = 1;
       break;
     case NETCONN_EVT_SENDMINUS:
@@ -1638,11 +1656,22 @@ event_callback(struct netconn *conn, enum netconn_evt evt, u16_t len)
       break;
     case NETCONN_EVT_ERROR:
       sock->errevent = 1;
+#ifdef OS_USING_POSIX
+      do_check_waiter = 1;
+      evt_key = POLLERR;
+#endif
       break;
     default:
       LWIP_ASSERT("unknown event", 0);
       break;
   }
+  
+#ifdef OS_USING_POSIX
+    if (do_check_waiter)
+    {
+        os_waitqueue_wakeup(&sock->wait_head, (void *)evt_key);
+    }
+#endif
 
   if (sock->select_waiting == 0) {
     /* noone is waiting for this socket, no need to check select_cb_list */
@@ -1697,6 +1726,46 @@ again:
   }
   SYS_ARCH_UNPROTECT(lev);
 }
+
+#ifdef OS_USING_POSIX
+int lwip_posix_poll(int socket, os_pollreq_t *req)
+{
+    struct lwip_sock *sock;
+    int level;
+    int mask;
+    
+    mask = 0;
+
+    sock = get_socket(socket);    
+    if (OS_NULL != sock)
+    {
+        os_poll_add(&sock->wait_head, req);
+        
+        level = os_hw_interrupt_disable();
+
+        if (sock->rcvevent || (sock->lastdata != NULL))
+        {
+            mask |= POLLIN;
+        }
+        if (sock->sendevent)
+        {
+            mask |= POLLOUT;
+        }
+        if (sock->errevent)
+        {
+            mask |= POLLERR;
+        }
+        
+        os_hw_interrupt_enable(level);
+    }
+    else
+    {
+        mask = POLLERR;
+    }
+
+    return mask;
+}
+#endif
 
 /**
  * Close one end of a full-duplex connection.

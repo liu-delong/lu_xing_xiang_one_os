@@ -12,11 +12,15 @@
 #include "user_audio.h"
 #include <audio/audio.h>
 
-#define BUFSZ   1024   
+#define BUFSZ   			1024   
+#define AUDIO_TASK_SIZE  	1024
+#define AUDIO_TASK_PRIORITY	7
 
 os_device_t *G_snd_dev = OS_NULL;
 
-volatile int G_player_state = AUDIO_PLAYER_CONTINUE_CMD;
+volatile int G_player_state = AUDIO_PLAYER_IDLE_CMD;
+
+static void start_player(void);
 
 
 static int audio_init(void *dev, uint16_t oflag)
@@ -30,6 +34,7 @@ static int audio_init(void *dev, uint16_t oflag)
 	os_device_open(G_snd_dev, OS_DEVICE_OFLAG_WRONLY);
 	
 	audio->device->open_flag = AUDIO_INIT_FLAG;
+	G_player_state = AUDIO_PLAYER_IDLE_CMD;
     return 0;
 }
 
@@ -48,6 +53,17 @@ static int audio_deinit(void *dev)
 }
 
 
+
+static void stop_player(void)
+{
+	G_player_state = AUDIO_PLAYER_STOP_CMD;
+}
+
+static void start_player(void)
+{
+	G_player_state = AUDIO_PLAYER_CONTINUE_CMD;
+}
+
 static int audio_player_task(void *data)
 {
 	if(G_snd_dev == OS_NULL || !data){
@@ -60,6 +76,7 @@ static int audio_player_task(void *data)
     struct wav_info *info = NULL;
     struct os_audio_caps caps = {0};
     audio_dev_t *audio_file = data;
+	os_device_t *snd_dev;
 
     fd = open(audio_file->file, O_RDONLY);
     if (fd < 0)
@@ -87,19 +104,18 @@ static int audio_player_task(void *data)
     os_kprintf("samplerate %d\n", info->fmt_block.wav_format.SamplesPerSec);
     os_kprintf("channel %d\n", info->fmt_block.wav_format.Channels);
 
-	
-    if(G_snd_dev == OS_NULL){
+	snd_dev = os_device_find("audio0");
+    if(snd_dev == OS_NULL){
 		mp_raise_ValueError("Couldn't operate deep device(audio0)! Please open deep!\n");
 		return -1;
 	}
-
-    os_device_open(G_snd_dev, OS_DEVICE_OFLAG_WRONLY);
-
+	os_device_open(snd_dev, OS_DEVICE_OFLAG_WRONLY);
+	
     /* parameter settings */                         
     caps.config_type = AUDIO_PARAM_CMD; 
     caps.udata.config.samplerate = info->fmt_block.wav_format.SamplesPerSec;    
     caps.udata.config.channels   = info->fmt_block.wav_format.Channels;                                                  
-    os_device_control(G_snd_dev, AUDIO_CTL_CONFIGURE, &caps);      
+    os_device_control(snd_dev, AUDIO_CTL_CONFIGURE, &caps);      
     caps.config_type = AUDIO_VOLUME_CMD;
     caps.udata.value = audio_file->volume;
 	
@@ -107,24 +123,26 @@ static int audio_player_task(void *data)
 	audio_file->channels = caps.udata.config.channels;
 	audio_file->samplerate = caps.udata.config.samplerate;
 	
-    os_device_control(G_snd_dev, AUDIO_CTL_CONFIGURE, &caps);                                    
+	
+    os_device_control(snd_dev, AUDIO_CTL_CONFIGURE, &caps);                                    
 	int length;
+	start_player();
     while (1)
     {
 		if (G_player_state == AUDIO_PLAYER_CONTINUE_CMD){
 			length = read(fd, buf, BUFSZ);  
-				if (length <= 0)
-					break;
-			
-				os_device_write(G_snd_dev, 0, buf, length);
-				os_task_msleep(1);
+			if (length <= 0){
+				break;
+			}
+			os_device_write(snd_dev, 0, buf, length);
 		} else if(G_player_state == AUDIO_DEINIT_FLAG){
 			break;
+		} else {
+			os_kprintf("G_player_state=%d\n", G_player_state);
+			os_task_msleep(1);
 		}
     }
-
-    os_device_close(G_snd_dev);
-
+	os_device_close(snd_dev);
 __exit:
 
     if (fd >= 0)
@@ -135,7 +153,7 @@ __exit:
 
     if (info)
         os_free(info);
-	
+	G_player_state = AUDIO_PLAYER_IDLE_CMD;		// 方便下次播放
 	return 0;
 }
 
@@ -154,13 +172,16 @@ static int audio_player(void *dev, uint32_t offset, void *buffer, uint32_t bufsi
 	audio_dev_t *audio_file = (audio_dev_t *)dev;
 	
 	audio_file->file = buffer;
-	
-	if (NULL == audio_file->device)
-    {
+	if (G_player_state != AUDIO_PLAYER_IDLE_CMD){
+		mp_raise_ValueError("player is busy!\n");
+		return 0;
+	}
+	if (NULL == audio_file->device){
         mp_raise_ValueError("audio device is NULL!\n");
+		return 0;
     }
 	os_kprintf("file:%s", audio_file->file);
-	audio_task = os_task_create("audio_player", audio_player_entry, audio_file, 1024, 25, 10);
+	audio_task = os_task_create("audio_player", audio_player_entry, audio_file, AUDIO_TASK_SIZE, AUDIO_TASK_PRIORITY, 10);
     if (audio_task != OS_NULL)
     {
         os_task_startup(audio_task);
@@ -209,7 +230,7 @@ static int audio_ioctl(void *dev, int cmd, void *arg)
 			return 0;
 		}
 		case AUDIO_PLAYER_STOP_CMD:
-			G_player_state = AUDIO_PLAYER_STOP_CMD;
+			stop_player();
 			return 0;
 		
 		case AUDIO_PLAYER_CONTINUE_CMD:

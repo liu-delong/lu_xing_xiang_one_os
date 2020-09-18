@@ -34,12 +34,13 @@
 typedef struct _mp_machine_can_p_t {
     void (*init)(mp_obj_base_t *obj, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args);
     void (*deinit)(mp_obj_base_t *obj); // can be NULL
-    void (*transfer)(mp_obj_base_t *obj, uint32_t offset, const uint8_t *buf, uint32_t bufsize);
+    int (*transfer)(mp_obj_base_t *obj, uint32_t offset, const uint8_t *buf, uint32_t bufsize);
 } mp_machine_can_p_t;
 
 typedef struct _mp_machine_can_obj_t {
     mp_obj_base_t base;
     mp_can_obj_t cfg;
+	can_msg_t	data;
 	device_info_t *can;
 } mp_machine_can_obj_t;
 

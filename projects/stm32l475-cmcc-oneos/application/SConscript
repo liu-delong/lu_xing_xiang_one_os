@@ -4,11 +4,8 @@ from build_tools import *
 
 pwd = PresentDir()
 path =  [pwd]
-src = []
-src += Glob('main.c')
 
-if IsDefined(['OS_USING_ONENET_MQTTS']):
-    src += Glob('*.c')
+src = Glob('*.c')
 
 group = AddCodeGroup('application', src, depend = [''], CPPPATH = path)
 

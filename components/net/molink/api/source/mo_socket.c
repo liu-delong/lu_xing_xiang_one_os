@@ -23,22 +23,223 @@
 
 #include "mo_common.h"
 #include "mo_socket.h"
+#include "os_sem.h"
 
 #include <libc_errno.h>
 
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+#include <stdio.h>
+#include <os_assert.h>
+#include <os_list.h>
 
 #define DBG_EXT_TAG "molink.socket"
 #define DBG_EXT_LVL LOG_LVL_INFO
 #include <os_dbg_ext.h>
 
-#define HTONS_PORT(x) ((((x) & 0x00ffUL) << 8) | (((x) & 0xff00UL) >> 8))
-
 #ifdef MOLINK_USING_SOCKETS_OPS
 
+#define MO_SYS_ARCH_DECL_PROTECT(lev)   register os_base_t lev
+#define MO_SYS_ARCH_PROTECT(lev)        lev = os_hw_interrupt_disable()
+#define MO_SYS_ARCH_UNPROTECT(lev)      os_hw_interrupt_enable(lev)
+
+#define HTONS_PORT(x) ((((x) & 0x00ffUL) << 8) | (((x) & 0xff00UL) >> 8))
+
+// Description for a task waiting in select
+struct mo_select_cb {
+    os_slist_node_t slist;
+    // readset passed to select
+    fd_set *readset;
+    // writeset passed to select
+    fd_set *writeset;
+    // unimplemented: exceptset passed to select
+    fd_set *exceptset;
+    // don't signal the same semaphore twice: set to 1 when signalled
+    int sem_signalled;
+    // semaphore to wake up a task waiting for select
+    os_sem_t sem;
+};
+
 static mo_sock_t gs_sockets[MOLINK_NUM_SOCKETS] = {0};
+static os_slist_node_t gs_mo_select_cb_slist = {OS_NULL};
+static volatile int gs_mo_select_cb_ctr;
+
+static mo_sock_t *mo_get_socket(int socket)
+{
+    if (socket < 0 || socket >= MOLINK_NUM_SOCKETS)
+    {
+        LOG_EXT_E("Invalid socket number %d!", socket);
+        return OS_NULL;
+    }
+
+    mo_sock_t *sock = &gs_sockets[socket];
+
+    // when netconn is close, sock is regard as null
+    if (OS_NULL == sock->netconn)
+    {
+        return OS_NULL;
+    }
+
+    return sock;
+}
+
+/**
+ * the func is the same as mo_get_socket, just don't care the netconn is null
+ */
+static mo_sock_t *mo_tryget_socket(int socket)
+{
+    if (socket < 0 || socket >= MOLINK_NUM_SOCKETS)
+    {
+        LOG_EXT_E("Invalid socket number %d!", socket);
+        return OS_NULL;
+    }
+
+    return &gs_sockets[socket];
+}
+
+/**
+ * Callback registered in the netconn layer for each socket-netconn.
+ * Processes recvevent (data available) and wakes up tasks waiting for select.
+ */
+static void mo_event_callback(mo_netconn_t *netconn, mo_netconn_evt_t evt, os_uint16_t len)
+{
+    os_bool_t do_check_waiter;
+    struct mo_select_cb *scb;
+    os_slist_node_t *node;
+    int last_select_cb_ctr;
+    int do_signal;
+    os_int32_t s;
+    mo_sock_t *sock;
+#ifdef OS_USING_POSIX
+    os_uint32_t evt_key;
+#endif
+
+    MO_SYS_ARCH_DECL_PROTECT(lev);
+
+    // Get socket
+    if (NULL == netconn || (netconn->socket_id < 0))
+    {    
+        return;
+    }
+    
+    sock = mo_get_socket(netconn->socket_id);
+    if (NULL == sock) 
+    {
+        return;
+    }
+    
+    MO_SYS_ARCH_PROTECT(lev);
+    do_check_waiter = OS_FALSE;
+    switch (evt)
+    {
+    case MO_NETCONN_EVT_RCVPLUS:
+        sock->rcvevent++;
+        do_check_waiter = OS_TRUE;
+#ifdef OS_USING_POSIX
+        evt_key = POLLIN;
+#endif 
+        break;
+    case MO_NETCONN_EVT_RCVMINUS:
+        sock->rcvevent--;
+        break;
+    case MO_NETCONN_EVT_SENDPLUS:
+        sock->sendevent = 1;
+        break;
+    case MO_NETCONN_EVT_SENDMINUS:
+        sock->sendevent = 0;
+        break;
+    case MO_NETCONN_EVT_ERROR:
+        do_check_waiter = OS_TRUE;
+        sock->errevent  = 1;
+#ifdef OS_USING_POSIX
+        evt_key = POLLERR;
+#endif 
+        break;
+    default:  
+        LOG_EXT_W("unknown event = %d", evt);
+        break;
+    }
+    
+#ifdef OS_USING_POSIX
+    if (OS_TRUE == do_check_waiter)
+    {
+        os_waitqueue_wakeup(&sock->wait_head, (void *)evt_key);        
+    }
+#endif
+
+    if (!sock->select_waiting || OS_FALSE == do_check_waiter) 
+    {
+        /* no one is waiting for this socket, no need to check select_cb_list */
+        MO_SYS_ARCH_UNPROTECT(lev);
+        return;
+    }
+
+    /** NOTE: This code goes through the select_cb_list list multiple times
+     * ONLY IF a select was actually waiting. We go through the list the number
+     * of waiting select calls + 1. This list is expected to be small. 
+     */
+
+    do
+    {
+        // remember the state of select_cb_list to detect changes
+        last_select_cb_ctr = gs_mo_select_cb_ctr;
+        os_slist_for_each(node, &gs_mo_select_cb_slist)
+        {        
+            scb = os_slist_entry(node, struct mo_select_cb, slist);
+            // semaphore has signalled yet, do nothing
+            if (scb->sem_signalled)
+            {
+                continue;
+            }
+            do_signal = 0;
+
+            s = netconn->socket_id;
+            // Test this select call for our socket */
+            if (sock->rcvevent > 0) 
+            {
+                if (scb->readset && FD_ISSET(s, scb->readset))
+                {
+                    do_signal = 1;
+                }
+            }
+            
+            if (sock->sendevent != 0) 
+            {
+                if (!do_signal && scb->writeset && FD_ISSET(s, scb->writeset))
+                {
+                    do_signal = 1;
+                }
+            }
+            
+            if (sock->errevent != 0)
+            {
+                if (!do_signal && scb->exceptset && FD_ISSET(s, scb->exceptset))
+                {
+                    do_signal = 1;
+                }
+            }
+            
+            if (do_signal)
+            {
+                scb->sem_signalled = 1;
+                os_sem_post(&scb->sem);
+                /** Don't call SYS_ARCH_UNPROTECT() before signaling the semaphore, as this might
+                 * lead to the select thread taking itself off the list, invalidating the semaphore. 
+                 */
+            }
+        }
+        
+        // unlock interrupts with each step
+        MO_SYS_ARCH_UNPROTECT(lev);
+        // this makes sure interrupt protection time is short */
+        MO_SYS_ARCH_PROTECT(lev);
+    } while (last_select_cb_ctr != gs_mo_select_cb_ctr);
+
+    MO_SYS_ARCH_UNPROTECT(lev);
+
+    return;
+
+}
 
 static int alloc_socket(mo_netconn_t *netconn)
 {
@@ -48,11 +249,19 @@ static int alloc_socket(mo_netconn_t *netconn)
     {
         if (OS_NULL == gs_sockets[i].netconn)
         {
-            netconn->socket_id = i;
+            // wait for mo_select release the resource
+            if (!gs_sockets[i].select_waiting)
+            {
+                netconn->socket_id = i;
+                netconn->evt_func = mo_event_callback;
+                os_hw_interrupt_enable(level);
 
-            os_hw_interrupt_enable(level);
-
-            return i;
+                return i;
+            }
+            else
+            {
+                LOG_EXT_W("Unbelieveable, socket is selected");
+            }
         }
     }
 
@@ -63,25 +272,20 @@ static int alloc_socket(mo_netconn_t *netconn)
     return -1;
 }
 
-static mo_sock_t *get_socket(int socket)
-{
-    if (socket < 0 || socket >= MOLINK_NUM_SOCKETS)
-    {
-        LOG_EXT_E("Invalid socket number %d!", socket);
-        return OS_NULL;
-    }
-
-    mo_sock_t *sock = &gs_sockets[socket];
-
-    if (OS_NULL == sock->netconn)
-    {
-        LOG_EXT_E("Get %d socket failed!", socket);
-        return OS_NULL;
-    }
-
-    return sock;
-}
-
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will alloc a molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       domain        Domain description, only AF_INET for now.
+ * @param[in]       type          Socket type.
+ * @param[in]       protocol      Protocol socket used.
+ *
+ * @return          status.
+ * @retval          -1            failed.
+ * @retval          others        socket id.
+ ***********************************************************************************************************************
+ */
 int mo_socket(mo_object_t *module, int domain, int type, int protocol)
 {
     OS_ASSERT(module != OS_NULL);
@@ -114,33 +318,74 @@ int mo_socket(mo_object_t *module, int domain, int type, int protocol)
         return -1;
     }
 
-    gs_sockets[socket_id].netconn      = netconn;
-    gs_sockets[socket_id].lastdata     = OS_NULL;
-    gs_sockets[socket_id].lastoffset   = 0;
-    gs_sockets[socket_id].recv_timeout = 0;
+    gs_sockets[socket_id].netconn       = netconn;
+    gs_sockets[socket_id].lastdata      = OS_NULL;
+    gs_sockets[socket_id].lastoffset    = 0;
+    gs_sockets[socket_id].recv_timeout  = 0;
+
+    gs_sockets[socket_id].rcvevent      = 0;
+    // when sock create successful, sock can write
+    gs_sockets[socket_id].sendevent     = 1;    
+    gs_sockets[socket_id].errevent      = 0;
+    gs_sockets[socket_id].select_waiting= 0;
+#ifdef OS_USING_POSIX
+    os_waitqueue_init(&gs_sockets[socket_id].wait_head);
+#endif
 
     return socket_id;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will close a molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket to close.
+ *
+ * @return          status.
+ * @retval          0             success.
+ * @retval          -1            failed.
+ ***********************************************************************************************************************
+ */
 int mo_closesocket(mo_object_t *module, int socket)
 {
     OS_ASSERT(module != OS_NULL);
 
-    mo_sock_t *sock = get_socket(socket);
+    mo_sock_t *sock = mo_get_socket(socket);
     if (OS_NULL == sock)
     {
         LOG_EXT_E("Module %s get close socket %d failed!", module->name, socket);
         return -1;
     }
 
-    mo_netconn_destroy(module, sock->netconn);
-
-    free(sock->lastdata);
-
-    sock->netconn      = OS_NULL;
-    sock->lastdata     = OS_NULL;
-    sock->lastoffset   = 0;
-    sock->recv_timeout = 0;
+    // wakeup sleep thread
+    if (sock->netconn->evt_func)
+    {
+        // send send recv or except event, to wakeup sleep thread
+        sock->netconn->evt_func(sock->netconn, MO_NETCONN_EVT_RCVPLUS, 0);                
+        sock->netconn->evt_func(sock->netconn, MO_NETCONN_EVT_ERROR, 0);
+        // sock is always writeable, don't send sendplus event
+        // sock->netconn->evt_func(sock->netconn, MO_NETCONN_EVT_SENDPLUS, 0);
+    }
+    
+    MO_SYS_ARCH_DECL_PROTECT(lev);
+    MO_SYS_ARCH_PROTECT(lev);
+    
+    mo_netconn_t *netconn = sock->netconn;  
+    sock->netconn = OS_NULL;
+    if (OS_NULL != sock->lastdata)
+    {
+        free(sock->lastdata);
+        sock->lastdata = OS_NULL;
+    }
+    
+    MO_SYS_ARCH_UNPROTECT(lev);
+    
+    // just for multithreaded call safety
+    if (OS_NULL != netconn)
+    {
+        mo_netconn_destroy(module, netconn);
+    }
 
     return 0;
 }
@@ -163,12 +408,26 @@ static int socketaddr_to_ipaddr_port(const struct sockaddr *sockaddr, ip_addr_t 
     return 0;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will connect to server via the molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket to close.
+ * @param[in]       name          server address.
+ * @param[in]       namelen       address lenth.
+ *
+ * @return          status.
+ * @retval          0             success.
+ * @retval          others        failed.
+ ***********************************************************************************************************************
+ */
 int mo_connect(mo_object_t *module, int socket, const struct sockaddr *name, socklen_t namelen)
 {
     OS_ASSERT(module != OS_NULL);
     OS_ASSERT(name != OS_NULL);
 
-    mo_sock_t *sock = get_socket(socket);
+    mo_sock_t *sock = mo_get_socket(socket);
     if (OS_NULL == sock)
     {
         LOG_EXT_E("Module %s get connect socket %d failed!", module->name, socket);
@@ -237,6 +496,23 @@ static int module_udp_sendto(mo_object_t           *module,
     return sent_size;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will send data via molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket.
+ * @param[in]       dataptr       data to send.
+ * @param[in]       size          buffer lenth.
+ * @param[in]       flags         operation type.
+ * @param[in]       to            address where data send to.
+ * @param[in]       tolen         address lenth.
+ *
+ * @return          status.
+ * @retval          -1            failed.
+ * @retval          others        size of data sent successfully
+ ***********************************************************************************************************************
+ */
 int mo_sendto(mo_object_t           *module,
               int                    socket,
               const void            *data,
@@ -248,7 +524,7 @@ int mo_sendto(mo_object_t           *module,
     OS_ASSERT(module != OS_NULL);
     OS_ASSERT(data != OS_NULL);
 
-    mo_sock_t *sock = get_socket(socket);
+    mo_sock_t *sock = mo_get_socket(socket);
     if (OS_NULL == sock)
     {
         LOG_EXT_E("Module %s get send socket %d failed!", module->name, socket);
@@ -277,6 +553,23 @@ int mo_sendto(mo_object_t           *module,
     return result;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will send data via molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket.
+ * @param[in]       dataptr       data to send.
+ * @param[in]       size          buffer lenth.
+ * @param[in]       flags         operation type.
+ * @param[in]       to            address where data send to.
+ * @param[in]       tolen         address lenth.
+ *
+ * @return          status.
+ * @retval          -1            failed.
+ * @retval          others        size of data sent successfully
+ ***********************************************************************************************************************
+ */
 int mo_send(mo_object_t *module, int socket, const void *data, size_t size, int flags)
 {
     OS_ASSERT(module != OS_NULL);
@@ -295,25 +588,29 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
     os_uint16_t copylen     = 0;
 
     os_size_t recv_left = (len <= OS_UINT32_MAX) ? (ssize_t)len : OS_UINT32_MAX;
-
+    
+    MO_SYS_ARCH_DECL_PROTECT(lev);
+    
     do
     {
+        MO_SYS_ARCH_PROTECT(lev);
         /* Check if there is data left from the last recv operation. */
         if (sock->lastdata != OS_NULL)
-        {
+        {  
             data_ptr    = sock->lastdata;
             data_offset = sock->lastoffset;
 			data_len    = sock->lastlen;
         }
         else
         {
+            MO_SYS_ARCH_UNPROTECT(lev);
             /* No data was left from the previous operation, so we try to get some from the network. */
             result = mo_netconn_recv(module, sock->netconn, &data_ptr, &data_len, os_tick_from_ms(sock->recv_timeout));
             if (result != OS_EOK)
             {
                 if (recvd > 0)
                 {
-                    goto recv_tcp_done;
+                    return recvd;
                 }
 
                 if (OS_ERROR == result)
@@ -335,7 +632,8 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
                     return -1;
                 }
             }
-
+            
+            MO_SYS_ARCH_PROTECT(lev);
             sock->lastdata   = data_ptr;
             sock->lastlen    = data_len;
             sock->lastoffset = 0;
@@ -365,25 +663,19 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
         {
             sock->lastlen    -= copylen;
             sock->lastoffset += copylen;
+            MO_SYS_ARCH_UNPROTECT(lev);
         }
         else
         {
             sock->lastdata   = OS_NULL;
             sock->lastlen    = 0;
             sock->lastoffset = 0;
+            MO_SYS_ARCH_UNPROTECT(lev);
 
             free(data_ptr);
         }
-
     } while (recv_left > 0);
 
-recv_tcp_done:
-
-    if (recvd > 0)
-    {
-        os_set_errno(0); 
-    }
-    
     return recvd;
 }
 
@@ -428,18 +720,35 @@ static int module_recv_udp(mo_object_t *module, mo_sock_t *sock, void *mem, size
     return data_len;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will receive data via molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket.
+ * @param[in]       mem           buffer to receive data.
+ * @param[in]       len           buffer lenth.
+ * @param[in]       flags         operation type.
+ * @param[in]       from          address from where to receive.
+ * @param[in]       fromlen       address lenth.
+ *
+ * @return          status.
+ * @retval          -1            failed.
+ * @retval          others        size of received data.
+ ***********************************************************************************************************************
+ */
 int mo_recvfrom(mo_object_t     *module,
-                    int              socket,
-                    void            *mem,
-                    size_t           len,
-                    int              flags,
-                    struct sockaddr *from,
-                    socklen_t       *fromlen)
+                int              socket,
+                void            *mem,
+                size_t           len,
+                int              flags,
+                struct sockaddr *from,
+                socklen_t       *fromlen)
 {
     OS_ASSERT(module != OS_NULL);
     OS_ASSERT(mem != OS_NULL);
 
-    mo_sock_t *sock = get_socket(socket);
+    mo_sock_t *sock = mo_get_socket(socket);
     if (OS_NULL == sock)
     {
         LOG_EXT_E("Module %s get recv socket %d failed!", module->name, socket);
@@ -456,6 +765,21 @@ int mo_recvfrom(mo_object_t     *module,
     }
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will receive data via molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       s             socket.
+ * @param[in]       mem           data to send.
+ * @param[in]       len           buffer lenth.
+ * @param[in]       flags         operation type.
+ *
+ * @return          status.
+ * @retval          -1            failed.
+ * @retval          others        size of data sent successfully
+ ***********************************************************************************************************************
+ */
 int mo_recv(mo_object_t *module, int socket, void *mem, size_t len, int flags)
 {
     OS_ASSERT(module != OS_NULL);
@@ -464,12 +788,28 @@ int mo_recv(mo_object_t *module, int socket, void *mem, size_t len, int flags)
     return mo_recvfrom(module, socket, mem, len, flags, OS_NULL, OS_NULL);
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will get option of the molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket.
+ * @param[in]       level         level of option.
+ * @param[in]       optname       option to get.
+ * @param[in]       optval        option value.
+ * @param[in]       optlen        option lenth
+ *
+ * @return          status.
+ * @retval          0             success.
+ * @retval          others        failed.
+ ***********************************************************************************************************************
+ */
 int mo_getsockopt(mo_object_t *module, int socket, int level, int optname, void *optval, socklen_t *optlen)
 {
     OS_ASSERT(optval != OS_NULL);
     OS_ASSERT(optlen != OS_NULL);
 
-    mo_sock_t *sock = get_socket(socket);
+    mo_sock_t *sock = mo_get_socket(socket);
     if (OS_NULL == sock)
     {
         LOG_EXT_E("Module %s get getsockopt socket %d failed!", module->name, socket);
@@ -501,11 +841,27 @@ int mo_getsockopt(mo_object_t *module, int socket, int level, int optname, void 
     return 0;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will set option of the molink module socket.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       socket        socket.
+ * @param[in]       level         level of option.
+ * @param[in]       optname       option to get.
+ * @param[in]       optval        option value.
+ * @param[in]       optlen        option lenth
+ *
+ * @return          status.
+ * @retval          0             success.
+ * @retval          others        failed.
+ ***********************************************************************************************************************
+ */
 int mo_setsockopt(mo_object_t *module, int socket, int level, int optname, const void *optval, socklen_t optlen)
 {
     OS_ASSERT(optval != OS_NULL);
 
-    mo_sock_t *sock = get_socket(socket);
+    mo_sock_t *sock = mo_get_socket(socket);
     if (OS_NULL == sock)
     {
         LOG_EXT_E("Module %s get setsockopt socket %d failed!", module->name, socket);
@@ -536,6 +892,16 @@ int mo_setsockopt(mo_object_t *module, int socket, int level, int optname, const
     return 0;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will return hosten struct of the host.
+ *
+ * @param[in]       module        The descriptor of molink module instance
+ * @param[in]       name          host to query.
+ *
+ * @return          hostent struct.
+ ***********************************************************************************************************************
+ */
 struct hostent *mo_gethostbyname(mo_object_t *module, const char *name)
 {
     OS_ASSERT(module != OS_NULL);
@@ -575,6 +941,20 @@ struct hostent *mo_gethostbyname(mo_object_t *module, const char *name)
     return &s_hostent;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will get address information.
+ *
+ * @param[in]       nodename      host.
+ * @param[in]       servname      server.
+ * @param[in]       hints         address info need to get.
+ * @param[out]      res           used internal.
+ *
+ * @return          status.
+ * @retval          -1            failed.
+ * @retval          others        success.
+ ***********************************************************************************************************************
+ */
 int mo_getaddrinfo(const char *nodename, const char *servname, const struct addrinfo *hints, struct addrinfo **res)
 {
     mo_object_t *module = mo_get_default();
@@ -638,12 +1018,9 @@ int mo_getaddrinfo(const char *nodename, const char *servname, const struct addr
         }
         else
         {
-            if(inet_addr(nodename) == IPADDR_NONE)
+            if (mo_netconn_gethostbyname(module, nodename, &addr) != OS_EOK)
             {
-                if (mo_netconn_gethostbyname(module, nodename, &addr) != OS_EOK)
-                {
-                    return EAI_FAIL;
-                }
+                return EAI_FAIL;
             }
         }
     }
@@ -712,6 +1089,13 @@ int mo_getaddrinfo(const char *nodename, const char *servname, const struct addr
     return 0;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will free the addrinfo.
+ *
+ * @param[in]       ai            address info struct.
+ ***********************************************************************************************************************
+ */
 void mo_freeaddrinfo(struct addrinfo *ai)
 {
     struct addrinfo *next = OS_NULL;
@@ -723,5 +1107,327 @@ void mo_freeaddrinfo(struct addrinfo *ai)
         ai = next;
     }
 }
+
+/**
+ * Go through the readset and writeset lists and see which socket of the sockets
+ * set in the sets has events. On return, readset, writeset and exceptset have
+ * the sockets enabled that had events.
+ *
+ * @param maxfdp1 the highest socket index in the sets
+ * @param readset_in    set of sockets to check for read events
+ * @param writeset_in   set of sockets to check for write events
+ * @param exceptset_in  set of sockets to check for error events
+ * @param readset_out   set of sockets that had read events
+ * @param writeset_out  set of sockets that had write events
+ * @param exceptset_out set os sockets that had error events
+ * @return number of sockets that had events (read/write/exception) (>= 0)
+ */
+static int mo_selscan(int maxfdp1, fd_set *readset_in, fd_set *writeset_in, fd_set *exceptset_in,
+                        fd_set *readset_out, fd_set *writeset_out, fd_set *exceptset_out)
+{
+    fd_set lreadset;
+    fd_set lwriteset;
+    fd_set lexceptset;
+    mo_sock_t *sock;
+    void* lastdata;
+    os_int8_t rcvevent;
+    os_uint8_t sendevent;
+    os_uint8_t errevent;
+    int nready;
+    int index;
+
+    MO_SYS_ARCH_DECL_PROTECT(lev);
+
+    FD_ZERO(&lreadset);
+    FD_ZERO(&lwriteset);
+    FD_ZERO(&lexceptset);
+    nready = 0;
+    
+    // Go through each socket in each list to count number of sockets which currently match
+    for (index = 0; index < maxfdp1; index++) 
+    {
+        // if this FD is not in the set, continue
+        if (!(readset_in && FD_ISSET(index, readset_in)) &&
+            !(writeset_in && FD_ISSET(index, writeset_in)) &&
+            !(exceptset_in && FD_ISSET(index, exceptset_in))) 
+        {
+            continue;
+        }
+        // First get the sock's status (protected)
+        MO_SYS_ARCH_PROTECT(lev);
+        sock = mo_get_socket(index);
+        if (NULL != sock)
+        {
+            lastdata = sock->lastdata;
+            rcvevent = sock->rcvevent;
+            sendevent = sock->sendevent;
+            errevent = sock->errevent;
+        
+            MO_SYS_ARCH_UNPROTECT(lev);
+
+            // See if netconn of this socket is ready for read
+            if (readset_in && FD_ISSET(index, readset_in) && ((lastdata != NULL) || (rcvevent > 0)))
+            {
+                FD_SET(index, &lreadset);
+                nready++;
+            }
+            // See if netconn of this socket is ready for write
+            if (writeset_in && FD_ISSET(index, writeset_in) && (sendevent != 0)) 
+            {
+                FD_SET(index, &lwriteset);
+                nready++;
+            }
+            // See if netconn of this socket had an error
+            if (exceptset_in && FD_ISSET(index, exceptset_in) && (errevent != 0)) 
+            {
+                FD_SET(index, &lexceptset);
+                nready++;
+            }
+        } else {
+            MO_SYS_ARCH_UNPROTECT(lev);
+            // continue on to next FD in list
+        }
+    }
+    
+    // copy local sets to the ones provided as arguments
+    *readset_out = lreadset;
+    *writeset_out = lwriteset;
+    *exceptset_out = lexceptset;
+
+    return nready;
+}
+
+static os_err_t mo_do_sem_init(os_sem_t *sem, os_uint16_t value, os_ipc_flag_t flag)
+{
+    char name[OS_NAME_MAX + 1];
+    static int cnt = 0;
+
+    snprintf(name, 0, "slt_sem_%d", cnt++);
+    return os_sem_init(sem, name, value, flag);
+}
+
+/**
+ *
+ * timeout, timeout == NULL, wait forever
+ */
+int mo_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
+                struct timeval *timeout)
+{
+    fd_set lreadset;
+    fd_set lwriteset;
+    fd_set lexceptset;
+    struct mo_select_cb select_cb; 
+    mo_sock_t *sock;
+    os_err_t op_err;
+    os_tick_t timeout_tick;
+    int maxfdp2;
+    int nready;
+    int index;
+
+    do {
+        if (maxfdp1 > MOLINK_SOCKETS_FD_MAX)
+        {
+            maxfdp1 = MOLINK_SOCKETS_FD_MAX;
+        }
+        
+        MO_SYS_ARCH_DECL_PROTECT(lev);
+
+        nready = mo_selscan(maxfdp1, readset, writeset, exceptset, &lreadset, &lwriteset, &lexceptset);
+        /*
+         * case 1: find fdset is set, return
+         * case 2: no fdset is set and timeout==0, 
+         * these cases direct return
+         */
+        if (nready > 0)
+        {
+            break;
+        }
+        else if (timeout && timeout->tv_sec == 0 && timeout->tv_usec == 0) 
+        {
+            break;
+        }
+
+        // create select_cb wait event
+        os_slist_init(&select_cb.slist);
+        select_cb.readset = readset;
+        select_cb.writeset = writeset;
+        select_cb.exceptset = exceptset;
+        select_cb.sem_signalled = 0;
+        // init sem invalid, one sem for thread
+        op_err = mo_do_sem_init(&select_cb.sem, 0, OS_IPC_FLAG_PRIO);
+        if (OS_EOK != op_err)
+        {
+            return OS_ERROR;
+        }
+
+        // Protect the select_cb_list
+        MO_SYS_ARCH_PROTECT(lev);
+
+        // Put this select_cb on head of slist[mo_select_cb_slist]
+        os_slist_add(&gs_mo_select_cb_slist, &select_cb.slist);
+        // Increasing this counter tells event_callback that the list has changed
+        gs_mo_select_cb_ctr++;
+
+        /* Now we can safely unprotect */
+        MO_SYS_ARCH_UNPROTECT(lev);
+
+        /* Increase select_waiting for each socket we are interested in */
+        maxfdp2 = maxfdp1;
+        for (index = 0; index < maxfdp1; index++) 
+        {
+            if ((readset && FD_ISSET(index, readset)) ||
+                (writeset && FD_ISSET(index, writeset)) ||
+                (exceptset && FD_ISSET(index, exceptset))) 
+            {
+                MO_SYS_ARCH_PROTECT(lev);
+                sock = mo_tryget_socket(index);
+                if (OS_NULL != sock)
+                {
+                    sock->select_waiting++;
+                }
+                
+                // Not a valid socket, socket may closed
+                if (OS_NULL == sock || OS_NULL == sock->netconn)
+                {
+                    nready = -1;
+                    maxfdp2 = index + 1;
+                    MO_SYS_ARCH_UNPROTECT(lev);
+                    break;                    
+                }
+                
+                MO_SYS_ARCH_UNPROTECT(lev);
+            }
+        }
+        op_err = OS_EOK;
+
+        if (!nready)
+        {
+            /** Call mo_selscan again: there could have been events between
+             *  the last scan (without us on the list) and putting us on the list! 
+             */
+            nready = mo_selscan(maxfdp1, readset, writeset, exceptset, &lreadset, &lwriteset, &lexceptset);
+            if (!nready) 
+            {
+                // Still none ready, just wait to be woken
+                if (NULL == timeout)
+                {
+                    timeout_tick = OS_IPC_WAITING_FOREVER;
+                }
+                else
+                {
+                    timeout_tick = os_tick_from_ms((timeout->tv_sec * 1000) + ((timeout->tv_usec + 500) / 1000));
+                    if (!timeout_tick)
+                    {
+                        timeout_tick = 1;
+                    }
+                }
+                
+                op_err = os_sem_wait(&select_cb.sem, timeout_tick);
+            }
+        }
+        
+        /* Decrease select_waiting for each socket we are interested in */
+        for (index = 0; index < maxfdp2; index++) 
+        {
+            if ((readset && FD_ISSET(index, readset)) ||
+                (writeset && FD_ISSET(index, writeset)) ||
+                (exceptset && FD_ISSET(index, exceptset)))
+            {
+                MO_SYS_ARCH_PROTECT(lev);
+                sock = mo_tryget_socket(index);
+                if (OS_NULL != sock)
+                {
+                    if (sock->select_waiting > 0) 
+                    {
+                        sock->select_waiting--;
+                    }
+                }
+                if (OS_NULL == sock || OS_NULL == sock->netconn)
+                {
+                    // Not a valid socket, socket may closed
+                    nready = -1;
+                }
+                MO_SYS_ARCH_UNPROTECT(lev);               
+            }
+        }
+        
+        // Take us off the list
+        MO_SYS_ARCH_PROTECT(lev);
+        os_slist_del(&gs_mo_select_cb_slist, &select_cb.slist);
+        // Increasing this counter tells event_callback that the list has changed
+        gs_mo_select_cb_ctr++;
+        MO_SYS_ARCH_UNPROTECT(lev);
+        os_sem_deinit(&select_cb.sem);
+
+        if (nready < 0)
+        {
+            return OS_ERROR;
+        }
+        else if (OS_ETIMEOUT == op_err)
+        {
+            LOG_EXT_I("mo_select: timeout expired");
+            break;
+        }
+        
+        /* See what's set */
+        nready = mo_selscan(maxfdp1, readset, writeset, exceptset, &lreadset, &lwriteset, &lexceptset); 
+    } while(0);
+
+    if (readset)
+    {
+        *readset = lreadset;
+    }
+    if (writeset) 
+    {
+        *writeset = lwriteset;
+    }
+    if (exceptset)
+    {
+        *exceptset = lexceptset;
+    }
+    
+    return nready; 
+}
+                
+#ifdef OS_USING_POSIX
+int mo_poll(int socket, os_pollreq_t *req)
+{
+    mo_sock_t *sock;
+    int level;
+    int mask;
+    
+    mask = 0;
+
+    sock = mo_get_socket(socket);
+    
+    if (OS_NULL != sock)
+    {
+        os_poll_add(&sock->wait_head, req);
+        
+        level = os_hw_interrupt_disable();
+
+        if (sock->rcvevent || (sock->lastdata != NULL))
+        {
+            mask |= POLLIN;
+        }
+        if (sock->sendevent)
+        {
+            mask |= POLLOUT;
+        }
+        if (sock->errevent)
+        {
+            mask |= POLLERR;
+        }
+        
+        os_hw_interrupt_enable(level);
+    }
+    else
+    {
+        mask = POLLERR;
+    }
+
+    return mask;
+}
+#endif
 
 #endif /* MOLINK_USING_SOCKETS_OPS */

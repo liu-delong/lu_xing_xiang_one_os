@@ -29,8 +29,8 @@
 
 #include "py/obj.h"
 #include "py/runtime.h"
-#include "Include/virtpin.h"
-#include "Include/machine_pinbase.h"
+#include "virtpin.h"
+#include "machine_pinbase.h"
 
 // PinBase class
 

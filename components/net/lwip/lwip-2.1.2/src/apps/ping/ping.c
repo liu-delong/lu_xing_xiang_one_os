@@ -344,7 +344,7 @@ static int cmd_ping(int argc, char **argv)
 
 #ifdef OS_USING_SHELL
 #include <shell.h>
-SH_CMD_EXPORT(__cmd_ping, cmd_ping, "ping network host");
+SH_CMD_EXPORT(lwip_ping, cmd_ping, "ping network host");
 #endif /* OS_USING_SHELL */
 
 #endif /* LWIP_USING_PING */

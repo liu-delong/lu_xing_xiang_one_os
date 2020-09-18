@@ -64,9 +64,6 @@ extern "C" {
 typedef struct mo_ml302
 {
     mo_object_t parent;
-#ifdef ML302_USING_NETSERV_OPS
-    os_uint8_t netstat;
-#endif /* ML302_USING_NETSERV_OPS */
 #ifdef ML302_USING_NETCONN_OPS
     mo_netconn_t netconn[ML302_NETCONN_NUM];
 	

@@ -14,8 +14,8 @@
 *********************************************************************************************************
 */
 
-#ifndef __CORE_H__
-#define __CORE_H__
+#ifndef __MODEL__CORE_H__
+#define __MODEL__CORE_H__
 
 #include "model_list.h"
 #include <stdint.h>

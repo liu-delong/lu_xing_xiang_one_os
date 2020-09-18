@@ -33,7 +33,11 @@ os_err_t esp8266_soft_reset(mo_object_t *self)
 {
     at_parser_t *parser = &self->parser;
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+RST");
+    char resp_buff[128] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+RST");
 
     os_task_mdelay(1000);
 
@@ -44,14 +48,22 @@ os_err_t esp8266_at_test(mo_object_t *self)
 {
     at_parser_t *parser = &self->parser;
 
-    return at_parser_exec_cmd(parser, "AT");
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "AT");
 }
 
 os_err_t esp8266_set_echo(mo_object_t *self, os_bool_t is_echo)
 {
     at_parser_t *parser = &self->parser;
-    
-    return at_parser_exec_cmd(parser, "ATE%d", is_echo ? OS_TRUE : OS_FALSE);
+
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "ATE%d", is_echo ? OS_TRUE : OS_FALSE);
 }
 
 #endif /* ESP8266_USING_GENERAL_OPS */

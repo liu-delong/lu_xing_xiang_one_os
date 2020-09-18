@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 #ifndef BC28_DEVICE_NAME
-#define BC28_DEVICE_NAME "uart2"
+#define BC28_DEVICE_NAME "uart1"
 #endif
 
 #ifndef BC28_RECV_BUFF_LEN
@@ -66,14 +66,15 @@ extern "C" {
 
 typedef struct mo_bc28
 {
-    mo_object_t parent;
-#ifdef BC28_USING_NETSERV_OPS
-    os_uint8_t netstat;
-#endif /* BC28_USING_NETSERV_OPS */
+    mo_object_t     parent;
 #ifdef BC28_USING_NETCONN_OPS
-    mo_netconn_t netconn[BC28_NETCONN_NUM];
-    os_mutex_t   netconn_lock;
+    mo_netconn_t    netconn[BC28_NETCONN_NUM];
+    os_mutex_t      netconn_lock;
 #endif /* BC28_USING_NETCONN_OPS */
+#ifdef BC28_USING_ONENET_NB_OPS
+    mo_onenet_cb_t *regist_cb;                  /* module onenet register callback */
+#endif /* BC28_USING_ONENET_NB_OPS */
+
 } mo_bc28_t;
 
 mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t recv_len);

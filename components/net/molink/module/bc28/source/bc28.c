@@ -34,31 +34,29 @@
 
 #ifdef BC28_USING_GENERAL_OPS
 static const struct mo_general_ops gs_general_ops = {
-    .at_test   = bc28_at_test,
-    .get_imei  = bc28_get_imei,
-    .get_imsi  = bc28_get_imsi,
-    .get_iccid = bc28_get_iccid,
-    .get_cfun  = bc28_get_cfun,
-    .set_cfun  = bc28_set_cfun,
+    .at_test               = bc28_at_test,
+    .get_imei              = bc28_get_imei,
+    .get_imsi              = bc28_get_imsi,
+    .get_iccid             = bc28_get_iccid,
+    .get_cfun              = bc28_get_cfun,
+    .set_cfun              = bc28_set_cfun,
 };
 #endif /* BC28_USING_GENERAL_OPS */
 
 #ifdef BC28_USING_NETSERV_OPS
 static const struct mo_netserv_ops gs_netserv_ops = {
-    .set_attach     = bc28_set_attach,
-    .get_attach     = bc28_get_attach,
-    .set_reg        = bc28_set_reg,
-    .get_reg        = bc28_get_reg,
-    .set_cgact      = bc28_set_cgact,
-    .get_cgact      = bc28_get_cgact,
-    .get_csq        = bc28_get_csq,
-    .get_radio      = bc28_get_radio,
-    .get_ipaddr     = bc28_get_ipaddr,
-    .set_netstat    = bc28_set_netstat,
-    .get_netstat    = bc28_get_netstat,
-    .set_dnsserver  = bc28_set_dnsserver,
-    .get_dnsserver  = bc28_get_dnsserver,
-    .ping           = bc28_ping,
+    .set_attach            = bc28_set_attach,
+    .get_attach            = bc28_get_attach,
+    .set_reg               = bc28_set_reg,
+    .get_reg               = bc28_get_reg,
+    .set_cgact             = bc28_set_cgact,
+    .get_cgact             = bc28_get_cgact,
+    .get_csq               = bc28_get_csq,
+    .get_radio             = bc28_get_radio,
+    .get_ipaddr            = bc28_get_ipaddr,
+    .set_dnsserver         = bc28_set_dnsserver,
+    .get_dnsserver         = bc28_get_dnsserver,
+    .ping                  = bc28_ping,
 };
 #endif /* BC28_USING_NETSERV_OPS */
 
@@ -66,37 +64,52 @@ static const struct mo_netserv_ops gs_netserv_ops = {
 extern void bc28_netconn_init(mo_bc28_t *module);
 
 static const struct mo_netconn_ops gs_netconn_ops = {
-    .create        = bc28_netconn_create,
-    .destroy       = bc28_netconn_destroy,
-    .gethostbyname = bc28_netconn_gethostbyname,
-    .connect       = bc28_netconn_connect,
-    .send          = bc28_netconn_send,
+    .create                = bc28_netconn_create,
+    .destroy               = bc28_netconn_destroy,
+    .gethostbyname         = bc28_netconn_gethostbyname,
+    .connect               = bc28_netconn_connect,
+    .send                  = bc28_netconn_send,
+    .get_info              = bc28_netconn_get_info,
 };
 #endif /* BC28_USING_NETCONN_OPS */
 
 #ifdef BC28_USING_ONENET_NB_OPS
+extern os_err_t bc28_onenetnb_init(mo_bc28_t *module);
+extern void     bc28_onenetnb_deinit(mo_bc28_t *module);
+
 static const mo_onenet_ops_t gs_onenet_ops = {
-    .onenetnb_set_config  = bc28_onenetnb_set_config,
-    .onenetnb_create      = bc28_onenetnb_create,
-    .onenetnb_addobj      = bc28_onenetnb_addobj,
-    .onenetnb_discoverrsp = bc28_onenetnb_discoverrsp,
-    .onenetnb_nmi         = bc28_onenetnb_nmi,
-    .onenetnb_open        = bc28_onenetnb_open,
-    .onenetnb_notify      = bc28_onenetnb_notify,
-    .onenetnb_update      = bc28_onenetnb_update,
-    .onenetnb_get_write   = bc28_onenetnb_get_write,
-    .onenetnb_writersp    = bc28_onenetnb_writersp,
-#ifdef OS_USING_SHELL
-    .onenetnb_all         = bc28_onenetnb_all,
-#endif
+    .onenetnb_get_config   = bc28_onenetnb_get_config,
+    .onenetnb_set_config   = bc28_onenetnb_set_config,
+    .onenetnb_create       = bc28_onenetnb_create,
+    .onenetnb_delete       = bc28_onenetnb_delete,
+    .onenetnb_addobj       = bc28_onenetnb_addobj,
+    .onenetnb_delobj       = bc28_onenetnb_delobj,
+    .onenetnb_open         = bc28_onenetnb_open,
+    .onenetnb_close        = bc28_onenetnb_close,
+    .onenetnb_discoverrsp  = bc28_onenetnb_discoverrsp,
+    .onenetnb_observersp   = bc28_onenetnb_observersp,
+    .onenetnb_readrsp      = bc28_onenetnb_readrsp,
+    .onenetnb_writersp     = bc28_onenetnb_writersp,
+    .onenetnb_executersp   = bc28_onenetnb_executersp,
+    .onenetnb_parameterrsp = bc28_onenetnb_parameterrsp,
+    .onenetnb_notify       = bc28_onenetnb_notify,
+    .onenetnb_update       = bc28_onenetnb_update,
+    .onenetnb_cb_register  = bc28_onenetnb_cb_register,
 };
 #endif /* BC28_USING_ONENET_OPS */
 
 mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t recv_len)
 {
-    mo_bc28_t *module = (mo_bc28_t *)malloc(sizeof(mo_bc28_t));
-
-    os_err_t result = mo_object_init(&(module->parent), name, device, recv_len);
+    os_err_t result = OS_ERROR;
+    
+    mo_bc28_t *module = (mo_bc28_t *)calloc(1, sizeof(mo_bc28_t));
+    if (OS_NULL == module)
+    {
+        LOG_EXT_E("Create BC28 failed, no enough memory.");
+        result = OS_ENOMEM;
+        goto __exit;
+    }
+    result = mo_object_init(&(module->parent), name, device, recv_len);
     if (result != OS_EOK)
     {
         goto __exit;
@@ -117,12 +130,32 @@ mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t
 #endif /* BC28_USING_NETCONN_OPS */
 
 #ifdef BC28_USING_ONENET_NB_OPS
+    result = bc28_onenetnb_init(module);
+    if (OS_EOK != result)
+    {
+        goto __exit;
+    }
     module->parent.ops_table[MODULE_OPS_ONENET_NB] = &gs_onenet_ops;
 #endif /* BC28_USING_ONENET_NB_OPS */
 	
 __exit:
     if (result != OS_EOK)
     {
+#ifdef BC28_USING_NETCONN_OPS
+        /* 0xFF means module netconn_lock has been init */
+        if (0xFF    == module->netconn_lock.original_priority)
+        {
+            os_mutex_deinit(&module->netconn_lock);
+        }
+#endif /* BC28_USING_NETCONN_OPS */
+
+#ifdef BC28_USING_ONENET_NB_OPS
+        if (OS_NULL != module->regist_cb)
+        {
+            bc28_onenetnb_deinit(module);
+        }
+#endif /* BC28_USING_ONENET_NB_OPS */
+
         free(module);
         
         return OS_NULL;
@@ -134,9 +167,15 @@ __exit:
 os_err_t module_bc28_destroy(mo_object_t *self)
 {
     mo_bc28_t *module = os_container_of(self, mo_bc28_t, parent);
-    
+
+#ifdef BC28_USING_NETCONN_OPS
     os_mutex_deinit(&module->netconn_lock);
-    
+#endif /* BC28_USING_NETCONN_OPS */
+
+#ifdef BC28_USING_ONENET_NB_OPS
+    bc28_onenetnb_deinit(module);
+#endif /* BC28_USING_ONENET_NB_OPS */
+
     mo_object_deinit(self);
 
     free(module);

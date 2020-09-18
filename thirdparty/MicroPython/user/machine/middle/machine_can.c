@@ -47,6 +47,7 @@ mp_obj_t mp_machine_can_make_new(const mp_obj_type_t *type, size_t n_args, size_
     device_info_t * can = mpycall_device_find(can_name);
     if (NULL == can){
         mp_raise_ValueError("can can not find!\n");
+		return mp_const_none;
     }
 
 	// create new object
@@ -75,26 +76,30 @@ STATIC mp_obj_t machine_can_deinit(mp_obj_t self) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_can_deinit_obj, machine_can_deinit);
 
-STATIC void mp_machine_can_transfer(mp_obj_t self, uint32_t offset, const uint8_t *buf, uint32_t bufsize) {
+STATIC int mp_machine_can_transfer(mp_obj_t self, uint32_t offset, const uint8_t *buf, uint32_t bufsize) {
 	mp_obj_base_t *can_obj = (mp_obj_base_t*)MP_OBJ_TO_PTR(self);
     mp_machine_can_p_t *can_p = (mp_machine_can_p_t*)can_obj->type->protocol;
-    can_p->transfer(can_obj, offset, buf, bufsize);
+    return can_p->transfer(can_obj, offset, buf, bufsize);
 }
 
 
 STATIC mp_obj_t mp_machine_can_read(size_t n_args, const mp_obj_t *args) {
 	mp_machine_can_obj_t *self = args[0];
 	if (!self->can || !self->can->ops || !self->can->ops->read || self->can->open_flag != MP_CAN_INIT_FLAG){
-		mp_raise_ValueError("invalid can peripheral");
+		mp_raise_ValueError("Invalid peripheral, please open can device!");
 		return mp_const_none;
 	}
 	can_msg_t msg = {0};
-    if (self->can->ops->read(self->can, 0, (void *)&msg, sizeof(msg))){
-		mp_obj_module_t *can_dict =  mp_obj_new_dict(2);
+	mp_obj_module_t *can_dict =  mp_obj_new_dict(2);
+    if (self->can->ops->read(self->can, 0, &msg, sizeof(msg)) != MP_CAN_OP_ERROR){
 		mp_obj_dict_store(can_dict, MP_OBJ_NEW_QSTR(MP_QSTR_id), mp_obj_new_str(msg.id, 8));
-		mp_obj_dict_store(can_dict, MP_OBJ_NEW_QSTR(MP_QSTR_value), mp_obj_new_str((char *)msg.data, msg.len));
+		mp_obj_dict_store(can_dict, MP_OBJ_NEW_QSTR(MP_QSTR_ide), mp_obj_new_int(msg.ide));
+		mp_obj_dict_store(can_dict, MP_OBJ_NEW_QSTR(MP_QSTR_rtr), mp_obj_new_int(msg.rtr));
+		if (msg.rtr != 1){ //·ÇÔ¶³ÌÖ¡
+			mp_obj_dict_store(can_dict, MP_OBJ_NEW_QSTR(MP_QSTR_value), mp_obj_new_str((char *)msg.data, msg.len));
+		}
 		return MP_OBJ_FROM_PTR(can_dict);
-	}
+	} 
 	return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_machine_can_read_obj, 1, 2, mp_machine_can_read);
@@ -103,13 +108,15 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_machine_can_read_obj, 1, 2, mp_machine_ca
 STATIC mp_obj_t mp_machine_can_write(mp_obj_t self, mp_obj_t wr_buf) {
 	mp_machine_can_obj_t *can_obj = MP_OBJ_TO_PTR(self);
 	if (!can_obj->can || can_obj->can->open_flag != MP_CAN_INIT_FLAG){
-		mp_raise_ValueError("invalid can peripheral");
+		mp_raise_ValueError("Invalid peripheral, please open can device!");
 		return mp_const_none;
 	}
 	// get the buffer to write from
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(wr_buf, &bufinfo, MP_BUFFER_READ);
-    mp_machine_can_transfer(self, 0, bufinfo.buf, bufinfo.len);
+    if (mp_machine_can_transfer(self, 0, bufinfo.buf, bufinfo.len) == MP_CAN_OP_ERROR){
+		return mp_const_none;
+	}
     return MP_OBJ_NEW_SMALL_INT(bufinfo.len);
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_machine_can_write_obj, mp_machine_can_write);
@@ -174,13 +181,13 @@ STATIC void mp_machine_can_init(mp_obj_base_t *self_in, size_t n_args, const mp_
 	mp_machine_can_helper((mp_machine_can_obj_t *)self_in, n_args, MP_CAN_IOCTL_PARAM, pos_args, kw_args);
 }
 
-STATIC void mp_machine_soft_can_transfer(mp_obj_base_t *self_in, uint32_t offset, const uint8_t *buf, uint32_t bufsize) {
+STATIC int mp_machine_soft_can_transfer(mp_obj_base_t *self_in, uint32_t offset, const uint8_t *buf, uint32_t bufsize) {
     mp_machine_can_obj_t *self = (mp_machine_can_obj_t*)self_in;
 	if (!self->can || !self->can->ops || !self->can->ops->write){
 		mp_raise_ValueError("invalid can peripheral");
-		return ;
+		return MP_CAN_OP_ERROR;
 	}
-    bufsize = self->can->ops->write(self->can, 0, (void *)buf, bufsize);
+    return self->can->ops->write(self->can, 0, (void *)buf, bufsize);
 }
 
 STATIC void can_deinit(mp_obj_base_t *self_in){

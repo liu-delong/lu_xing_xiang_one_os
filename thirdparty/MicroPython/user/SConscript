@@ -15,8 +15,8 @@ src    += Glob('machine/device_bus_model/*.c')
 path    = [cwd + '/']
 path   += [cwd + '/start/include']
 path   += [cwd + '/machine']
-path   += [cwd + '/machine/middle/Include']
-path   += [cwd + '/machine/driver/OneOS/Include']
+path   += [cwd + '/machine/middle/include']
+path   += [cwd + '/machine/driver/OneOS/include']
 path   += [cwd + '/machine/device_bus_model']
 
 

@@ -31,7 +31,7 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 #include "py/runtime.h"
-#include "middle/include/machine_i2c.h"
+#include "machine_i2c.h"
 #include "usr_i2c.h"
 
 #if MICROPY_PY_MACHINE_I2C

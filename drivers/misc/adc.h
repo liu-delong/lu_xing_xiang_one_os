@@ -32,14 +32,8 @@
 
 #define OS_ADC_EVENT_CONVERT_DONE           0x00
 
-#define OS_ADC_DEV_CTRL_START               0x20
-#define OS_ADC_DEV_CTRL_STOP                0x21
-#define OS_ADC_DEV_CTRL_CONV_MODE           0x22
-
-#define OS_ADC_FLAG_CONVERT_POLL            0x00
-#define OS_ADC_FLAG_CONVERT_POLL_INJECTED   0x01
-#define OS_ADC_FLAG_CONVERT_NOPOLL          0x02
-#define OS_ADC_FLAG_CONVERT_NOPOLL_INJECTED 0x03
+#define OS_ADC_CMD_ENABLE                   0x20
+#define OS_ADC_CMD_DISABLE                  0x21
 
 struct os_adc_device
 {

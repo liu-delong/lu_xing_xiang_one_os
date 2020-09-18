@@ -16,6 +16,7 @@
 
 #include "model_device.h"
 #include <stdio.h>
+#include <string.h>
 
 static mpy_os_list_t device_list_head;
 

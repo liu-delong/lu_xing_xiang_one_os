@@ -1578,7 +1578,7 @@ coap_run_once(coap_context_t *ctx, unsigned timeout_ms) {
     tv.tv_sec = (long)(timeout / 1000);
   }
 
-  result = lwip_select(nfds, &readfds, &writefds, &exceptfds, timeout > 0 ? &tv : NULL);
+  result = select(nfds, &readfds, &writefds, &exceptfds, timeout > 0 ? &tv : NULL);
 
   if (result < 0) {   /* error */
 #ifdef _WIN32

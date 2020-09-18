@@ -38,6 +38,7 @@ os_err_t m5310a_get_imsi(mo_object_t *self, char *value, os_size_t len);
 os_err_t m5310a_get_iccid(mo_object_t *self, char *value, os_size_t len);
 os_err_t m5310a_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl);
 os_err_t m5310a_set_cfun(mo_object_t *self, os_uint8_t fun_lvl);
+os_err_t m5310a_clear_stored_earfcn(mo_object_t *self);
 os_err_t m5310a_get_app_version(mo_object_t *self, char *value, os_size_t len);
 
 #endif /* M5310A_USING_GENERAL_OPS */

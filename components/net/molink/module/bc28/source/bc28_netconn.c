@@ -88,6 +88,16 @@ static mo_netconn_t *bc28_get_netconn_by_id(mo_object_t *module, os_int32_t conn
     return OS_NULL;
 }
 
+os_err_t bc28_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
+{
+    mo_bc28_t *bc28 = os_container_of(module, mo_bc28_t, parent);
+
+    info->netconn_array = bc28->netconn;
+    info->netconn_nums  = sizeof(bc28->netconn) / sizeof(bc28->netconn[0]);
+
+    return OS_EOK;
+}
+
 mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
     mo_netconn_t *netconn = bc28_netconn_alloc(module);
@@ -100,8 +110,12 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     at_parser_t *parser = &module->parser;
     os_err_t     result = OS_EOK;
 
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     /* enable user data URC eg. +NSONMI: <socket>,<length>,<data>. */
-    result = at_parser_exec_cmd(parser, "AT+NSONMI=2");
+    result = at_parser_exec_cmd(parser, &resp, "AT+NSONMI=2");
     if (OS_EOK != result)
     {
         LOG_EXT_E("Module %s set enable netconn urc autorecv data failed", module->name);
@@ -111,11 +125,11 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     switch (type)
     {
     case NETCONN_TYPE_TCP:
-        result = at_parser_exec_cmd(parser, "AT+NSOCR=STREAM,%d,0,1", PROTOCOL_TYPE_TCP);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=STREAM,%d,0,1", PROTOCOL_TYPE_TCP);
         break;
     case NETCONN_TYPE_UDP:
         /* BC28 shown that can only create 1 UDP socket */
-        result = at_parser_exec_cmd(parser, "AT+NSOCR=DGRAM,%d,0,1", PROTOCOL_TYPE_UDP);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=DGRAM,%d,0,1", PROTOCOL_TYPE_UDP);
         break;
     default:
         result = OS_ERROR;
@@ -128,7 +142,7 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
         return OS_NULL;
     }
 
-    if (at_parser_get_data_by_line(parser, 2, "%d", &netconn->connect_id) <= 0)
+    if (at_resp_get_data_by_line(&resp, 2, "%d", &netconn->connect_id) <= 0)
     {
         LOG_EXT_E("Module %s get %s netconn id failed", module->name, (type == NETCONN_TYPE_TCP) ? "TCP" : "UDP");
         return OS_NULL;
@@ -148,13 +162,17 @@ os_err_t bc28_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
     os_err_t     result = OS_ERROR;
     os_int32_t   connid = BC28_CONN_ID_NULL;
 
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     LOG_EXT_I("Module %s in %d netconnn status", module->name, netconn->stat);
 
     switch (netconn->stat)
     {
     case NETCONN_STAT_INIT:
     case NETCONN_STAT_CONNECT:
-        result = at_parser_exec_cmd(parser, "AT+NSOCL=%d", netconn->connect_id);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCL=%d", netconn->connect_id);
         if (result != OS_EOK)
         {
             LOG_EXT_E("Module %s destroy %s netconn failed",
@@ -188,9 +206,14 @@ os_err_t bc28_netconn_gethostbyname(mo_object_t *self, const char *domain_name, 
 
 	char recvip[IPADDR_MAX_STR_LEN] = {0};
 	
-    at_parser_set_resp(parser, 256, 4, 20000);
+    char resp_buff[256] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+QDNS=0,\"%s\"", domain_name);
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 4,
+                      .timeout   = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+QDNS=0,\"%s\"", domain_name);
     if (result < 0)
     {
         result = OS_ERROR;
@@ -199,7 +222,7 @@ os_err_t bc28_netconn_gethostbyname(mo_object_t *self, const char *domain_name, 
 
     /* AT+CMDNS="www.baidu.com" return: OK \r\n  +CMDNS:183.232.231.172 \r\n */
     /* AT+CMDNS="8.8.8.8" return: +CMDNS:8.8.8.8 \r\n  OK */
-    if (at_parser_get_data_by_kw(parser, "+QDNS:", "+QDNS:%s", recvip) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+QDNS:", "+QDNS:%s", recvip) <= 0)
     {
         LOG_EXT_E("BC28 domain resolve: resp parse fail, try again, host: %s", domain_name);
         result = OS_ERROR;
@@ -230,18 +253,20 @@ os_err_t bc28_netconn_gethostbyname(mo_object_t *self, const char *domain_name, 
 
 __exit:
 
-    at_parser_reset_resp(parser);
-
     return result;
 }
 
 static os_err_t bc28_tcp_connect(at_parser_t *parser, os_int32_t connect_id, char *ip_addr, os_uint16_t port)
 {
+    /* TODO */
 	// char buf[16] = {0};
 	
     // at_parser_set_resp(parser, 128, 4, os_tick_from_ms(20000));
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+NSOCO=%d,%s,%d", connect_id, ip_addr, port);
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+NSOCO=%d,%s,%d", connect_id, ip_addr, port);
 //     if (result != OS_EOK)
 //     {
 //         goto __exit;
@@ -254,7 +279,6 @@ static os_err_t bc28_tcp_connect(at_parser_t *parser, os_int32_t connect_id, cha
 //     }
 
 // __exit:
-//     at_parser_reset_resp(parser);
 
     return result;
 }
@@ -305,6 +329,9 @@ static os_size_t bc28_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, const
     os_size_t  cnt          = 0;
 
     char send_cmd[30] = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
 
     while (sent_size < size)
     {
@@ -331,15 +358,24 @@ static os_size_t bc28_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, const
             goto __exit;
         }
 
-        result = at_parser_exec_cmd(parser, "");
+        result = at_parser_exec_cmd(parser, &resp, "");
         if (result != OS_EOK)
         {
             goto __exit;
         }
 
-        if (at_parser_get_data_by_line(parser, 2, "%d,%d", &connect_id, &cnt) <= 0 || cnt != cur_pkt_size / 2)
+        result = OS_ERROR;
+        for (int i = 1; i <= resp.line_counts; i++)
         {
-            result = OS_ERROR;
+            if (at_resp_get_data_by_line(&resp, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
+            {
+                result = OS_EOK;
+                break;
+            }
+        }
+
+        if (OS_ERROR == result)
+        {
             goto __exit;
         }
 
@@ -369,6 +405,9 @@ static os_size_t bc28_udp_send(at_parser_t *parser, mo_netconn_t *netconn, const
 
     char send_cmd[40]                      = {0};
     char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF]  = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
 
     strncpy(remote_ip, inet_ntoa(netconn->remote_ip), IPADDR_MAX_STR_LEN);
 
@@ -403,15 +442,24 @@ static os_size_t bc28_udp_send(at_parser_t *parser, mo_netconn_t *netconn, const
             goto __exit;
         }
 
-        result = at_parser_exec_cmd(parser, "");
+        result = at_parser_exec_cmd(parser, &resp, "");
         if (result != OS_EOK)
         {
             goto __exit;
         }
 
-        if (at_parser_get_data_by_line(parser, 2, "%d,%d", &connect_id, &cnt) <= 0 || cnt != cur_pkt_size / 2)
+                result = OS_ERROR;
+        for (int i = 1; i <= resp.line_counts; i++)
         {
-            result = OS_ERROR;
+            if (at_resp_get_data_by_line(&resp, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
+            {
+                result = OS_EOK;
+                break;
+            }
+        }
+
+        if (OS_ERROR == result)
+        {
             goto __exit;
         }
 
@@ -490,9 +538,9 @@ static void urc_close_func(struct at_parser *parser, const char *data, os_size_t
 
     LOG_EXT_W("Module %s receive close urc data of connect %d", module->name, connect_id);
 
-    netconn->stat = NETCONN_STAT_CLOSE;
+    mo_netconn_pasv_close_notice(netconn);
 
-    os_data_queue_reset(&netconn->data_queue);
+    return;
 }
 
 static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -518,14 +566,15 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
 
     if (netconn->stat == NETCONN_STAT_CONNECT)
     {
-        char *recv_buff = calloc(1, data_size * 2);
+        /*  bufflen >= strsize + 1 */
+        char *recv_buff = calloc(1, data_size * 2 + 1);
         if (recv_buff == OS_NULL)
         {
-            LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2);
+            LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2 + 1);
             return;
         }
-
         /* Get receive data to receive buffer */
+        /* Alert! if using sscanf stores strings, be rember allocating enouth memory! */
         sscanf(data, "+NSONMI:%*d,%*[^,],%*d,%*d,%s", recv_buff);
 
         char *recv_str = calloc(1, data_size + 1);
@@ -536,16 +585,18 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
         }
 
         hexstr_to_bytes(recv_buff, recv_str, data_size * 2);
-
-        os_data_queue_push(&netconn->data_queue, recv_str, data_size, OS_IPC_WAITING_FOREVER);
+  
+        mo_netconn_data_recv_notice(netconn, recv_str, data_size);
 
         free(recv_buff);
     }
+
+    return;
 }
 
 static at_urc_t gs_urc_table[] = {
     {.prefix = "+NSOCLI:", .suffix = "\r\n", .func = urc_close_func},
-    {.prefix = "+NSONMI:",  .suffix = "\r\n", .func = urc_recv_func},
+    {.prefix = "+NSONMI:", .suffix = "\r\n", .func = urc_recv_func },
 };
 
 void bc28_netconn_init(mo_bc28_t *module)

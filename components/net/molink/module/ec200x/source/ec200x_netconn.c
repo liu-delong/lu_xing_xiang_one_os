@@ -64,13 +64,17 @@ static os_bool_t ec200x_check_state(mo_object_t *module, os_int32_t connect_id)
 {
     at_parser_t *parser = &module->parser;
 
-    if (at_parser_exec_cmd(parser, "AT+QISTATE=1,%d", connect_id) != OS_EOK)
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    if (at_parser_exec_cmd(parser, &resp, "AT+QISTATE=1,%d", connect_id) != OS_EOK)
     {
         LOG_EXT_E("Check connecd id %d state failed!", connect_id);
         return OS_FALSE;
     }
 
-    if (at_parser_get_line_by_kw(parser, "+QISTATE:") != OS_NULL)
+    if (at_resp_get_line_by_kw(&resp, "+QISTATE:") != OS_NULL)
     {
         /* connect id already in use */
         return OS_FALSE;
@@ -108,8 +112,21 @@ static mo_netconn_t *ec200x_get_netconn_by_id(mo_object_t *module, os_int32_t co
     return &ec200x->netconn[connect_id];
 }
 
+os_err_t ec200x_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
+{
+    mo_ec200x_t *ec200x = os_container_of(module, mo_ec200x_t, parent);
+
+    info->netconn_array = ec200x->netconn;
+    info->netconn_nums  = sizeof(ec200x->netconn) / sizeof(ec200x->netconn[0]);
+
+    return OS_EOK;
+}
+
 mo_netconn_t *ec200x_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
+    mo_ec200x_t *ec200x = os_container_of(module, mo_ec200x_t, parent);
+
+    ec200x_lock(&ec200x->netconn_lock);
 
     mo_netconn_t *netconn = ec200x_netconn_alloc(module);
 
@@ -123,6 +140,8 @@ mo_netconn_t *ec200x_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     netconn->stat = NETCONN_STAT_INIT;
     netconn->type = type;
 
+    ec200x_unlock(&ec200x->netconn_lock);
+
     return netconn;
 }
 
@@ -133,11 +152,15 @@ os_err_t ec200x_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
 
     LOG_EXT_D("Module %s in %d netconnn status", module->name, netconn->stat);
 
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     switch (netconn->stat)
     {
     case NETCONN_STAT_INIT:
     case NETCONN_STAT_CONNECT:
-        result = at_parser_exec_cmd(parser, "AT+QICLOSE=%d", netconn->connect_id);
+        result = at_parser_exec_cmd(parser, &resp, "AT+QICLOSE=%d", netconn->connect_id);
         if (result != OS_EOK)
         {
             LOG_EXT_E("Module %s destroy %s netconn failed",
@@ -170,7 +193,9 @@ os_err_t ec200x_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_a
     at_parser_t *parser = &module->parser;
     mo_ec200x_t *ec200x = os_container_of(module, mo_ec200x_t, parent);
 
-    at_parser_set_resp(parser, 64, 0, os_tick_from_ms(150 * 1000));
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 150 * OS_TICK_PER_SECOND};
 
     char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
 
@@ -182,10 +207,13 @@ os_err_t ec200x_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_a
 
     os_err_t result = OS_EOK;
 
+    ec200x_lock(&ec200x->netconn_lock);
+
     switch (netconn->type)
     {
     case NETCONN_TYPE_TCP:
         result = at_parser_exec_cmd(parser,
+                                    &resp,  
                                     "AT+QIOPEN=1,%d,\"TCP\",\"%s\",%d,0,1", 
                                     netconn->connect_id, 
                                     remote_ip, 
@@ -193,6 +221,7 @@ os_err_t ec200x_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_a
         break;
     case NETCONN_TYPE_UDP:
         result = at_parser_exec_cmd(parser,
+                                    &resp,
                                     "AT+QIOPEN=1,%d,\"UDP\",\"%s\",%d,0,1", 
                                     netconn->connect_id, 
                                     remote_ip, 
@@ -238,6 +267,8 @@ os_err_t ec200x_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_a
     }
 
 __exit:
+    ec200x_unlock(&ec200x->netconn_lock);
+
     if (OS_EOK == result)
     {
         ip_addr_copy(netconn->remote_ip, addr);
@@ -250,8 +281,6 @@ __exit:
     {
         LOG_EXT_E("Module %s connect to %s:%d failed!", module->name, remote_ip, port);
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -270,7 +299,12 @@ os_size_t ec200x_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const 
 
     ec200x->curr_connect = netconn->connect_id;
 
-    at_parser_set_resp(parser, 128, 2, 5 * OS_TICK_PER_SECOND);
+    char resp_buff[128] = {0};
+
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 2,
+                      .timeout   = 5 * OS_TICK_PER_SECOND};
 
     at_parser_set_end_mark(parser, ">", 1);
 
@@ -285,7 +319,7 @@ os_size_t ec200x_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const 
             curr_size = SEND_DATA_MAX_SIZE;
         }
 
-        result = at_parser_exec_cmd(parser, "AT+QISEND=%d,%d", netconn->connect_id, curr_size);
+        result = at_parser_exec_cmd(parser, &resp, "AT+QISEND=%d,%d", netconn->connect_id, curr_size);
         if (result != OS_EOK)
         {
             goto __exit;
@@ -334,8 +368,6 @@ __exit:
 
     at_parser_set_end_mark(parser, OS_NULL, 0);
 
-    at_parser_reset_resp(parser);
-
     ec200x_unlock(&ec200x->netconn_lock);
     
     if (result != OS_EOK)
@@ -355,9 +387,13 @@ os_err_t ec200x_netconn_gethostbyname(mo_object_t *self, const char *domain_name
     at_parser_t *parser = &self->parser;
     os_err_t     result = OS_EOK;
 
-    at_parser_set_resp(parser, 128, 0, os_tick_from_ms(300));
+    char resp_buff[128] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
     mo_ec200x_t *ec200x = os_container_of(self, mo_ec200x_t, parent);
+
+    ec200x_lock(&ec200x->netconn_lock);
 
     os_event_recv(&ec200x->netconn_evt,
                   EC200X_EVENT_DOMAIN_OK,
@@ -367,7 +403,7 @@ os_err_t ec200x_netconn_gethostbyname(mo_object_t *self, const char *domain_name
 
     ec200x->netconn_data = addr;
 
-    result = at_parser_exec_cmd(parser, "AT+QIDNSGIP=1,\"%s\"", domain_name);
+    result = at_parser_exec_cmd(parser, &resp, "AT+QIDNSGIP=1,\"%s\"", domain_name);
     if (result != OS_EOK)
     {
         goto __exit;
@@ -382,7 +418,7 @@ os_err_t ec200x_netconn_gethostbyname(mo_object_t *self, const char *domain_name
 __exit:
     ec200x->netconn_data = OS_NULL;
 
-    at_parser_reset_resp(parser);
+    ec200x_unlock(&ec200x->netconn_lock);
 
     return result;
 }
@@ -450,9 +486,9 @@ static void urc_close_func(struct at_parser *parser, const char *data, os_size_t
 
     LOG_EXT_W("Module %s receive close urc data of connect %d", module->name, connect_id);
 
-    netconn->stat = NETCONN_STAT_CLOSE;
+    mo_netconn_pasv_close_notice(netconn);
 
-    os_data_queue_reset(&netconn->data_queue);
+    return;
 }
 
 static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -510,17 +546,11 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
         return;
     }
 
-    /* handle "\r\n" */
     at_parser_recv(parser, temp_buff, 2, timeout);
+    
+    mo_netconn_data_recv_notice(netconn, recv_buff, data_size);
 
-    if (netconn->stat == NETCONN_STAT_CONNECT)
-    {
-        os_data_queue_push(&netconn->data_queue, recv_buff, data_size, OS_IPC_WAITING_FOREVER);
-    }
-    else
-    {
-        LOG_EXT_E("Module %s netconn id %d receive state error", module->name, connect_id);
-    }
+    return;
 }
 
 static void urc_pdpdeact_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -612,14 +642,19 @@ static os_err_t ec200x_network_init(mo_object_t *module)
 	char APN[10]      = {0};
 
     at_parser_t *parser = &module->parser;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     /* Use AT+COPS? to query current Network Operator */
-    os_err_t result = at_parser_exec_cmd(parser, "AT+COPS?");
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+COPS?");
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+COPS:", "+COPS: %*[^\"]\"%[^\"]", &tmp_data) < 0)
+    if (at_resp_get_data_by_kw(&resp, "+COPS:", "+COPS: %*[^\"]\"%[^\"]", &tmp_data) < 0)
     {
         goto __exit;
     }
@@ -637,23 +672,23 @@ static os_err_t ec200x_network_init(mo_object_t *module)
         strncpy(APN, "CTNET", strlen("CTNET"));
     }
 
-    result = at_parser_exec_cmd(parser, "AT+QICSGP=1,1,\"%s\",\"\",\"\",0", APN);
+    result = at_parser_exec_cmd(parser, &resp, "AT+QICSGP=1,1,\"%s\",\"\",\"\",0", APN);
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    at_parser_set_resp(parser, 64, 0, os_tick_from_ms(40 * 1000));
+    resp.timeout = 40 * OS_TICK_PER_SECOND;
 
-    result = at_parser_exec_cmd(parser, "AT+QIDEACT=1");
+    result = at_parser_exec_cmd(parser, &resp, "AT+QIDEACT=1");
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    at_parser_set_resp(parser, 64, 0, os_tick_from_ms(150 * 1000));
+    resp.timeout = 150 * OS_TICK_PER_SECOND;
 
-    result = at_parser_exec_cmd(parser, "AT+QIACT=1");
+    result = at_parser_exec_cmd(parser, &resp, "AT+QIACT=1");
     if (result != OS_EOK)
     {
         goto __exit;
@@ -664,8 +699,6 @@ __exit:
     {
         LOG_EXT_E("EC200X network init failed");
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }

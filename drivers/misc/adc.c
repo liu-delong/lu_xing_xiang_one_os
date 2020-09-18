@@ -84,16 +84,6 @@ os_err_t os_adc_disable(struct os_adc_device *adc)
     return result;
 }
 
-static os_err_t _adc_init(os_device_t *dev)
-{
-    return os_adc_enable((struct os_adc_device *)dev);
-}
-
-static os_err_t _adc_close(os_device_t *dev)
-{
-    return os_adc_disable((struct os_adc_device *)dev);
-}
-
 static os_size_t _adc_read(struct os_device *dev, os_off_t pos, void *buffer, os_size_t size)
 {
     int i;
@@ -130,10 +120,10 @@ static os_err_t _adc_control(struct os_device *dev, int cmd, void *args)
 
     switch (cmd)
     {
-    case OS_ADC_DEV_CTRL_START:
+    case OS_ADC_CMD_ENABLE:
         result = adc->ops->adc_enabled(adc, OS_TRUE);
         break;
-    case OS_ADC_DEV_CTRL_STOP:
+    case OS_ADC_CMD_DISABLE:
         result = adc->ops->adc_enabled(adc, OS_FALSE);
         break;
     default:
@@ -147,9 +137,9 @@ static os_err_t _adc_control(struct os_device *dev, int cmd, void *args)
 
 #ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops adc_ops = {
-    _adc_init,
     OS_NULL,
-    _adc_close,
+    OS_NULL,
+    OS_NULL,
     _adc_read,
     OS_NULL,
     _adc_control,
@@ -185,11 +175,7 @@ os_hw_adc_register(struct os_adc_device *device, const char *name, os_uint32_t f
 #ifdef OS_USING_DEVICE_OPS
     device->parent.ops = &adc_ops;
 #else
-    device->parent.init    = _adc_init;
-    device->parent.open    = OS_NULL;
-    device->parent.close   = _adc_close;
     device->parent.read    = _adc_read;
-    device->parent.write   = OS_NULL;
     device->parent.control = _adc_control;
 #endif
     device->parent.user_data = device;

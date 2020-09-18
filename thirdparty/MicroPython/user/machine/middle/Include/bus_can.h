@@ -36,6 +36,8 @@ enum {
 
 struct _can_msg{
 	char id[8];     	/* CAN ID */
+	char ide;
+	char rtr;
 	uint16_t len;
 	char  data[16];      /* Data segment */
 };

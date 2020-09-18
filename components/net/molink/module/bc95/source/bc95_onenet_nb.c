@@ -21,94 +21,178 @@
  ***********************************************************************************************************************
  */
 
+#include "bc95.h"
 #include "at_parser.h"
 #include "bc95_onenet_nb.h"
 #include "mo_onenet_nb.h"
+#include "os_task.h"
+#include "os_mq.h"
+#include "os_mutex.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define DBG_EXT_TAG "bc95.onenet_nb"
 #define DBG_EXT_LVL DBG_EXT_INFO
 #include <os_dbg_ext.h>
-#include <stdlib.h>
 
-#define ONENETNB_TIMEOUT_DEFAULT (0)
+#define BC95_URC_HEAD_MAXLEN            (16)
+#define BC95_REGEX_LEN_DEFAULT          (64)
+#define BC95_TIMEOUT_DEFAULT            (5 * OS_TICK_PER_SECOND)
+#define BC95_URC_MQ_NAME                "BC95_URC_MQ"
+#define BC95_URC_MQ_MSGNUM_MAX          (10)
+#define BC95_URC_MANAGER_TASK_NAME      "bc95_manager"
+#define BC95_URC_MANAGER_TASK_TICKS     (10)
 
-typedef enum mo_config_mode
+/* ============================kconfig_options============================= */
+#ifndef BC95_URC_MANAGER_STACK_SIZE     
+#define BC95_URC_MANAGER_STACK_SIZE     (2048)
+#endif /* BC95_URC_MANAGER_STACK_SIZE */
+
+#ifndef BC95_RESP_BUFF_SIZE
+#define BC95_RESP_BUFF_SIZE             (128)
+#endif /* BC95_RESP_BUFF_SIZE */
+
+#ifndef BC95_URC_MANAGER_TASK_PRIORITY
+#define BC95_URC_MANAGER_TASK_PRIORITY  (0x10)
+#endif /* BC95_URC_MANAGER_TASK_PRIORITY */
+/* ===========================kconfig_option_tail========================== */
+
+static os_mq_t         *bc95_nb_mq = OS_NULL;
+static os_task_t        bc95_nb_manager_task;
+static os_uint8_t       bc95_nb_manager_task_stack[BC95_URC_MANAGER_STACK_SIZE];
+
+static const os_int8_t  BC95_ONENETNB_INVALID_DEFAULT = -1;
+
+typedef struct bc95_onenet_urc
 {
-    ONENETNB_GUIDEMODE_DISABLE_ADDR = 0,
-    ONENETNB_GUIDEMODE_ENABLE_ADDR,
-    ONENETNB_RSP_TIMEOUT,
-    ONENETNB_OBS_AUTOACK,
-    ONENETNB_AUTH_CONFIG,
-    ONENETNB_DTLS_CONFIG,
-    ONENETNB_WRITE_FORMATE,
-    ONENETNB_BUF_CONFIG,
-} mo_config_mode_t;
+    const char      *prefix;                        /* URC data prefix      */
+    void (*func)(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size); 
+                                                    /* URC hanlder function */
+} bc95_onenet_urc_t;
+
+typedef struct bc95_onenet_mq_msg
+{
+    mo_onenet_cb_t *regist_cb;                      /* user regist cb ptr */
+    const char     *data;                           /* URC data */
+    os_size_t       len;                            /* URC data len */
+    void (*func)(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size);
+                                                    /* URC hanlder function */
+} bc95_onenet_mq_msg_t;
+
+typedef enum bc95_config_mode
+{
+    BC95_ONENETNB_GUIDEMODE_DISABLE_ADDR = 0,
+    BC95_ONENETNB_GUIDEMODE_ENABLE_ADDR,
+    BC95_ONENETNB_RSP_TIMEOUT,
+    BC95_ONENETNB_OBS_AUTOACK,
+    BC95_ONENETNB_AUTH_CONFIG,
+    BC95_ONENETNB_DTLS_CONFIG,
+    BC95_ONENETNB_WRITE_FORMATE,
+    BC95_ONENETNB_BUF_CONFIG,
+} bc95_config_mode_t;
+
+#define CALL_BC95_BASIC_FUNC(AT_FRONT_OPT)                                  \
+do                                                                          \
+{                                                                           \
+    OS_ASSERT(self != OS_NULL);                                             \
+    OS_ASSERT(format != OS_NULL);                                           \
+                                                                            \
+    at_parser_t *parser = &self->parser;                                    \
+    os_err_t     result = OS_EOK;                                           \
+                                                                            \
+    char resp_buff[BC95_RESP_BUFF_SIZE] = {0};                              \
+    at_resp_t at_resp = {.buff      = resp_buff,                            \
+                         .buff_size = sizeof(resp_buff),                    \
+                         .line_num  = 0,                                    \
+                         .timeout   = timeout};                             \
+                                                                            \
+    char tmp_format[BC95_RESP_BUFF_SIZE] = AT_FRONT_OPT;                    \
+    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));       \
+                                                                            \
+    result = at_parser_exec_cmd_valist(parser, &at_resp, tmp_format, args); \
+                                                                            \
+    return result;                                                          \
+} while (0);
 
 os_err_t bc95_onenetnb_get_config(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
     /* maximum return time out 300ms, suggest more than that. */
     OS_ASSERT(self != OS_NULL);
     OS_ASSERT(resp != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
 
-    at_parser_t *parser = &self->parser;
-    os_err_t     result = OS_EOK;
+    at_parser_t *parser         = &self->parser;
+    os_err_t     result         = OS_EOK;
     os_uint32_t  line;
+    char         tmp_buff[128]  = {0};
+    os_int32_t   getline_num    = 0;
+    os_int32_t   config_mode_ref;
 
-    mo_config_mode_t config_mode_ref;
     mo_config_resp_t *config_resp  = (mo_config_resp_t *)resp;
-    os_int8_t        tmp_buff[128] = {0};
-    
-    at_parser_set_resp(parser, 128, 0, timeout);
+    memset(config_resp, 0, sizeof(mo_config_resp_t));
 
-    if (at_parser_exec_cmd(parser, "AT+MIPLCONFIG?") != OS_EOK)
+    char resp_buff[128] = {0};
+    at_resp_t at_resp   = {.buff      = resp_buff,
+                           .buff_size = sizeof(resp_buff),
+                           .line_num  = 0,
+                           .timeout   = timeout};
+
+    result = at_parser_exec_cmd(parser, &at_resp, "AT+MIPLCONFIG?");
+    if (OS_EOK != result)
     {
         LOG_EXT_E("Get %s module onenetnb config failed", self->name);
-        result = OS_ERROR;
         goto __exit;
     }
 
+    /* set default invalid value */
+    config_resp->guide_mode_enable  = BC95_ONENETNB_INVALID_DEFAULT;
+    config_resp->obs_autoack_enable = BC95_ONENETNB_INVALID_DEFAULT;
+    config_resp->auth_enable        = BC95_ONENETNB_INVALID_DEFAULT;
+    config_resp->dtls_enable        = BC95_ONENETNB_INVALID_DEFAULT;
+    config_resp->write_format       = BC95_ONENETNB_INVALID_DEFAULT;
+    config_resp->buf_cfg            = BC95_ONENETNB_INVALID_DEFAULT;
+    config_resp->buf_urc_mode       = BC95_ONENETNB_INVALID_DEFAULT;
     /* return mode with 7 lines */
-    for(line = 1; 7 >= line; line++)
+    for (line = 1; ; line++)
     {   
-        result = at_parser_get_data_by_line(parser, 1, "+MIPLCONFIG:%d,%s", config_mode_ref, tmp_buff);
-        if(result != OS_EOK)
+        getline_num = at_resp_get_data_by_line(&at_resp, line, "+MIPLCONFIG:%d,%s", &config_mode_ref, tmp_buff);
+        if (0 == getline_num) /* empty line */
         {
-            LOG_EXT_E("Get %s module onenetnb config line:%d failed", self->name, line);
-            result = OS_ERROR;
+            continue;
+        }
+        else if (0 > getline_num) /* end of resp */
+        {
             goto __exit;
         }
-
+        LOG_EXT_D("mode:[%d],line[%d][%s]", config_mode_ref, line, tmp_buff);
         switch (config_mode_ref)
         {
-        case ONENETNB_GUIDEMODE_DISABLE_ADDR:
+        case BC95_ONENETNB_GUIDEMODE_DISABLE_ADDR:
             config_resp->guide_mode_enable = OS_FALSE;
-            sscanf(tmp_buff, "%s,%hu", config_resp->ip, &config_resp->port);
+            sscanf(tmp_buff, "%[^,],%hu", config_resp->ip, &config_resp->port);
             break;
-        case ONENETNB_GUIDEMODE_ENABLE_ADDR:
+        case BC95_ONENETNB_GUIDEMODE_ENABLE_ADDR:
             config_resp->guide_mode_enable = OS_TRUE;
-            sscanf(tmp_buff, "%s,%hu", config_resp->ip, &config_resp->port);
+            sscanf(tmp_buff, "%[^,],%hu", config_resp->ip, &config_resp->port);
             break;
-        case ONENETNB_RSP_TIMEOUT:
-            sscanf(tmp_buff, "%*d,%hhu", &config_resp->rsp_timeout);
+        case BC95_ONENETNB_RSP_TIMEOUT:
+            sscanf(tmp_buff, "%hhu", &config_resp->rsp_timeout);
             break;
-        case ONENETNB_OBS_AUTOACK:
-            sscanf(tmp_buff, "%d", &config_resp->obs_autoack_enable);
+        case BC95_ONENETNB_OBS_AUTOACK:
+            sscanf(tmp_buff, "%hhd", &config_resp->obs_autoack_enable);
             break;
-        case ONENETNB_AUTH_CONFIG:
-            sscanf(tmp_buff, "%d,%s", &config_resp->auth_enable, config_resp->auth_code);
+        case BC95_ONENETNB_AUTH_CONFIG:
+            sscanf(tmp_buff, "%hhd,%s", &config_resp->auth_enable, config_resp->auth_code);
             break;
-        case ONENETNB_DTLS_CONFIG:
-            sscanf(tmp_buff, "%d,%s", &config_resp->dtls_enable, config_resp->psk);
+        case BC95_ONENETNB_DTLS_CONFIG:
+            sscanf(tmp_buff, "%hhd,%s", &config_resp->dtls_enable, config_resp->psk);
             break;
-        case ONENETNB_WRITE_FORMATE:
-            sscanf(tmp_buff, "%hhu", &config_resp->write_format);
+        case BC95_ONENETNB_WRITE_FORMATE:
+            sscanf(tmp_buff, "%hhd", &config_resp->write_format);
             break;
-        case ONENETNB_BUF_CONFIG:
-            sscanf(tmp_buff, "%hhu,%hhu", &config_resp->buf_cfg, &config_resp->buf_urc_mode);
+        case BC95_ONENETNB_BUF_CONFIG:
+            sscanf(tmp_buff, "%hhd,%hhd", &config_resp->buf_cfg, &config_resp->buf_urc_mode);
             break;
         default:
             LOG_EXT_E("Get %s module onenetnb mode:%d invalid", self->name, config_mode_ref);
@@ -119,26 +203,13 @@ os_err_t bc95_onenetnb_get_config(mo_object_t *self, os_int32_t timeout, void *r
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
 
 os_err_t bc95_onenetnb_set_config(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
-    /* maximum return time out 300ms, suggest more than it */
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
-
-    at_parser_t *parser = &self->parser;
-    os_err_t     result = OS_EOK;
-
-    char tmp_format[128] = "AT+MIPLCONFIG=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    result = at_parser_exec_cmd_valist(parser, tmp_format, args);
-
-    return result;
+    CALL_BC95_BASIC_FUNC("AT+MIPLCONFIG=");    /* maximum return time out 300ms, suggest more than it */
 }
 
 os_err_t bc95_onenetnb_create(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
@@ -147,18 +218,23 @@ os_err_t bc95_onenetnb_create(mo_object_t *self, os_int32_t timeout, void *resp,
     OS_ASSERT(resp != OS_NULL);
 
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 128, 0, timeout);
+
+    char resp_buff[128] = {0};
+    at_resp_t at_resp   = {.buff      = resp_buff,
+                           .buff_size = sizeof(resp_buff),
+                           .line_num  = 0,
+                           .timeout   = timeout};
 
     char tmp_format[128] = "AT+MIPLCREATE";
 
-    if (at_parser_exec_cmd(parser, tmp_format) != OS_EOK)
+    if (at_parser_exec_cmd(parser, &at_resp, tmp_format) != OS_EOK)
     {
         return OS_ERROR;
     }
 
     os_uint8_t ref = 0;
     
-    if (at_parser_get_data_by_kw(parser, "+MIPLCREATE:", "+MIPLCREATE:%d", &ref) > 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATE:", "+MIPLCREATE:%hhu", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
         return OS_EOK;
@@ -167,264 +243,541 @@ os_err_t bc95_onenetnb_create(mo_object_t *self, os_int32_t timeout, void *resp,
     return OS_ERROR;
 }
 
-os_err_t bc95_onenetnb_addobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+os_err_t bc95_onenetnb_delete(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
-
-    at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 128, 0, timeout);
-
-    char tmp_format[64] = "AT+MIPLADDOBJ=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        return OS_EOK;
-    }
-
-    return OS_ERROR;
+    CALL_BC95_BASIC_FUNC("AT+MIPLDELETE=");
 }
 
-os_err_t bc95_onenetnb_discoverrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+os_err_t bc95_onenetnb_addobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
+    CALL_BC95_BASIC_FUNC("AT+MIPLADDOBJ=");
+}
 
-    at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 128, 0, timeout);
-
-    char tmp_format[128] = "AT+MIPLDISCOVERRSP=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        return OS_EOK;
-    }
-
-    return OS_ERROR;
+os_err_t bc95_onenetnb_delobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLDELOBJ=");
 }
 
 os_err_t bc95_onenetnb_open(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
     /* Lifetime : 16-268435454 (s) */
     /* Timeout  : [30]-65535   (s) */
+    CALL_BC95_BASIC_FUNC("AT+MIPLOPEN=");
+}
 
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
+os_err_t bc95_onenetnb_close(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    /* NO RESP. return 3s */
+    CALL_BC95_BASIC_FUNC("AT+MIPLCLOSE=");
+}
 
-    at_parser_t *parser = &self->parser;
+os_err_t bc95_onenetnb_discoverrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLDISCOVERRSP=");
+}
 
-    at_parser_set_resp(parser, 128, 6, timeout);
+os_err_t bc95_onenetnb_observersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLOBSERVERSP=");
+}
 
-    char tmp_format[28] = "AT+MIPLOPEN=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
+os_err_t bc95_onenetnb_readrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLREADRSP=");
+}
 
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        return OS_ERROR;
-    }
+os_err_t bc95_onenetnb_writersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLWRITERSP=");
+}
 
-    if (OS_NULL != at_parser_get_line_by_kw(parser, "+MIPLEVENT:0,6"))
-    {  
-        return OS_EOK; /* success */
-    }
+os_err_t bc95_onenetnb_executersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLEXECUTERSP=");
+}
 
-    return OS_ERROR;
+os_err_t bc95_onenetnb_parameterrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
+{
+    CALL_BC95_BASIC_FUNC("AT+MIPLPARAMETERRSP=");
 }
 
 os_err_t bc95_onenetnb_notify(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
     /* USER DATA <= 1000 BYTES */
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
-
-    os_bool_t is_ack = OS_FALSE;
-    const char *idx = format;
-    
-    os_uint8_t  i   = 1;
-    /* TODO if user had empty str after the final 11 mark \, it will be wrong */
-    for (i = 1; i < 11; ++i) /* check has ack_id */
-    {
-        idx = strstr(idx + 1, ",");
-        if (OS_NULL == idx)
-        {
-            break;
-        }
-    }
-    
-    if (i < 11) /* not has ack_id */
-    {
-        is_ack = OS_TRUE;
-    }
-    
-    os_uint32_t ack_input = atoi(idx);
-    at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, is_ack ? 0 : 4, timeout);
-
-    char tmp_format[128] = "AT+MIPLNOTIFY=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        return OS_ERROR;
-    }
-
-    os_uint32_t ackid_out = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLEVENT:0,26", "+MIPLEVENT:0,26,%d", &ackid_out) <= 0)
-    {
-        return OS_ERROR;
-    }
-    
-    if (ack_input == ackid_out)
-    {
-        return OS_EOK;
-    }
-
-    return OS_ERROR;
+    CALL_BC95_BASIC_FUNC("AT+MIPLNOTIFY=");
 }
 
 os_err_t bc95_onenetnb_update(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
 {
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
-
-    at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 128, 4, timeout);
-
-    char tmp_format[128] = "AT+MIPLUPDATE=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        return OS_ERROR;
-    }
-
-    os_uint8_t ref = 0;
-    os_uint16_t event_id = 0;
-    if (at_parser_get_data_by_kw(parser, "+MIPLEVENT:", "+MIPLEVENT:%d,%d", &ref, &event_id) <= 0)
-    {
-        return OS_ERROR;
-    }
-    if (event_id == 11)
-    {
-        return OS_EOK;
-    }
-    
-    return OS_ERROR;
+    CALL_BC95_BASIC_FUNC("AT+MIPLUPDATE=");
 }
 
-os_err_t bc95_onenetnb_get_write(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
-{
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(resp != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
-    
-    at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, timeout);
-
-    char tmp_format[128] = "AT+MIPLMGR=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) != OS_EOK)
-    {
-        return OS_ERROR;
-    }
-    
-    module_mgr_resp_t *mgr = (module_mgr_resp_t *)resp;
-    if (at_parser_get_data_by_kw(parser, "+MIPLWRITE:", "+MIPLWRITE:%d,%d,%d,%d,%d,%d,%d,%s", &mgr->ref, &mgr->mid, 
-        &mgr->objid, &mgr->insid, &mgr->resid, &mgr->type, &mgr->len, mgr->value) > 0)
-    {
-        return OS_EOK;
-    }
-
-    return OS_ERROR;
-}
-
-os_err_t bc95_onenetnb_writersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
-{
-    OS_ASSERT(self != OS_NULL);
-    OS_ASSERT(format != OS_NULL);
-    
-    at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, timeout);
-
-    char tmp_format[128] = "AT+MIPLWRITERSP=";
-    strncpy(tmp_format + strlen(tmp_format), format, strlen(format));
-
-    if (at_parser_exec_cmd_valist(parser, tmp_format, args) == OS_EOK)
-    {
-        return OS_EOK;
-    }
-
-    return OS_ERROR;
-}
-
-static os_err_t urc_discover_handler(struct at_parser *parser, const char *data, os_size_t size)
+static void urc_discover_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
 {
     /* <ref>,<msgID>,<objID> */
-    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != regist_cb);
     OS_ASSERT(OS_NULL != data);
-    return OS_EOK;
+
+    if (OS_NULL == regist_cb->discover_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No discover callback registed.", __LINE__, __func__);
+        return;
+    }
+    
+    mo_onenet_discover_t    discover_info;
+    memset(&discover_info, 0, sizeof(mo_onenet_discover_t));
+
+    sscanf(data, "+MIPLDISCOVER: %u,%d,%d", 
+                                            &discover_info.ref, 
+                                            &discover_info.msg_id, 
+                                            &discover_info.obj_id);
+    
+    regist_cb->discover_notify_cb(&discover_info);
+
+    return;
 }
 
-static os_err_t urc_observe_handler(struct at_parser *parser, const char *data, os_size_t size)
+static void urc_observe_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
 {
     /* <ref>,<msgID>,<flag>,<objID>,<insID>,<resID> */
-    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != regist_cb);
     OS_ASSERT(OS_NULL != data);
-    return OS_EOK;
+
+    if (OS_NULL == regist_cb->discover_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No observe callback registed.", __LINE__, __func__);
+        return;
+    }
+
+    mo_onenet_observe_t     observe_info;
+    memset(&observe_info, 0, sizeof(mo_onenet_observe_t));
+
+    sscanf(data, "+MIPLOBSERVE: %u,%d,%hhd,%d,%d,%d", 
+                                            &observe_info.ref, 
+                                            &observe_info.msg_id, 
+                                            &observe_info.flag, 
+                                            &observe_info.obj_id, 
+                                            &observe_info.ins_id, 
+                                            &observe_info.res_id);
+    
+    regist_cb->observe_notify_cb(&observe_info);
+
+    return;
 }
 
-static os_err_t urc_read_handler(struct at_parser *parser, const char *data, os_size_t size)
+static void urc_read_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
 {
     /* <ref>,<msgID>,<objID>,<insID>,<resID> */
-    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != regist_cb);
     OS_ASSERT(OS_NULL != data);
-    return OS_EOK;
+
+    if (OS_NULL == regist_cb->read_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No read callback registed.", __LINE__, __func__);
+        return;
+    }
+
+    mo_onenet_read_t        read_info;
+    memset(&read_info, 0, sizeof(mo_onenet_read_t));
+
+    sscanf(data, "+MIPLREAD: %u,%d,%d,%d,%d", 
+                                            &read_info.ref, 
+                                            &read_info.msg_id,  
+                                            &read_info.obj_id, 
+                                            &read_info.ins_id, 
+                                            &read_info.res_id);
+    
+    regist_cb->read_notify_cb(&read_info);
+
+    return;
 }
 
-static os_err_t urc_write_handler(struct at_parser *parser, const char *data, os_size_t size)
+static void urc_write_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
 {
     /* <ref>,<msgID>,<objID>,<insID>,<resID>,<value_type>,<len>,<value>,<flag>,<index> */
-    OS_ASSERT(OS_NULL != parser);
+    /* quectel suggest that value < 1000, otherwise it may cause faliure */
+    OS_ASSERT(OS_NULL != regist_cb);
     OS_ASSERT(OS_NULL != data);
-    return OS_EOK;
+
+    if (OS_NULL == regist_cb->write_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No write callback registed.", __LINE__, __func__);
+        return;
+    }
+
+    mo_onenet_write_t       write_info;
+    os_int8_t              *value       = OS_NULL;
+    os_int8_t               value_trait = 0; /* value trait:string/hexstring */
+    
+    memset(&write_info, 0, sizeof(mo_onenet_write_t));
+
+    char regex[BC95_REGEX_LEN_DEFAULT] = {0};
+    sscanf(data, "+MIPLWRITE: %*d,%*d,%*d,%*d,%*d,%*d,%d,%c", &write_info.len, &value_trait);
+    if ('\"' != value_trait)
+    {
+        value = calloc(1, write_info.len + 1);
+        strcpy(regex, "+MIPLWRITE: %u,%d,%d,%d,%d,%hhd,%*d,\"%[^\"]\",%hhd,%d");
+    }
+    else
+    {
+        value = calloc(1, write_info.len * 2 + 1);
+        strcpy(regex, "+MIPLWRITE: %u,%d,%d,%d,%d,%hhd,%*d,%[^,],%hhd,%d");
+    }
+    
+    if (value == OS_NULL)
+    {
+        LOG_EXT_E("Calloc onenetNB[%s] value str failed, no enough memory", __func__);
+        return;
+    }
+
+    sscanf(data, regex, &write_info.ref, 
+                        &write_info.msg_id,  
+                        &write_info.obj_id, 
+                        &write_info.ins_id, 
+                        &write_info.res_id,
+                        &write_info.value_type,
+                        value,
+                        &write_info.flag,
+                        &write_info.index);
+    
+    regist_cb->write_notify_cb(&write_info, (const char *)value);
+    
+    free(value);
+    return;
 }
 
-static os_err_t urc_execute_handler(struct at_parser *parser, const char *data, os_size_t size)
+static void urc_execute_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
 {
     /* <ref>,<msgID>,<objID>,<insID>,<resID>[,<len>,<arguments>] */
-    OS_ASSERT(OS_NULL != parser);
+    /* quectel suggest that arguments < 1000, otherwise it may cause faliure */
+    OS_ASSERT(OS_NULL != regist_cb);
     OS_ASSERT(OS_NULL != data);
-    return OS_EOK;
+
+    if (OS_NULL == regist_cb->execute_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No execute callback registed.", __LINE__, __func__);
+        return;
+    }
+
+    mo_onenet_execute_t     execute_info;
+    memset(&execute_info, 0, sizeof(mo_onenet_execute_t));
+
+    sscanf(data, "+MIPLEXECUTE: %*d,%*d,%*d,%*d,%*d,%d", &execute_info.len);
+    
+    os_uint8_t             *arguments = calloc(1, execute_info.len + 1);
+    
+    if (OS_NULL == arguments)
+    {
+        LOG_EXT_E("Calloc onenetNB[%s] arguments str failed, no enough memory", __func__);
+        return;
+    }
+    sscanf(data, "+MIPLEXECUTE: %u,%d,%d,%d,%d,%*d,\"%s\"",
+                                               &execute_info.ref, 
+                                               &execute_info.msg_id,  
+                                               &execute_info.obj_id, 
+                                               &execute_info.ins_id, 
+                                               &execute_info.res_id,
+                                               arguments);
+    
+    regist_cb->execute_notify_cb(&execute_info, (const char *)arguments);
+    
+    free(arguments);
+    return;
 }
 
-static os_err_t urc_parameter_handler(struct at_parser *parser, const char *data, os_size_t size)
+static void urc_parameter_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
 {
     /* <ref>,<msgID>,<objID>,<insID>,<resID>,<len>,<parameter> */
-    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != regist_cb);
     OS_ASSERT(OS_NULL != data);
-    return OS_EOK;
+
+    if (OS_NULL == regist_cb->parameter_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No parameter callback registed.", __LINE__, __func__);
+        return;
+    }
+
+    mo_onenet_parameter_t    parameter_info;
+    memset(&parameter_info, 0, sizeof(mo_onenet_parameter_t));
+
+    sscanf(data, "+MIPLPARAMETER: %*d,%*d,%*d,%*d,%*d,%d", &parameter_info.len);
+    
+    os_uint8_t              *arguments = calloc(1, parameter_info.len + 1);
+    
+    if (OS_NULL == arguments)
+    {
+        LOG_EXT_E("Calloc onenetNB[%s] arguments str failed, no enough memory", __func__);
+        return;
+    }
+    sscanf(data, "+MIPLPARAMETER: %u,%d,%d,%d,%d,%*d,\"%s\"",
+                                               &parameter_info.ref, 
+                                               &parameter_info.msg_id,  
+                                               &parameter_info.obj_id, 
+                                               &parameter_info.ins_id, 
+                                               &parameter_info.res_id,
+                                               arguments);
+    
+    regist_cb->parameter_notify_cb(&parameter_info, (const char *)arguments);
+    
+    free(arguments);
+    return;
 }
 
-// static os_err_t urc_event_handler(struct at_parser *parser, const char *data, os_size_t size)
-// {
-//     /* <ref>,<evtID>[,<extend>][,<ackID>][,<time_stamp>,<cache_command_flag>] */
-//     OS_ASSERT(OS_NULL != parser);
-//     OS_ASSERT(OS_NULL != data);
-//     return OS_EOK;
-// }
+static void urc_event_handler(mo_onenet_cb_t *regist_cb, const char *data, os_size_t size)
+{
+    /* <ref>,<evtID>[,<extend>][,<ackID>][,<time_stamp>,<cache_command_flag>] */
+    OS_ASSERT(OS_NULL != regist_cb);
+    OS_ASSERT(OS_NULL != data);
 
-static at_urc_t nb_urc_table[] = {
-    {.prefix = "+MIPLDISCOVER:",  .suffix = "\r\n", .func = urc_discover_handler },
-    {.prefix = "+MIPLOBSERVE:",   .suffix = "\r\n", .func = urc_observe_handler  },
-    {.prefix = "+MIPLREAD:",      .suffix = "\r\n", .func = urc_read_handler     },
-    {.prefix = "+MIPLWRITE:",     .suffix = "\r\n", .func = urc_write_handler    },
-    {.prefix = "+MIPLEXECUTE:",   .suffix = "\r\n", .func = urc_execute_handler  },
-    {.prefix = "+MIPLPARAMETER:", .suffix = "\r\n", .func = urc_parameter_handler},
-    // {.prefix = "+MIPLEVENT:",     .suffix = "\r\n", .func = urc_event_handler    },
+    if (OS_NULL == regist_cb->event_notify_cb)
+    {
+        LOG_EXT_W("[%d][%s] No event callback registed.", __LINE__, __func__);
+        return;
+    }
+
+    mo_onenet_event_t    event_info;
+    memset(&event_info, 0, sizeof(mo_onenet_event_t));
+    event_info.extend             = BC95_ONENETNB_INVALID_DEFAULT;
+    event_info.cache_command_flag = BC95_ONENETNB_INVALID_DEFAULT;
+
+    sscanf(data, "+MIPLEVENT: %u,%hhu,%d,%hu,%s,%hhd",
+                                               &event_info.ref, 
+                                               &event_info.evt_id,  
+                                               &event_info.extend, 
+                                               &event_info.ack_id, 
+                                               event_info.time_stamp,
+                                               &event_info.cache_command_flag);
+    
+    regist_cb->event_notify_cb(&event_info);
+    
+    return;
+}
+
+static bc95_onenet_urc_t bc95_nb_urc_handler_table[] = {
+    {.prefix = "MIPLDISCOVER",  .func = urc_discover_handler },
+    {.prefix = "MIPLOBSERVE",   .func = urc_observe_handler  },
+    {.prefix = "MIPLREAD",      .func = urc_read_handler     },
+    {.prefix = "MIPLWRITE",     .func = urc_write_handler    },
+    {.prefix = "MIPLEXECUTE",   .func = urc_execute_handler  },
+    {.prefix = "MIPLPARAMETER", .func = urc_parameter_handler},
+    {.prefix = "MIPLEVENT",     .func = urc_event_handler    },
 };
+
+static void bc95_urc_receiver(struct at_parser *parser, const char *data, os_size_t size)
+{
+    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != data);
+    
+    char      *urc_data                           = OS_NULL;
+    os_int8_t  handler_ref                        = BC95_ONENETNB_INVALID_DEFAULT;
+    char       urc_cmd_head[BC95_URC_HEAD_MAXLEN] = {0};
+   
+    /* parse from cmd */
+    sscanf(data, "+%[^:]", urc_cmd_head);
+    
+    /* find registration */
+    for (int i = 0; i < sizeof(bc95_nb_urc_handler_table) / sizeof(bc95_onenet_urc_t); i++)
+    {
+        if (0 != strcmp(urc_cmd_head, bc95_nb_urc_handler_table[i].prefix))
+        {
+            continue;
+        }
+        else
+        {
+            handler_ref = i;
+            LOG_EXT_I("[%d][%s] Urc code received[%s].", __LINE__, __func__, urc_cmd_head);
+            break;
+        }
+    }
+
+    if (BC95_ONENETNB_INVALID_DEFAULT == handler_ref)
+    {
+        LOG_EXT_W("[%d][%s] Urc code unrecognized[%s].", __LINE__, __func__, urc_cmd_head);
+        return;
+    }
+
+    /* malloc mem for handler use */
+    urc_data = calloc(1, size);
+    memcpy(urc_data, data, size);
+
+    /* get regist_cb ptr for urc_handler */
+    mo_object_t *self = os_container_of(parser, mo_object_t, parser);
+    mo_bc95_t *module = os_container_of(self, mo_bc95_t, parent);
+
+    /* send handle_msg to mq */
+    bc95_onenet_mq_msg_t handle_msg = {
+        module->regist_cb, urc_data, size, 
+        bc95_nb_urc_handler_table[handler_ref].func};
+    
+    if (OS_EOK != os_mq_send(bc95_nb_mq, &handle_msg, sizeof(handle_msg), OS_IPC_WAITING_NO))
+    {
+        LOG_EXT_W("[%s] mq send failed, too many unsolved urc.", __func__);
+    }
+
+    return;
+}
+
+static void bc95_urc_manager_task(void *parameter)
+{
+    LOG_EXT_I("[%s] task start up.", __func__);
+    bc95_onenet_mq_msg_t handle_msg;
+    os_err_t             result     = OS_ERROR;
+    os_size_t            recv_size  = 0;
+
+    while (1)
+    {
+        memset(&handle_msg, 0, sizeof(bc95_onenet_mq_msg_t));
+        
+        /* wait & pop */
+        result = os_mq_recv(bc95_nb_mq,
+                           &handle_msg, 
+                            sizeof(handle_msg), 
+                            OS_IPC_WAITING_FOREVER, 
+                           &recv_size);
+        if (OS_EOK != result)
+        {
+            LOG_EXT_W("[%s] mq received failed, recv buff too low.", __func__);
+            free((void *)handle_msg.data);
+            continue;
+        }
+
+        /* FIXME [*] add recursive lock, NB AT session */
+
+
+        /* execute urc handler */
+        OS_ASSERT(OS_NULL != handle_msg.func);
+        handle_msg.func(handle_msg.regist_cb, handle_msg.data, handle_msg.len);
+
+
+        /* [*] unlock */
+
+        /* free buffer alloced in bc95_urc_receiver */
+        free((void *)handle_msg.data);
+    }
+}
+
+static at_urc_t bc95_nb_urc_table[] = {
+    {.prefix = "+MIPLDISCOVER:",  .suffix = "\r\n", .func = bc95_urc_receiver},
+    {.prefix = "+MIPLOBSERVE:",   .suffix = "\r\n", .func = bc95_urc_receiver},
+    {.prefix = "+MIPLREAD:",      .suffix = "\r\n", .func = bc95_urc_receiver},
+    {.prefix = "+MIPLWRITE:",     .suffix = "\r\n", .func = bc95_urc_receiver},
+    {.prefix = "+MIPLEXECUTE:",   .suffix = "\r\n", .func = bc95_urc_receiver},
+    {.prefix = "+MIPLPARAMETER:", .suffix = "\r\n", .func = bc95_urc_receiver},
+    {.prefix = "+MIPLEVENT:",     .suffix = "\r\n", .func = bc95_urc_receiver},
+};
+
+os_err_t bc95_onenetnb_init(mo_bc95_t *module)
+{
+    OS_ASSERT(OS_NULL != module);
+    os_err_t     result = OS_ERROR;
+    at_parser_t *parser = OS_NULL;
+
+    module->regist_cb = calloc(1, sizeof(mo_onenet_cb_t));
+    if (OS_NULL == module->regist_cb)
+    {
+        LOG_EXT_E("Module %s NB init failed, no enough memory!", module->parent.name, __func__);
+        result = OS_ENOMEM;
+        goto __exit;
+    }
+
+    /* create mq for urc manager */
+    bc95_nb_mq = os_mq_create(BC95_URC_MQ_NAME,
+                              sizeof(bc95_onenet_mq_msg_t),
+                              BC95_URC_MQ_MSGNUM_MAX,
+                              OS_IPC_FLAG_FIFO);
+    if (OS_NULL == bc95_nb_mq)
+    {
+        LOG_EXT_E("Module %s NB mq create failed, no enough memory!", module->parent.name);
+        result = OS_ENOMEM;
+        goto __exit;
+    }
+
+    /* create&start urc manager task */
+    result = os_task_init(&bc95_nb_manager_task, 
+                           BC95_URC_MANAGER_TASK_NAME,
+                           bc95_urc_manager_task,
+                           OS_NULL,
+                           bc95_nb_manager_task_stack,
+                           BC95_URC_MANAGER_STACK_SIZE,
+                           BC95_URC_MANAGER_TASK_PRIORITY,
+                           BC95_URC_MANAGER_TASK_TICKS);
+    if (OS_EOK != result)
+    {
+        LOG_EXT_E("Module %s NB create manager task failed[%d]!", module->parent.name, result);
+        goto __exit;
+    }
+
+    result = os_task_startup(&bc95_nb_manager_task);
+    if (OS_EOK != result)
+    {
+        os_task_deinit(&bc95_nb_manager_task);
+        goto __exit;
+    }
+
+    /* Set netconn urc table */
+    parser = &(module->parent.parser);
+    at_parser_set_urc_table(parser, bc95_nb_urc_table, sizeof(bc95_nb_urc_table) / sizeof(at_urc_t));
+
+    LOG_EXT_E("Module %s NB init success.", module->parent.name);
+    return OS_EOK;
+
+__exit:
+
+    if (OS_NULL != module->regist_cb)
+    {
+        free(module->regist_cb);
+        module->regist_cb = OS_NULL;
+    }
+
+    if (OS_NULL != bc95_nb_mq)
+    {
+        os_mq_destroy(bc95_nb_mq);
+        bc95_nb_mq = OS_NULL;
+    }
+
+    return result;
+}
+
+void bc95_onenetnb_deinit(mo_bc95_t *module)
+{
+    OS_ASSERT(OS_NULL != module);
+    OS_ASSERT(OS_NULL != bc95_nb_mq);
+
+    bc95_onenet_mq_msg_t handle_msg;
+    os_err_t             result     = OS_ERROR;
+    os_size_t            recv_size  = 0;
+
+    /* free buff in mq which alloced in bc95_urc_receiver */
+    do 
+    {
+        memset(&handle_msg, 0, sizeof(bc95_onenet_mq_msg_t));
+        result = os_mq_recv(bc95_nb_mq,
+                            &handle_msg, 
+                            sizeof(handle_msg), 
+                            OS_IPC_WAITING_NO, 
+                            &recv_size);
+        free((void *)handle_msg.data);
+    } while (OS_EOK != result);
+
+    os_mq_control(bc95_nb_mq, OS_IPC_CMD_RESET, OS_NULL);
+    os_mq_destroy(bc95_nb_mq);
+    bc95_nb_mq = OS_NULL;
+
+    /* deinit urc manager task */
+    os_task_deinit(&bc95_nb_manager_task);
+
+    free(module->regist_cb);
+    module->regist_cb = OS_NULL;
+
+    return;
+}
+
+os_err_t bc95_onenetnb_cb_register(mo_object_t *self, mo_onenet_cb_t user_callbacks)
+{
+    mo_bc95_t *module = os_container_of(self, mo_bc95_t, parent);
+    memcpy(module->regist_cb, &user_callbacks, sizeof(mo_onenet_cb_t));
+    return OS_EOK;
+}
 
 #ifdef OS_USING_SHELL
 os_err_t bc95_onenetnb_all(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, va_list args)
@@ -433,9 +786,14 @@ os_err_t bc95_onenetnb_all(mo_object_t *self, os_int32_t timeout, void *resp, co
     OS_ASSERT(format != OS_NULL);
     
     at_parser_t *parser = &self->parser;
-    at_parser_set_resp(parser, 256, 0, timeout);
 
-    if (at_parser_exec_cmd_valist(parser, format, args) == OS_EOK)
+    char resp_buff[256] = {0};
+    at_resp_t at_resp   = {.buff      = resp_buff,
+                           .buff_size = sizeof(resp_buff),
+                           .line_num  = 0,
+                           .timeout   = timeout};
+
+    if (at_parser_exec_cmd_valist(parser, &at_resp, format, args) == OS_EOK)
     {
         return OS_EOK;
     }

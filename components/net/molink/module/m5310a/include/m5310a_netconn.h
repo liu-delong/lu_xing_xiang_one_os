@@ -32,6 +32,7 @@ extern "C" {
 
 #ifdef M5310A_USING_NETCONN_OPS
 
+os_err_t      m5310a_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info);
 mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type);
 os_err_t      m5310a_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn);
 os_err_t      m5310a_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_addr_t addr, os_uint16_t port);

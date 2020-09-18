@@ -5,6 +5,7 @@ config OS_USING_ONENET_EDP
     select PKG_USING_CJSON
     select NET_USING_BSD
     select BSP_USING_ONCHIP_RTC
+    select OS_USING_RTC
     select PKG_USING_NTP
 	default n
     

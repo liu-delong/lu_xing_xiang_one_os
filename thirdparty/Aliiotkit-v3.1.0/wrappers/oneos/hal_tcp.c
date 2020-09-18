@@ -109,7 +109,7 @@ uintptr_t HAL_TCP_Establish(const char *host, uint16_t port)
             break;
         }
 
-        close(fd);
+        closesocket(fd);
         LOG_EXT_E("connect error");
         rc = -1;
     }
@@ -174,7 +174,7 @@ int32_t HAL_TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t time
             timeout.tv_sec  = t_left / 1000;
             timeout.tv_usec = (t_left % 1000) * 1000;
 
-            ret = lwip_select(fd + 1, NULL, &sets, NULL, &timeout);
+            ret = select(fd + 1, NULL, &sets, NULL, &timeout);
             if (ret > 0)
             {
                 if (0 == FD_ISSET(fd, &sets))
@@ -187,7 +187,7 @@ int32_t HAL_TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t time
             }
             else if (0 == ret)
             {
-                LOG_EXT_E("lwip_select-write timeout %d", timeout_ms);
+                LOG_EXT_E("select-write timeout %d", timeout_ms);
                 break;
             }
             else
@@ -198,7 +198,7 @@ int32_t HAL_TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t time
                     continue;
                 }
 
-                LOG_EXT_E("lwip_select-write fail");
+                LOG_EXT_E("select-write fail");
                 break;
             }
         }
@@ -256,7 +256,7 @@ int32_t HAL_TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
         timeout.tv_sec  = t_left / 1000;
         timeout.tv_usec = (t_left % 1000) * 1000;
 
-        ret = lwip_select(fd + 1, &sets, NULL, NULL, &timeout);
+        ret = select(fd + 1, &sets, NULL, NULL, &timeout);
         if (ret > 0)
         {
             ret = recv(fd, buf + len_recv, len - len_recv, 0);
@@ -288,7 +288,7 @@ int32_t HAL_TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
         }
         else
         {
-            LOG_EXT_E("lwip_select-recv fail");
+            LOG_EXT_E("select-recv fail");
             err_code = -2;
             break;
         }

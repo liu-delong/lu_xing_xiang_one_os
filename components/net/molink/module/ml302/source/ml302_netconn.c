@@ -63,33 +63,34 @@ static os_err_t ml302_unlock(os_mutex_t *mutex)
 
 static os_bool_t ml302_check_state(mo_object_t *module, os_int32_t connect_id)
 {
-    at_parser_t *parser = &module->parser;
-    at_parser_set_resp(parser, 256, 0, os_tick_from_ms(6000));
-	  char mipstate[50] = {0};
-    const char connect[10] = "CONNECT";
-		const char listen[10] = "LISTEN";
-		
-	  if(at_parser_exec_cmd(parser, "AT+MIPSTATE=%d",connect_id) != OS_EOK)
+    at_parser_t *parser       = &module->parser;
+    char         mipstate[50] = {0};
+    const char   connect[10]  = "CONNECT";
+    const char   listen[10]   = "LISTEN";
+
+    char resp_buff[256] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 6 * OS_TICK_PER_SECOND};
+
+    if (at_parser_exec_cmd(parser, &resp, "AT+MIPSTATE=%d", connect_id) != OS_EOK)
     {
         LOG_EXT_E("Check connecd id %d state failed!", connect_id);
         return OS_FALSE;
     }
-		 
-	  if(at_parser_get_data_by_kw(parser, "+MIPSTATE:", "+MIPSTATE:%s", &mipstate) <= 0)
+
+    if (at_resp_get_data_by_kw(&resp, "+MIPSTATE:", "+MIPSTATE:%s", &mipstate) <= 0)
     {
-		    LOG_EXT_E("Get connect_id :%d  ip state failed", connect_id);
+        LOG_EXT_E("Get connect_id :%d  ip state failed", connect_id);
         return OS_ERROR;
     }
-		if(OS_NULL == strstr(mipstate, connect) && OS_NULL == strstr(mipstate, listen))
+    if (OS_NULL == strstr(mipstate, connect) && OS_NULL == strstr(mipstate, listen))
     {
-	      at_parser_reset_resp(parser);
-		    LOG_EXT_I("Check connecd id %d state free!", connect_id);
+        LOG_EXT_I("Check connecd id %d state free!", connect_id);
         return OS_TRUE;
-	  }
-	  at_parser_reset_resp(parser);
+    }
+
     LOG_EXT_I("Check connecd id %d state used!", connect_id);
     return OS_FALSE;
-		
 }
 
 static mo_netconn_t *ml302_netconn_alloc(mo_object_t *module)
@@ -105,7 +106,7 @@ static mo_netconn_t *ml302_netconn_alloc(mo_object_t *module)
                 ml302->netconn[i].connect_id = i;
 
                 return &ml302->netconn[i];
-            }            
+            }
         }
     }
 
@@ -121,10 +122,20 @@ static mo_netconn_t *ml302_get_netconn_by_id(mo_object_t *module, os_int32_t con
     return &ml302->netconn[connect_id];
 }
 
+os_err_t ml302_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
+{
+    mo_ml302_t *ml302 = os_container_of(module, mo_ml302_t, parent);
+
+    info->netconn_array = ml302->netconn;
+    info->netconn_nums  = sizeof(ml302->netconn) / sizeof(ml302->netconn[0]);
+
+    return OS_EOK;
+}
+
 mo_netconn_t *ml302_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
-	  
-   
+    mo_ml302_t *ml302 = os_container_of(module, mo_ml302_t, parent);
+    ml302_lock(&ml302->netconn_lock);
     mo_netconn_t *netconn = ml302_netconn_alloc(module);
 
     if (OS_NULL == netconn)
@@ -136,7 +147,7 @@ mo_netconn_t *ml302_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 
     netconn->stat = NETCONN_STAT_INIT;
     netconn->type = type;
-
+    ml302_unlock(&ml302->netconn_lock);
     return netconn;
 }
 
@@ -146,15 +157,21 @@ os_err_t ml302_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
     os_err_t     result = OS_ERROR;
 
     LOG_EXT_D("Module %s in %d netconnn status", module->name, netconn->stat);
-	
-    at_parser_set_resp(parser, 64, 2, os_tick_from_ms(1000));
-	
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 2,
+                      .timeout   = 1 * OS_TICK_PER_SECOND
+                     };
+
     switch (netconn->stat)
     {
     case NETCONN_STAT_INIT:
-			   break;
+        break;
     case NETCONN_STAT_CONNECT:
-        result = at_parser_exec_cmd(parser, "AT+MIPCLOSE=%d", netconn->connect_id);
+        result = at_parser_exec_cmd(parser, &resp, "AT+MIPCLOSE=%d", netconn->connect_id);
         if (result != OS_EOK)
         {
             LOG_EXT_E("Module %s destroy %s netconn failed",
@@ -182,13 +199,17 @@ os_err_t ml302_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
     return OS_EOK;
 }
 
-
 os_err_t ml302_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_addr_t addr, os_uint16_t port)
 {
     at_parser_t *parser = &module->parser;
-    mo_ml302_t *ml302 = os_container_of(module, mo_ml302_t, parent);
 
-    at_parser_set_resp(parser, 256, 0, os_tick_from_ms(150 * 1000));
+
+    mo_ml302_t * ml302  = os_container_of(module, mo_ml302_t, parent);
+    ml302_lock(&ml302->netconn_lock);
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 150 * OS_TICK_PER_SECOND};
 
     char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
 
@@ -204,20 +225,21 @@ os_err_t ml302_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_ad
     {
     case NETCONN_TYPE_TCP:
         result = at_parser_exec_cmd(parser,
-                                    "AT+MIPOPEN=%d,\"TCP\",\"%s\",%d", 
-                                    netconn->connect_id, 
-                                    remote_ip, 
+                                    &resp,
+                                    "AT+MIPOPEN=%d,\"TCP\",\"%s\",%d",
+                                    netconn->connect_id,
+                                    remote_ip,
                                     port);
         break;
     case NETCONN_TYPE_UDP:
         result = at_parser_exec_cmd(parser,
-                                    "AT+MIPOPEN=%d,\"UDP\",\"%s\",%d,", 
-                                    netconn->connect_id, 
-                                    remote_ip, 
+                                    &resp,
+                                    "AT+MIPOPEN=%d,\"UDP\",\"%s\",%d,",
+                                    netconn->connect_id,
+                                    remote_ip,
                                     port);
         break;
     default:
-
         result = OS_ERROR;
         goto __exit;
     }
@@ -268,9 +290,7 @@ __exit:
     {
         LOG_EXT_E("Module %s connect to %s:%d failed!", module->name, remote_ip, port);
     }
-
-    at_parser_reset_resp(parser);
-
+    ml302_unlock(&ml302->netconn_lock);
     return result;
 }
 
@@ -288,10 +308,15 @@ os_size_t ml302_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const c
 
     ml302->curr_connect = netconn->connect_id;
 
-    at_parser_set_resp(parser, 128, 2, 5 * OS_TICK_PER_SECOND);
+    char resp_buff[128] = {0};
+
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 2,
+                      .timeout   = 5 * OS_TICK_PER_SECOND
+                     };
 
     at_parser_set_end_mark(parser, ">", 1);
-
 
     while (sent_size < size)
     {
@@ -304,7 +329,7 @@ os_size_t ml302_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const c
             curr_size = SEND_DATA_MAX_SIZE;
         }
 
-        result = at_parser_exec_cmd(parser, "AT+MIPSEND=%d,%d", netconn->connect_id, curr_size);
+        result = at_parser_exec_cmd(parser, &resp, "AT+MIPSEND=%d,%d", netconn->connect_id, curr_size);
         if (result != OS_EOK)
         {
             goto __exit;
@@ -353,10 +378,8 @@ __exit:
 
     at_parser_set_end_mark(parser, OS_NULL, 0);
 
-    at_parser_reset_resp(parser);
-
     ml302_unlock(&ml302->netconn_lock);
-    
+
     if (result != OS_EOK)
     {
         LOG_EXT_E("Module %s connect id %d send %d bytes data failed", module->name, netconn->connect_id, size);
@@ -374,7 +397,9 @@ os_err_t ml302_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
     at_parser_t *parser = &self->parser;
     os_err_t     result = OS_EOK;
 
-    at_parser_set_resp(parser, 128, 0, os_tick_from_ms(6000));
+    char resp_buff[128] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 6 * OS_TICK_PER_SECOND};
 
     mo_ml302_t *ml302 = os_container_of(self, mo_ml302_t, parent);
 
@@ -386,7 +411,7 @@ os_err_t ml302_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
 
     ml302->netconn_data = addr;
 
-    result = at_parser_exec_cmd(parser, "AT+MDNSGIP=\"%s\"", domain_name);
+    result = at_parser_exec_cmd(parser, &resp, "AT+MDNSGIP=\"%s\"", domain_name);
     if (result != OS_EOK)
     {
         goto __exit;
@@ -401,10 +426,7 @@ os_err_t ml302_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
 __exit:
     ml302->netconn_data = OS_NULL;
 
-    at_parser_reset_resp(parser);
-
     return result;
-
 }
 
 static void urc_connect_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -413,18 +435,18 @@ static void urc_connect_func(struct at_parser *parser, const char *data, os_size
     OS_ASSERT(OS_NULL != data);
 
     mo_object_t *module = os_container_of(parser, mo_object_t, parser);
-    mo_ml302_t *ml302 = os_container_of(module, mo_ml302_t, parent);
+    mo_ml302_t  *ml302  = os_container_of(module, mo_ml302_t, parent);
 
     os_int32_t connect_id = -1;
-	  connect_id = data[0] - '0';
-	  if (strstr(data, "CONNECT OK"))
+    connect_id = data[0] - '0';
+    if (strstr(data, "CONNECT OK"))
     {
         os_event_send(&ml302->netconn_evt, SET_EVENT(connect_id, ML302_EVENT_CONN_OK));
     }
-    else 
-    {   
+    else
+    {
         os_event_send(&ml302->netconn_evt, SET_EVENT(connect_id, ML302_EVENT_CONN_FAIL));
-    }     
+    }
 }
 
 static void urc_send_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -433,7 +455,7 @@ static void urc_send_func(struct at_parser *parser, const char *data, os_size_t 
     OS_ASSERT(OS_NULL != data);
 
     mo_object_t *module = os_container_of(parser, mo_object_t, parser);
-    mo_ml302_t *ml302 = os_container_of(module, mo_ml302_t, parent);
+    mo_ml302_t  *ml302  = os_container_of(module, mo_ml302_t, parent);
 
     os_int32_t curr_connect = ml302->curr_connect;
 
@@ -442,14 +464,11 @@ static void urc_send_func(struct at_parser *parser, const char *data, os_size_t 
 
         os_event_send(&ml302->netconn_evt, SET_EVENT(curr_connect, ML302_EVENT_SEND_OK));
     }
-    else 
-    {   
+    else
+    {
         os_event_send(&ml302->netconn_evt, SET_EVENT(curr_connect, ML302_EVENT_SEND_FAIL));
     }
-     
-//    ml302->curr_connect = -1;
 }
-
 
 static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t size)
 {
@@ -502,22 +521,51 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
         return;
     }
     
-    if (netconn->stat == NETCONN_STAT_CONNECT)
-    {
-        os_data_queue_push(&netconn->data_queue, recv_buff, data_size, OS_IPC_WAITING_FOREVER);
-    }
-    else
-    {
-        LOG_EXT_E("Module %s netconn id %d receive state error", module->name, connect_id);
-    }
+    mo_netconn_data_recv_notice(netconn, recv_buff, data_size);
+
+    return;
 }
+
+static void urc_state_func(struct at_parser *parser, const char *data, os_size_t size)
+{
+    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != data);
+
+    os_int32_t connect_id    = 0;
+    os_int32_t connect_state = 0;
+
+    sscanf(data, "+MIPURC: \"STATE\",%d,%d", &connect_id, &connect_state);
+
+    mo_object_t *module = os_container_of(parser, mo_object_t, parser);
+
+    mo_netconn_t *netconn = ml302_get_netconn_by_id(module, connect_id);
+
+    switch (connect_state)
+    {
+    case 1:
+        LOG_EXT_W("Module %s receive close urc data of connect %d, server closed the connection.",
+                  module->name,
+                  connect_id);
+        break;
+    case 2:
+        LOG_EXT_W("Module %s receive close urc data of connect %d, connection exception.",
+                  module->name,
+                  connect_id);
+        break;
+    default:
+        break;
+    }
+
+    mo_netconn_pasv_close_notice(netconn);
+}
+
 static void urc_mdnsgip_func(struct at_parser *parser, const char *data, os_size_t size)
 {
     OS_ASSERT(OS_NULL != parser);
     OS_ASSERT(OS_NULL != data);
 #define HOST_NAME_MAX_LEN 50
     mo_object_t *module = os_container_of(parser, mo_object_t, parser);
-    mo_ml302_t *ml302 = os_container_of(module, mo_ml302_t, parent);
+    mo_ml302_t  *ml302  = os_container_of(module, mo_ml302_t, parent);
 
     int j = 0;
 
@@ -530,8 +578,8 @@ static void urc_mdnsgip_func(struct at_parser *parser, const char *data, os_size
     if ((j > 2) && (j % 3 == 2))
     {
         char recvip[IPADDR_MAX_STR_LEN + 1] = {0};
-        char host_name[HOST_NAME_MAX_LEN] = {0};
-				int  error_code =-1;
+        char host_name[HOST_NAME_MAX_LEN + 1] = {0};
+        int  error_code =-1;
         sscanf(data, "+MDNSGIP: %d,\"%[^\"]\",\"%[^\"]", &error_code,host_name,recvip);
         recvip[IPADDR_MAX_STR_LEN] = '\0';
         inet_aton(recvip, (ip_addr_t *)ml302->netconn_data);
@@ -543,119 +591,159 @@ static void urc_mdnsgip_func(struct at_parser *parser, const char *data, os_size
     }
 }
 
+static void urc_mipurc_func(struct at_parser *parser, const char *data, os_size_t size)
+{
+    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != data);
+
+    switch (*(data + 10))
+    {
+    case 'r':
+        urc_recv_func(parser, data, size);
+        break;
+    case 'S':
+        urc_state_func(parser, data, size);
+        break;
+    default:
+        break;
+    }
+}
+
+static void urc_close_func(struct at_parser *parser, const char *data, os_size_t size)
+{
+    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != data);
+
+    os_int32_t connect_id = 0;
+
+    sscanf(data, "%d,CLOSED", &connect_id);
+
+    mo_object_t  *module  = os_container_of(parser, mo_object_t, parser);
+    mo_netconn_t *netconn = ml302_get_netconn_by_id(module, connect_id);
+
+    if (NETCONN_STAT_CONNECT == netconn->stat)
+    {
+        LOG_EXT_W("Module %s receive close urc data of connect %d", module->name, connect_id);
+
+        mo_netconn_pasv_close_notice(netconn);
+    }
+}
+
 static at_urc_t gs_urc_table[] = {
-	  {.prefix = "",     .suffix = "CONNECT OK\r\n", .func = urc_connect_func},
-    {.prefix = "",     .suffix = "SEND OK\r\n", .func = urc_send_func},
-    {.prefix = "+MIPURC:",  .suffix = "\r\n", .func = urc_recv_func},
-		{.prefix = "+MDNSGIP:",  .suffix = "\r\n", .func = urc_mdnsgip_func},
+    {.prefix = "",          .suffix = "CONNECT OK\r\n", .func = urc_connect_func},
+    {.prefix = "",          .suffix = "SEND OK\r\n",    .func = urc_send_func},
+    {.prefix = "+MIPURC:",  .suffix = "\r\n",           .func = urc_mipurc_func},
+    {.prefix = "+MDNSGIP:", .suffix = "\r\n",           .func = urc_mdnsgip_func},
+    {.prefix = "",          .suffix = ",CLOSED\r\n",    .func = urc_close_func},
 };
 
 static os_err_t ml302_network_init(mo_object_t *module)
 {
-    int  verctrl_data1    =  -1;
-	  int  verctrl_data2    =  -1;
-    char CPIN[10]         = {0};
-	  int  cfun             = -1;
-	  char reg_state[10]    = {0};
-    at_parser_t *parser = &module->parser;
+    int          verctrl_data1 = -1;
+    int          verctrl_data2 = -1;
+    char         CPIN[10]      = {0};
+    int          cfun          = -1;
+    char         reg_state[10] = {0};
+    at_parser_t *parser        = &module->parser;
     /* Use AT+COPS? to query current Network Operator */
 
-	  os_task_mdelay(5000);
-    os_err_t result = at_parser_exec_cmd(parser, "AT+VERCTRL?");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+VERCTRL?");
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+VERCTRL:", "+VERCTRL: %d, %d", &verctrl_data1,&verctrl_data2) < 0)
+    if (at_resp_get_data_by_kw(&resp, "+VERCTRL:", "+VERCTRL: %d, %d", &verctrl_data1, &verctrl_data2) < 0)
     {
         goto __exit;
     }
-	
-    result =at_parser_exec_cmd(parser, "AT+CPIN?");
-	  if (result != OS_EOK)
-	  {
-		    goto __exit;
-	  } 
-	  if (at_parser_get_data_by_kw(parser, "+CPIN:", "+CPIN: %s", &CPIN) < 0)
-	  {
-		    goto __exit;
-	  }
-	  if(strcmp(CPIN, "READY") != 0)
-	  {
-		    goto __exit;
-	  }
-	
-	  result =at_parser_exec_cmd(parser, "AT+CFUN?");
-	  if (result != OS_EOK)
-	  {
-		    goto __exit;
-	  } 
-	  if(at_parser_get_data_by_kw(parser, "+CFUN:", "+CFUN: %d", &cfun) < 0)
-	  {
-		    goto __exit;
-	  }
-	  if(cfun == 0)
-	  {
-		    result =at_parser_exec_cmd(parser, "AT+CFUN=1");
-		    if (result != OS_EOK)
-		    {
-			      goto __exit;
-		    } 
-		        os_task_mdelay(20);
-	  }
-	
-	  if(0 == verctrl_data2)
-	  {
-	      result =at_parser_exec_cmd(parser, "AT+CGATT=1");
-		    if (result != OS_EOK)
+
+    result = at_parser_exec_cmd(parser, &resp, "AT+CPIN?");
+    if (result != OS_EOK)
+    {
+        goto __exit;
+    }
+    if (at_resp_get_data_by_kw(&resp, "+CPIN:", "+CPIN: %s", &CPIN) < 0)
+    {
+        goto __exit;
+    }
+    if (strcmp(CPIN, "READY") != 0)
+    {
+        goto __exit;
+    }
+
+    result = at_parser_exec_cmd(parser, &resp, "AT+CFUN?");
+    if (result != OS_EOK)
+    {
+        goto __exit;
+    }
+    if (at_resp_get_data_by_kw(&resp, "+CFUN:", "+CFUN: %d", &cfun) < 0)
+    {
+        goto __exit;
+    }
+    if (cfun == 0)
+    {
+        result = at_parser_exec_cmd(parser, &resp, "AT+CFUN=1");
+        if (result != OS_EOK)
         {
             goto __exit;
-        } 
+        }
+        os_task_mdelay(20);
+    }
 
-	      result =at_parser_exec_cmd(parser, "AT+CGACT=1");
-	      if (result != OS_EOK)
-	      {
-		        goto __exit;
-	      } 		
-	  }
-    else if(1 == verctrl_data2)
+    if (0 == verctrl_data2)
+    {
+        result = at_parser_exec_cmd(parser, &resp, "AT+CGATT=1");
+        if (result != OS_EOK)
+        {
+            goto __exit;
+        }
+
+        result = at_parser_exec_cmd(parser, &resp, "AT+CGACT=1");
+        if (result != OS_EOK)
+        {
+            goto __exit;
+        }
+    }
+    else if (1 == verctrl_data2)
     {
         result = OS_EOK;
-  	}
-	  else
-	  {
+    }
+    else
+    {
         result = OS_ERROR;
-		    goto __exit;
-	  }
-	
-	  result =at_parser_exec_cmd(parser, "AT+CEREG?");
-	  if (result != OS_EOK)
-	  {
-		    goto __exit;
-  	} 
-	  if (at_parser_get_data_by_kw(parser, "+CEREG:", "+CEREG: %s", &reg_state) < 0)
-	  {
-		    goto __exit;
-	  }
-	  if( '1' != reg_state[2] && '5' != reg_state[2])
-	  {
+        goto __exit;
+    }
+
+    result = at_parser_exec_cmd(parser, &resp, "AT+CEREG?");
+    if (result != OS_EOK)
+    {
+        goto __exit;
+    }
+    if (at_resp_get_data_by_kw(&resp, "+CEREG:", "+CEREG: %s", &reg_state) < 0)
+    {
+        goto __exit;
+    }
+    if ('1' != reg_state[2] && '5' != reg_state[2])
+    {
         result = OS_ERROR;
-		    goto __exit;
-	  }
-  
+        goto __exit;
+    }
+
 __exit:
     if (result != OS_EOK)
     {
         LOG_EXT_E("ML302 network init failed");
     }
 
-    at_parser_reset_resp(parser);
-
     return result;
 }
 
-void ml302_netconn_init(mo_ml302_t *module)
+os_err_t ml302_netconn_init(mo_ml302_t *module)
 {
     /* Init module netconn array */
     memset(module->netconn, 0, sizeof(module->netconn));
@@ -664,12 +752,17 @@ void ml302_netconn_init(mo_ml302_t *module)
         module->netconn[i].connect_id = -1;
     }
 
-	  ml302_network_init(&module->parent);
-	
+    os_err_t result = ml302_network_init(&module->parent);
+    if(result != OS_EOK)
+    {
+        return result;
+    }
+
     /* Set netconn urc table */
     at_parser_t *parser = &(module->parent.parser);
     at_parser_set_urc_table(parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
+
+    return result;
 }
 
 #endif /* ML302_USING_NETCONN_OPS */
-

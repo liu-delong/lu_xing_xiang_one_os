@@ -111,5 +111,6 @@ void mp_free_list(mpy_os_list_t *head);
 */
 device_info_t * mp_misc_find_similar_device(char *prename);
 
+extern void Mpy_Task(void* argument);
 
 #endif

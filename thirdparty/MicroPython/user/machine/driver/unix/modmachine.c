@@ -31,10 +31,10 @@
 #include "py/runtime.h"
 #include "py/obj.h"
 
-#include "user/machine/middle/Include/machine_mem.h"
-#include "user/machine/middle/Include/machine_pinbase.h"
-#include "user/machine/middle/Include/machine_signal.h"
-#include "user/machine/middle/Include/machine_pulse.h"
+#include "user/machine/middle/include/machine_mem.h"
+#include "user/machine/middle/include/machine_pinbase.h"
+#include "user/machine/middle/include/machine_signal.h"
+#include "user/machine/middle/include/machine_pulse.h"
 
 #if MICROPY_PLAT_DEV_MEM
 #include <errno.h>

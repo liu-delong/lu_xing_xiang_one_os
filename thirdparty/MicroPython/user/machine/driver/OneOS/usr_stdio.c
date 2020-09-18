@@ -15,6 +15,8 @@
 #include "os_errno.h"
 #include "ring_buff.h"
 #include "os_util.h"
+#include "usr_misc.h"
+#include "shell.h"
 
 #define UART_FIFO_SIZE 256
 
@@ -201,3 +203,26 @@ void mp_hal_stdout_tx_strn_stream(const char *str, size_t len) {
 
 OS_BOARD_INIT(Init_listhead);
 
+
+int run_mpy(int argc, char **argv)
+{
+	char *file;
+	int length = 0;
+    if (argc != 2)
+    {
+		os_kprintf("parameter is wrong\n");
+        return 0;
+    }
+	file = argv[1];
+	length = strlen(file);
+	if (strncmp(file+length-3,".py", 3) !=0){
+		os_kprintf("file is wrong\n");
+		return -1;
+	}
+	Mpy_Task(file);
+	return 0;
+}
+
+SH_CMD_EXPORT(mpy, run_mpy, "run py file");
+
+SH_CMD_EXPORT(Mpy_Task, Mpy_Task, "Run MicroPython");

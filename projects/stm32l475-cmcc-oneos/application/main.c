@@ -23,11 +23,6 @@
 
 #include <board.h>
 
-#ifdef OS_USING_ONENET_MQTTS
-#include "cmcc_sensor_process.h"
-#include "cmcc_lcd_process.h"
-#include "cmcc_key_process.h"
-#endif
 #ifdef PKG_USING_MICROPYTHON
 #include <shell.h>
 #include <vfs_fs.h>
@@ -94,15 +89,6 @@ int main(void)
     task = os_task_create("user", user_task, NULL, 512, 3, 5);
     OS_ASSERT(task);
     os_task_startup(task);
-
-#ifdef OS_USING_ONENET_MQTTS
-    cmcc_lcd_show_startup_page(); 
-    os_task_mdelay(500);    
-    cmcc_sensor_init();
-    cmcc_key_init();
-    os_task_mdelay(500);
-    cmcc_lcd_start();
-#endif
 
 #ifdef PKG_USING_MICROPYTHON
 	sdmmc_init();

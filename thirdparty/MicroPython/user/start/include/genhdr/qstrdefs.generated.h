@@ -1009,7 +1009,9 @@ QDEF(MP_QSTR_prescale, (const byte*)"\x1a\x08" "prescale")
 QDEF(MP_QSTR_sjw, (const byte*)"\x0b\x03" "sjw")
 QDEF(MP_QSTR_bs1, (const byte*)"\x65\x03" "bs1")
 QDEF(MP_QSTR_bs2, (const byte*)"\x66\x03" "bs2")
-
+QDEF(MP_QSTR_ide, (const byte*)"\x4d\x03" "ide")
+QDEF(MP_QSTR_rtr, (const byte*)"\x51\x03" "rtr")
+	
 QDEF(MP_QSTR_DAC, (const byte*)"\x03\x03" "DAC")
 
 QDEF(MP_QSTR_HUMIDITY_HIGH, (const byte*)"\xd\x0d" "HUMIDITY_HIGH")

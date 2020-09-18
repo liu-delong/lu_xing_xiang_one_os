@@ -164,52 +164,54 @@ os_size_t at_parser_vprintfln(os_device_t *device, const char *format, va_list a
  * @retval          OS_ETIMEOUT     Response timeout
  ***********************************************************************************************************************
  */
-os_err_t at_parser_exec_cmd_valist(at_parser_t *parser, const char *cmd_expr, va_list args)
+os_err_t at_parser_exec_cmd_valist(at_parser_t *parser, at_resp_t *resp, const char *cmd_expr, va_list args)
 {
     OS_ASSERT(parser != OS_NULL);
+    OS_ASSERT(resp != OS_NULL);
+    OS_ASSERT(resp->buff != OS_NULL);
     OS_ASSERT(cmd_expr != OS_NULL);
     OS_ASSERT(OS_TASK_INIT != (parser->task->stat & OS_TASK_STAT_MASK));
 
-    os_err_t result = OS_EOK;
+    os_err_t    result   = OS_EOK;
+    const char *at_cmd   = OS_NULL;
+    os_size_t   cmd_size = 0;
 
-    parser->resp_need = OS_TRUE;
+    os_mutex_recursive_lock(&(parser->rx_lock), OS_IPC_WAITING_FOREVER);
 
-    os_mutex_lock(&(parser->recv_lock), OS_IPC_WAITING_FOREVER);
+    memset(resp->buff, 0, resp->buff_size);
+    resp->stat          = RESP_STAT_NULL;
+    resp->curr_buff_len = 0;
+    resp->line_counts   = 0;
 
+    parser->resp = resp;
+
+	(void)at_cmd; /* Avoid compiling warnings. T__T */
+	
+    /* Send at command to module */
     at_parser_vprintfln(parser->device, cmd_expr, args);
 
-    if (parser->resp_need)
+    if (os_sem_wait(&(parser->resp_notice), resp->timeout) != OS_EOK)
     {
-        at_resp_t *resp = &(parser->resp);
+        at_cmd = at_parser_get_last_cmd(&cmd_size);
+        LOG_EXT_E("execute command (%s) timeout (%d ticks)!\n", at_cmd, resp->timeout);
+        resp->stat = RESP_STAT_TIMEOUT;
+        result     = OS_ETIMEOUT;
+        goto __exit;
+    }
 
-        const char *at_cmd   = OS_NULL;
-        os_size_t   cmd_size = 0;
-
-        memset(resp->buff, 0, resp->max_buff_size);
-        resp->curr_buff_len = 0;
-        resp->line_counts   = 0;
-
-        if (os_sem_wait(&(resp->resp_notice), resp->timeout) != OS_EOK)
-        {
-            at_cmd = at_parser_get_last_cmd(&cmd_size);
-            LOG_EXT_E("execute command (%s) timeout (%d ticks)!\n", at_cmd, resp->timeout);
-            resp->stat = RESP_STAT_TIMEOUT;
-            result     = OS_ETIMEOUT;
-            goto __exit;
-        }
-
-        if (resp->stat != RESP_STAT_OK)
-        {
-            at_cmd = at_parser_get_last_cmd(&cmd_size);
-            LOG_EXT_E("execute command (%s) failed, parser->resp_status:%d\n", at_cmd, resp->stat);
-            result = OS_ERROR;
-            goto __exit;
-        }
+    if (resp->stat != RESP_STAT_OK)
+    {
+        at_cmd = at_parser_get_last_cmd(&cmd_size);
+        LOG_EXT_E("execute command (%s) failed, parser->resp_status:%d\n", at_cmd, resp->stat);
+        result = OS_ERROR;
+        goto __exit;
     }
 
 __exit:
 
-    os_mutex_unlock(&(parser->recv_lock));
+    parser->resp = OS_NULL;
+
+    os_mutex_recursive_unlock(&(parser->rx_lock));
 
     return result;
 }
@@ -230,9 +232,11 @@ __exit:
  * @retval          OS_ETIMEOUT     Response timeout
  ***********************************************************************************************************************
  */
-os_err_t at_parser_exec_cmd(at_parser_t *parser, const char *cmd_expr, ...)
+os_err_t at_parser_exec_cmd(at_parser_t *parser, at_resp_t *resp, const char *cmd_expr, ...)
 {
     OS_ASSERT(parser != OS_NULL);
+    OS_ASSERT(resp != OS_NULL);
+    OS_ASSERT(resp->buff != OS_NULL);
     OS_ASSERT(cmd_expr != OS_NULL);
     OS_ASSERT(OS_TASK_INIT != (parser->task->stat & OS_TASK_STAT_MASK));
 
@@ -240,7 +244,7 @@ os_err_t at_parser_exec_cmd(at_parser_t *parser, const char *cmd_expr, ...)
     va_list  args   = {0};
 
     va_start(args, cmd_expr);
-    result = at_parser_exec_cmd_valist(parser, cmd_expr, args);
+    result = at_parser_exec_cmd_valist(parser, resp, cmd_expr, args);
     va_end(args);
 
     return result;
@@ -281,9 +285,9 @@ static os_err_t at_parser_getchar(at_parser_t *parser, char *ch, os_int32_t time
 
     while (os_device_read(parser->device, 0, ch, 1) == 0)
     {
-        os_sem_control(&(parser->rx_sem), OS_IPC_CMD_RESET, &sem_count);
+        os_sem_control(&(parser->rx_notice), OS_IPC_CMD_RESET, &sem_count);
 
-        result = os_sem_wait(&(parser->rx_sem), os_tick_from_ms(timeout));
+        result = os_sem_wait(&(parser->rx_notice), os_tick_from_ms(timeout));
 
         if (result != OS_EOK)
         {
@@ -324,7 +328,7 @@ os_size_t at_parser_recv(at_parser_t *parser, char *buf, os_size_t size, os_int3
             result = at_parser_getchar(parser, &ch, timeout);
             if (result != OS_EOK)
             {
-                LOG_EXT_E("AT parser receive failed, uart device get data error(%d)", result);
+                LOG_EXT_E("AT parser receive failed, uart device get data error(%d), read cnt(%d)", result, read_idx);
                 return 0;
             }
 
@@ -449,73 +453,6 @@ os_err_t at_parser_set_end_mark(at_parser_t *parser, const char *end_mark_str, o
     return OS_EOK;
 }
 
-os_err_t at_parser_set_resp(at_parser_t *parser, os_size_t buff_size, os_size_t line_num, os_int32_t timeout)
-{
-    return at_resp_set(&(parser->resp), buff_size, line_num, timeout);
-}
-
-os_err_t at_parser_reset_resp(at_parser_t *parser)
-{
-    return at_resp_reset(&(parser->resp));
-}
-
-const char *at_parser_get_line(at_parser_t *parser, os_size_t resp_line)
-{
-    return at_resp_get_line(&(parser->resp), resp_line);
-}
-
-const char *at_parser_get_line_by_kw(at_parser_t *parser, const char *keyword)
-{
-    return at_resp_get_line_by_kw(&(parser->resp), keyword);
-}
-
-os_int32_t at_parser_get_data_by_line(at_parser_t *parser, os_size_t resp_line, const char *resp_expr, ...)
-{
-    OS_ASSERT(parser != OS_NULL);
-    OS_ASSERT(resp_expr != OS_NULL);
-
-    const char *resp_line_buf = at_resp_get_line(&(parser->resp), resp_line);
-
-    if (OS_NULL == resp_line_buf)
-    {
-        return -1;
-    }
-
-    va_list args = {0};
-
-    va_start(args, resp_expr);
-
-    os_int32_t resp_args_num = vsscanf(resp_line_buf, resp_expr, args);
-
-    va_end(args);
-
-    return resp_args_num;
-}
-
-os_int32_t at_parser_get_data_by_kw(at_parser_t *parser, const char *keyword, const char *resp_expr, ...)
-{
-    OS_ASSERT(parser != OS_NULL);
-    OS_ASSERT(keyword != OS_NULL);
-    OS_ASSERT(resp_expr != OS_NULL);
-
-    const char *resp_line_buf = at_resp_get_line_by_kw(&(parser->resp), keyword);
-
-    if (OS_NULL == resp_line_buf)
-    {
-        return -1;
-    }
-
-    va_list args = {0};
-
-    va_start(args, resp_expr);
-
-    os_int32_t resp_args_num = vsscanf(resp_line_buf, resp_expr, args);
-
-    va_end(args);
-
-    return resp_args_num;
-}
-
 static int at_parser_readline(at_parser_t *parser)
 {
     os_size_t read_len       = 0;
@@ -584,10 +521,10 @@ static int at_parser_readline(at_parser_t *parser)
 
 static void at_parser_resp_handle(at_parser_t *parser)
 {
-    at_resp_t *resp = &(parser->resp);
+    at_resp_t *resp = parser->resp;
 
     parser->recv_buff[parser->curr_recv_len - 1] = '\0';
-    if (resp->curr_buff_len + parser->curr_recv_len < resp->max_buff_size)
+    if (resp->curr_buff_len + parser->curr_recv_len < resp->buff_size)
     {
         /* copy response lines, separated by '\0' */
         memcpy(resp->buff + resp->curr_buff_len, parser->recv_buff, parser->curr_recv_len);
@@ -600,7 +537,7 @@ static void at_parser_resp_handle(at_parser_t *parser)
     {
         resp->stat = RESP_STAT_BUFF_FULL;
         LOG_EXT_E("Read response buffer failed. The Response buffer size is out of buffer size(%d)!",
-                  resp->max_buff_size);
+                  resp->buff_size);
     }
 
     /* check response result */
@@ -624,8 +561,8 @@ static void at_parser_resp_handle(at_parser_t *parser)
         return;
     }
 
-    parser->resp_need = OS_FALSE;
-    os_sem_post(&(resp->resp_notice));
+    parser->resp = OS_NULL;
+    os_sem_post(&parser->resp_notice);
 }
 
 static void at_parser_task(at_parser_t *parser)
@@ -642,7 +579,7 @@ static void at_parser_task(at_parser_t *parser)
                 /* current receive is urc, try to execute related operations */
                 urc->func(parser, parser->recv_buff, parser->curr_recv_len);
             }
-            else if (parser->resp_need)
+            else if (parser->resp != OS_NULL)
             {
                 /* current receive is response, try to handle response */
                 at_parser_resp_handle(parser);
@@ -665,7 +602,7 @@ static os_err_t at_parser_rx_indicate(os_device_t *dev, os_size_t size)
             entry = os_slist_entry(node, at_parser_t, list);
             if (entry->device == dev)
             {
-                os_sem_post(&entry->rx_sem);
+                os_sem_post(&entry->rx_notice);
                 break;
             }
         }
@@ -726,6 +663,8 @@ os_err_t at_parser_init(at_parser_t *parser, const char *name, os_device_t *devi
 {
     os_err_t result = OS_EOK;
 
+    char name_buffer[OS_NAME_MAX + 1] = {0};
+
     /* set parser infomation */
     strncpy(parser->name, name, OS_NAME_MAX);
 
@@ -743,9 +682,17 @@ os_err_t at_parser_init(at_parser_t *parser, const char *name, os_device_t *devi
 
     memset(parser->recv_buff, 0, recv_buff_len);
 
-    os_sem_init(&(parser->rx_sem), name, 0, OS_IPC_FLAG_FIFO);
+    snprintf(name_buffer, OS_NAME_MAX, "%s_rx", name);
 
-    os_mutex_init(&(parser->recv_lock), name, OS_IPC_FLAG_FIFO, OS_FALSE);
+    os_sem_init(&(parser->rx_notice), name_buffer, 0, OS_IPC_FLAG_FIFO);
+
+    snprintf(name_buffer, OS_NAME_MAX, "%s_resp", name);
+
+    os_sem_init(&(parser->resp_notice), name_buffer, 0, OS_IPC_FLAG_FIFO);
+
+    snprintf(name_buffer, OS_NAME_MAX, "%s_lock", name);
+
+    os_mutex_init(&(parser->rx_lock), name_buffer, OS_IPC_FLAG_FIFO, OS_TRUE);
 
     os_slist_init(&(parser->urc_list));
 
@@ -755,13 +702,9 @@ os_err_t at_parser_init(at_parser_t *parser, const char *name, os_device_t *devi
         goto __exit;
     }
 
-    at_resp_init(&parser->resp,
-                 name,
-                 AT_RESP_BUFF_SIZE_DEF,
-                 AT_RESP_LINE_NUM_DEF,
-                 os_tick_from_ms(AT_RESP_TIMEOUT_DEF));
+    snprintf(name_buffer, OS_NAME_MAX, "%s_parser", name);
 
-    parser->task = os_task_create(parser->name,
+    parser->task = os_task_create(name_buffer,
                                   (void (*)(void *parameter))at_parser_task,
                                   (void *)parser,
                                   AT_PARSER_TASK_STACK_SIZE,
@@ -813,11 +756,11 @@ os_err_t at_parser_deinit(at_parser_t *parser)
         os_task_destroy(parser->task);
     }
 
-    os_sem_deinit(&(parser->rx_sem));
+    os_sem_deinit(&(parser->rx_notice));
 
-    os_mutex_deinit(&(parser->recv_lock));
+    os_sem_deinit(&(parser->resp_notice));
 
-    at_resp_deinit(&(parser->resp));
+    os_mutex_deinit(&(parser->rx_lock));
 
     if (parser->recv_buff != OS_NULL)
     {

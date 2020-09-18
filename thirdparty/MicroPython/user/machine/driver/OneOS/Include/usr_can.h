@@ -34,5 +34,7 @@
 #define MP_CAN_DEINIT_FLAG 	(0)
 
 
+#define MP_CAN_OP_ERROR		(-1)
+#define MP_CAN_OP_OK		(0)
 #endif
 

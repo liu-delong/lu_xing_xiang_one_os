@@ -31,7 +31,7 @@
 
 #include "py/runtime.h"
 #include "py/mphal.h"
-#include "middle/include/machine_spi.h"
+#include "machine_spi.h"
 #include "usr_spi.h"
 
 #ifdef MICROPY_PY_MACHINE_SPI

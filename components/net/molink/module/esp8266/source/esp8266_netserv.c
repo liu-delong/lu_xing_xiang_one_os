@@ -44,15 +44,18 @@ os_err_t esp8266_get_ipaddr(mo_object_t *self, char ip[])
 
     char ipaddr[IP_SIZE] = {0};
 
-    at_parser_set_resp(parser, 128, 0, os_tick_from_ms(5000));
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CIFSR");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF * 2] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CIFSR");
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
     /* Response for ex: +CIFSR:STAIP,"100.113.120.235" */
-    if (at_parser_get_data_by_kw(parser, "+CIFSR:STAIP", "+CIFSR:STAIP,\"%[^\"]", ipaddr) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CIFSR:STAIP", "+CIFSR:STAIP,\"%[^\"]", ipaddr) <= 0)
     {
         LOG_EXT_E("Get ip address: parse resp fail.");
         result = OS_ERROR;
@@ -73,8 +76,6 @@ os_err_t esp8266_get_ipaddr(mo_object_t *self, char ip[])
     }
 
 __exit:
-    
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -84,32 +85,36 @@ os_err_t esp8266_ping(mo_object_t *self, const char *host, os_uint16_t len, os_u
     at_parser_t *parser    = &self->parser;
     os_uint32_t  ping_time = 0;
 
-    char ip_addr[IP_SIZE] = {0};    
+    char ip_addr[IP_SIZE] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CIPDOMAIN=\"%s\"", host);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF * 2] = {0};
+
+    at_resp_t at_resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &at_resp, "AT+CIPDOMAIN=\"%s\"", host);
 
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "+CIPDOMAIN:", "+CIPDOMAIN:%s", ip_addr) < 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+CIPDOMAIN:", "+CIPDOMAIN:%s", ip_addr) < 0)
     {
         LOG_EXT_E("ping: get the IP address failed");
         result = OS_ERROR;
         goto __exit;
     }
 
-    at_parser_set_resp(parser, 64, 0, timeout);
-
+	at_resp.timeout = timeout;
+	
     /* send ping commond "AT+PING=<IP>" and wait response */
-    result = at_parser_exec_cmd(parser, "AT+PING=\"%s\"", ip_addr);
+    result = at_parser_exec_cmd(parser, &at_resp, "AT+PING=\"%s\"", ip_addr);
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser,  "+", "+%d", &ping_time) < 0)
+    if (at_resp_get_data_by_kw(&at_resp,  "+", "+%d", &ping_time) < 0)
     {
         LOG_EXT_E("ping: get the ping time error");
         result = OS_ERROR;
@@ -126,8 +131,6 @@ os_err_t esp8266_ping(mo_object_t *self, const char *host, os_uint16_t len, os_u
 
 __exit:
     
-    at_parser_reset_resp(parser);
-
     return result;
 }
 

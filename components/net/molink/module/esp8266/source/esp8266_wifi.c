@@ -32,12 +32,18 @@
 #define DBG_EXT_LVL DBG_EXT_INFO
 #include <os_dbg_ext.h>
 
+#define ESP8266_SCAN_RESP_BUFF_LEN 4096
+
 #ifdef ESP8266_USING_WIFI_OPS
 
 os_err_t esp8266_wifi_set_mode(mo_object_t *module, mo_wifi_mode_t mode)
 {
     at_parser_t *parser = &module->parser;
-    
+
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     os_int8_t mode_data = 0;
 
     switch (mode)
@@ -52,7 +58,7 @@ os_err_t esp8266_wifi_set_mode(mo_object_t *module, mo_wifi_mode_t mode)
         return OS_ERROR;
     }
 
-    return at_parser_exec_cmd(parser, "AT+CWMODE_DEF=%d", mode_data);
+    return at_parser_exec_cmd(parser, &resp, "AT+CWMODE_DEF=%d", mode_data);
 }
 
 mo_wifi_mode_t esp8266_wifi_get_mode(mo_object_t *module)
@@ -61,14 +67,18 @@ mo_wifi_mode_t esp8266_wifi_get_mode(mo_object_t *module)
     os_int8_t      mode_data = 0;
     mo_wifi_mode_t wifi_mode = MO_WIFI_MODE_NULL;
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CWMODE_DEF?");
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CWMODE_DEF?");
     if (result != OS_EOK)
     {
         goto __exit;
     }
     
 
-    if (at_parser_get_data_by_kw(parser, "+CWMODE_DEF:", "+CWMODE_DEF:%d", &mode_data) < 0)
+    if (at_resp_get_data_by_kw(&resp, "+CWMODE_DEF:", "+CWMODE_DEF:%d", &mode_data) < 0)
     {
         result = OS_ERROR;
         goto __exit;
@@ -110,11 +120,20 @@ os_err_t esp8266_wifi_scan_info(mo_object_t *module, char *ssid, mo_wifi_scan_re
     const char *data_format1 = "+CWLAP:(%d,\"%[^\"]\",%d,\"%[^\"]\",%d,%*s)";
     const char *data_format2 = "+CWLAP:(%*d,\"\",%d,\"%[^\"]\",%d,%*s)";
 
-    at_parser_set_resp(parser, 4096, 0, 60 * OS_TICK_PER_SECOND);
+    at_resp_t resp = {.buff      = calloc(1, ESP8266_SCAN_RESP_BUFF_LEN),
+                      .buff_size = ESP8266_SCAN_RESP_BUFF_LEN,
+                      .timeout   = 10 * OS_TICK_PER_SECOND};
+
+    if (OS_NULL == resp.buff)
+    {
+        LOG_EXT_E("Calloc wifi scan info response memory failed!");
+        result = OS_ENOMEM;
+        goto __exit;
+    }
 
     if (OS_NULL != ssid)
     {
-        result = at_parser_exec_cmd(parser, "AT+CWLAP=\"%s\"", ssid);
+        result = at_parser_exec_cmd(parser, &resp, "AT+CWLAP=\"%s\"", ssid);
         if (result != OS_EOK)
         {
             goto __exit;
@@ -123,14 +142,14 @@ os_err_t esp8266_wifi_scan_info(mo_object_t *module, char *ssid, mo_wifi_scan_re
     else
     {
         /* scan all ap list */
-        result = at_parser_exec_cmd(parser, "AT+CWLAP");
+        result = at_parser_exec_cmd(parser, &resp, "AT+CWLAP");
         if (result != OS_EOK)
         {
             goto __exit;
         }
     }
 
-    scan_result->info_array = (mo_wifi_info_t *)calloc(parser->resp.line_counts, sizeof(mo_wifi_info_t));
+    scan_result->info_array = (mo_wifi_info_t *)calloc(resp.line_counts, sizeof(mo_wifi_info_t));
     if (OS_NULL == scan_result->info_array)
     {
         LOG_EXT_E("Calloc wifi scan info memory failed!");
@@ -140,28 +159,28 @@ os_err_t esp8266_wifi_scan_info(mo_object_t *module, char *ssid, mo_wifi_scan_re
 
     scan_result->info_num = 0;
 
-    for (int i = 0; i < parser->resp.line_counts; i++)
+    for (int i = 0; i < resp.line_counts; i++)
     {
         mo_wifi_info_t *tmp = &scan_result->info_array[i];
 
-        os_int32_t get_result = at_parser_get_data_by_line(parser,
-                                                           i + 1,
-                                                           data_format1,
-                                                           &ecn_mode,
-                                                           tmp->ssid.val,
-                                                           &tmp->rssi,
-                                                           tmp->bssid.bssid_str,
-                                                           &tmp->channel);
+        os_int32_t get_result = at_resp_get_data_by_line(&resp,
+                                                         i + 1,
+                                                         data_format1,
+                                                         &ecn_mode,
+                                                         tmp->ssid.val,
+                                                         &tmp->rssi,
+                                                         tmp->bssid.bssid_str,
+                                                         &tmp->channel);
 
         if (1 == get_result)
         {
             /* ssid is null  */
-            get_result = at_parser_get_data_by_line(parser, 
-                                                    i + 1,
-                                                    data_format2,
-                                                    &tmp->rssi,
-                                                    tmp->bssid.bssid_str,
-                                                    &tmp->channel);
+            get_result = at_resp_get_data_by_line(&resp, 
+                                                  i + 1,
+                                                  data_format2,
+                                                  &tmp->rssi,
+                                                  tmp->bssid.bssid_str,
+                                                  &tmp->channel);
         }
 
         if (get_result > 0)
@@ -210,8 +229,11 @@ __exit:
             free(scan_result->info_array);
         }
     }
-    
-    at_parser_reset_resp(parser);
+
+    if (resp.buff != OS_NULL)
+    {
+        free(resp.buff);
+    }
 
     return result;
 }
@@ -228,15 +250,15 @@ os_err_t esp8266_wifi_connect_ap(mo_object_t *module, const char *ssid, const ch
 {
     at_parser_t *parser = &module->parser;
 
-    at_parser_set_resp(parser, 128, 0, 20 * OS_TICK_PER_SECOND);
+    char resp_buff[128] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CWJAP=\"%s\",\"%s\"", ssid, password);
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CWJAP=\"%s\",\"%s\"", ssid, password);
     if (result != OS_EOK)
     {
         LOG_EXT_E("Module %s connect ap failed, check ssid(%s) and password(%s).", module->name, ssid, password);
     }
-
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -245,7 +267,7 @@ static void urc_connect_func(struct at_parser *parser, const char *data, os_size
 {
     OS_ASSERT(OS_NULL != data);
 
-    mo_object_t * module  = os_container_of(parser, mo_object_t, parser);
+    mo_object_t  *module  = os_container_of(parser, mo_object_t, parser);
     mo_esp8266_t *esp8266 = os_container_of(module, mo_esp8266_t, parent);
 
     if (strstr(data, "WIFI CONNECTED"))

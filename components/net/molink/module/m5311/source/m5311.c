@@ -39,7 +39,6 @@ static const struct mo_general_ops gs_general_ops = {
     .get_iccid = m5311_get_iccid,
     .get_cfun  = m5311_get_cfun,
     .set_cfun  = m5311_set_cfun,
-    .set_echo  = m5311_set_echo,
 };
 #endif /* M5311_USING_GENERAL_OPS */
 
@@ -54,10 +53,7 @@ static const struct mo_netserv_ops gs_netserv_ops = {
     .get_csq        = m5311_get_csq,
     .get_radio      = m5311_get_radio,
     .get_ipaddr     = m5311_get_ipaddr,
-    .set_netstat    = m5311_set_netstat,
-    .get_netstat    = m5311_get_netstat,
     .ping           = m5311_ping,
-    // .domain_resolve = m5311_domain_resolve,
 };
 #endif /* M5311_USING_NETSERV_OPS */
 
@@ -70,6 +66,7 @@ static const struct mo_netconn_ops gs_netconn_ops = {
     .gethostbyname  = m5311_netconn_gethostbyname,
     .connect        = m5311_netconn_connect,
     .send           = m5311_netconn_send,
+    .get_info       = m5311_netconn_get_info,
 };
 #endif /* M5311_USING_NETCONN_OPS */
 

@@ -191,6 +191,9 @@ int  IOT_CoAP_GetMessagePayload(void *p_message, unsigned char **pp_payload, int
 **/
 int  IOT_CoAP_GetMessageCode(void *p_message, iotx_coap_resp_code_t *p_resp_code);
 
+
+int  IOT_CoAP_Check_Auth(iotx_coap_context_t *p_iotx_coap);
+
 /** @} */ /* end of api_coap */
 /** @} */ /* end of api */
 

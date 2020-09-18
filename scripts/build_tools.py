@@ -422,7 +422,8 @@ def SetupCompile(env, root_directory, has_libcpu=False, remove_components = [],S
     # would find the wrong source code to compile.
     global out_dir
     out_dir = OS_ROOT+'/out/'+os.path.basename(PresentDir())
-    os.makedirs(out_dir, exist_ok=True)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     build_vdir = 'build'
     kernel_vdir = 'build/kernel'
     

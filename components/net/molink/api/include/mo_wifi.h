@@ -40,6 +40,13 @@ extern "C" {
 #define MO_WIFI_BSSID_MAX_LENGTH   17
 #define MO_WIFI_BSSID_ARRAY_LENGTH 6
 
+/**
+ ***********************************************************************************************************************
+ * @enum        mo_wifi_mode_t
+ *
+ * @brief       molink module wifi mode
+ ***********************************************************************************************************************
+ */
 typedef enum mo_wifi_mode
 {
     MO_WIFI_MODE_NULL = 0,
@@ -49,6 +56,13 @@ typedef enum mo_wifi_mode
     MO_WIFI_MODE_MAX
 } mo_wifi_mode_t;
 
+/**
+ ***********************************************************************************************************************
+ * @enum        mo_wifi_stat_t
+ *
+ * @brief       molink module wifi state
+ ***********************************************************************************************************************
+ */
 typedef enum mo_wifi_stat
 {
     MO_WIFI_STAT_NULL = 0,
@@ -58,6 +72,13 @@ typedef enum mo_wifi_stat
     MO_WIFI_STAT_MAX
 } mo_wifi_stat_t;
 
+/**
+ ***********************************************************************************************************************
+ * @enum        mo_wifi_ecn_t
+ *
+ * @brief       molink module wifi encryption
+ ***********************************************************************************************************************
+ */
 typedef enum mo_wifi_ecn
 {
     MO_WIFI_ECN_NULL = 0,
@@ -69,18 +90,39 @@ typedef enum mo_wifi_ecn
     MO_WIFI_ECN_MAX
 } mo_wifi_ecn_t;
 
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_wifi_ssid_t
+ *
+ * @brief       molink module wifi ssid
+ ***********************************************************************************************************************
+ */
 typedef struct mo_wifi_ssid
 {
     os_uint8_t len;
     char val[MO_WIFI_SSID_MAX_LENGTH + 1];
 } mo_wifi_ssid_t;
 
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_wifi_bssid_t
+ *
+ * @brief       molink module wifi bssid
+ ***********************************************************************************************************************
+ */
 typedef struct mo_wifi_bssid
 {
     char       bssid_str[MO_WIFI_BSSID_MAX_LENGTH + 1]; /* hwaddr */
     os_uint8_t bssid_array[MO_WIFI_BSSID_ARRAY_LENGTH];
 } mo_wifi_bssid_t;
 
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_wifi_info_t
+ *
+ * @brief       molink module wifi infomation
+ ***********************************************************************************************************************
+ */
 typedef struct mo_wifi_info
 {
     mo_wifi_ecn_t   ecn_mode; /* encryption mode */
@@ -90,12 +132,26 @@ typedef struct mo_wifi_info
     mo_wifi_bssid_t bssid;    /* hwaddr */
 } mo_wifi_info_t;
 
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_wifi_scan_result_t
+ *
+ * @brief       molink module wifi scan result
+ ***********************************************************************************************************************
+ */
 typedef struct mo_wifi_scan_result
 {
     mo_wifi_info_t *info_array;
     os_size_t       info_num;
 } mo_wifi_scan_result_t;
 
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_wifi_ops_t
+ *
+ * @brief       molink module network wifi ops table
+ ***********************************************************************************************************************
+ */
 typedef struct mo_wifi_ops
 {
     os_err_t       (*set_mode)(mo_object_t *module, mo_wifi_mode_t mode);

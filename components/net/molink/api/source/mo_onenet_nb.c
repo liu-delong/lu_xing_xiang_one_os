@@ -57,8 +57,13 @@
 
 OS_INLINE mo_onenet_ops_t *module_get_onenet_ops(mo_object_t *self)
 {
-    mo_onenet_ops_t *ops = (mo_onenet_ops_t *)self->ops_table[MODULE_OPS_ONENET_NB];
+    if(OS_NULL == self)
+    {
+        LOG_EXT_E("%s Input module is NULL.", __func__);
+        return OS_NULL;
+    }
 
+    mo_onenet_ops_t *ops = (mo_onenet_ops_t *)self->ops_table[MODULE_OPS_ONENET_NB];
     if (OS_NULL == ops)
     {
         LOG_EXT_E("Module %s does not support onenet operates", self->name);
@@ -67,64 +72,493 @@ OS_INLINE mo_onenet_ops_t *module_get_onenet_ops(mo_object_t *self)
     return ops;
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Get OneNET access configurations
+ *                  OneNet LwM2M basic function,set configurations(Quectel platform only)
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            A user-supplied mo_config_resp_t type pointer, receive returning messages.
+ * @param[in]       format          Reserved, please set an empty sting "".
+ * @param[in]       ...             Reserved.
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_get_config(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_get_config, "MIPLGETCONFIG");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Set OneNET access configurations
+ *                  OneNet LwM2M basic function,set configurations(Quectel platform only)
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_set_config(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_set_config, "MIPLSETCONFIG");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Create an OneNET communication suite instance
+ *                  OneNet LwM2M basic function,create an OneNET communication suite instance
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            A user-supplied os_uint8_t type pointer, return instance ret of create.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_create(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_create, "MIPLCREATE");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Create an OneNET communication suite instance by createex
+ *                  OneNet LwM2M basic function,create an OneNET communication suite instance(OneMo platform only)
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            A user-supplied os_uint8_t type pointer, return instance ret of create.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_createex(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_createex, "MIPLCREATEEX");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Delete an OneNET communication suite instance
+ *                  OneNet LwM2M basic function,delete an OneNET communication suite instance
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_delete(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_delete, "MIPLDELETE");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Add OneNET LwM2M objects
+ *                  OneNet LwM2M basic function,add OneNET LwM2M objects
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_addobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_addobj, "MIPLADDOBJ");
 }
 
-os_err_t mo_onenetnb_discoverrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+/**
+ ***********************************************************************************************************************
+ * @brief           Delete OneNET LwM2M objects
+ *                  OneNet LwM2M basic function,delete OneNET LwM2M objects
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_delobj(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
-    CALL_MODULE_FUNC(onenetnb_discoverrsp, "MIPLDISCOVERRSP");
+    CALL_MODULE_FUNC(onenetnb_delobj, "MIPLDELOBJ");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Set the mode of notifying the terminal
+ *                  OneNet LwM2M extend function,set the mode of notifying the terminal(OneMo platform only)
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_nmi(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_nmi, "MIPLNMI");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Open OneNET request registration process
+ *                  OneNet LwM2M basic function,open OneNET request registration process
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_open(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_open, "MIPLOPEN");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Logout,send logout OneNET request
+ *                  OneNet LwM2M basic function,send logout OneNET request
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_close(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_close, "MIPLCLOSE");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Respond to the 'discover' request of OneNET
+ *                  OneNet LwM2M basic function,respond to the discover request of OneNET
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_discoverrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_discoverrsp, "MIPLDISCOVERRSP");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Respond to the 'observe' request of OneNET
+ *                  OneNet LwM2M basic function,respond to the observe request of OneNET
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_observersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_observersp, "MIPLOBSERVERSP");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Respond to the 'read' request of OneNET
+ *                  OneNet LwM2M basic function,respond to the read request of OneNET
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_readrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_readrsp, "MIPLREADRSP");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Respond to the 'write' request of OneNET
+ *                  OneNet LwM2M basic function,respond to the write request of OneNET
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_writersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_writersp, "MIPLWRITERSP");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Respond to the 'execute' request of OneNET
+ *                  OneNet LwM2M basic function,respond to the execute request of OneNET
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_executersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_executersp, "MIPLEXECUTERSP");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Respond to the 'Write-Attributes' request of OneNET
+ *                  OneNet LwM2M basic function,respond to the Write-Attributes request of OneNET
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_parameterrsp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+{
+    CALL_MODULE_FUNC(onenetnb_parameterrsp, "MIPLPARAMETERRSP");
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Report data to the OneNET platform or application server
+ *                  OneNet LwM2M basic function,Report data to the OneNET platform or application server
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_notify(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_notify, "MIPLNOTIFY");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Send an update request to update the OneNET device lifecycle and object list
+ *                  OneNet LwM2M basic function,Send an update request to update the device lifecycle and object list
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            Reserved.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_update(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_update, "MIPLUPDATE");
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Fetch unread 'write' operations in URC non-default mode
+ *                  OneNet LwM2M extend function,Fetch unread 'write' operations in URC non-default mode(OneMo platform only)
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       timeout         The AT parser get resp timeout value, set by os ticks.
+ * @param[in]       resp            A user-supplied module_mgr_resp_t type pointer, receive returning messages.
+ * @param[in]       format          The parameter expression of command @see AT Commands Manual.
+ * @param[in]       ...             The expression arguments..
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ * @retval          OS_EBUSY        Busy
+ * @retval          OS_ETIMEOUT     Response timeout
+ ***********************************************************************************************************************
+ */
 os_err_t mo_onenetnb_get_write(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
 {
     CALL_MODULE_FUNC(onenetnb_get_write, "MIPLMGR");
 }
 
-os_err_t mo_onenetnb_writersp(mo_object_t *self, os_int32_t timeout, void *resp, const char *format, ...)
+/**
+ ***********************************************************************************************************************
+ * @brief           Reigster the user callbacks that is used to get the URC messages
+ *                  Extend function,Reigster the user callbacks that is used to get the URC messages(Quectel platform only)
+ *
+ * @param[in]       self            The descriptor of molink module instance.
+ * @param[in]       user_callbacks  A mo_onenet_cb_t type struct contains user callbacks.
+ *
+ * @return          On success, return OS_EOK; 
+ *                  On error, return an error code. 
+ * @retval          OS_EOK          Success
+ * @retval          OS_ERROR        Failed
+ ***********************************************************************************************************************
+ */
+os_err_t mo_onenetnb_cb_register(mo_object_t *self, mo_onenet_cb_t user_callbacks)
 {
-    CALL_MODULE_FUNC(onenetnb_writersp, "MIPLWRITERSP");
+    if (OS_NULL == self)
+    {
+        self = mo_get_default();
+    }
+
+    /* module_get_onenet_ops will recheck self ptr */
+    mo_onenet_ops_t *ops = module_get_onenet_ops(self);
+
+    if (OS_NULL == ops || OS_NULL == ops->onenetnb_cb_register)
+    {
+        LOG_EXT_E("Module %s does not support NBCBREGIST operate", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->onenetnb_cb_register(self, user_callbacks);
 }
 
 #ifdef OS_USING_SHELL

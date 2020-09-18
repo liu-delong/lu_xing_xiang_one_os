@@ -10,11 +10,10 @@
 #include "lib/mp-readline/readline.h"
 #include "lib/utils/pyexec.h"
 #include "py/mphal.h"
-#include "board.h"
 #ifdef OS_USING_VFS
 #include "libc_stat.h"
 #endif
-#include "shell.h"
+
 #include "usr_misc.h"
 
 #ifdef OS_USING_VFS
@@ -27,21 +26,6 @@
 void *stack_top = NULL;
 static char *heap = NULL;
 
-
-/*base init*/
-/*
-void *	malloc (size_t __size)
-{
-	extern void *pvPortMalloc( size_t xWantedSize );
-	return pvPortMalloc(__size);
-}
-
-void free(void *p)
-{
-	extern void vPortFree( void *pv );
-	vPortFree(p);
-}
-*/
 
 mp_import_stat_t mp_import_stat(const char *path) {
 #ifdef OS_USING_VFS
@@ -71,8 +55,15 @@ void NORETURN __fatal_error(const char *msg) {
 void Mpy_Task(void* argument)
 {
 	int stack_dummy;
+	os_uint16_t old_flag;
 	stack_top = (void *) &stack_dummy;
-
+	
+	if (argument){
+		if (strlen((char *)argument) < 3){
+			argument = NULL;
+		}
+	}
+	
 	usr_getchar_init();
 	
 #if MICROPY_PY_THREAD
@@ -99,36 +90,55 @@ void Mpy_Task(void* argument)
   mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_));
   mp_obj_list_init(MP_OBJ_TO_PTR(mp_sys_argv), 0);
 
-  printf("mp_init ok\n");
+  //printf("mp_init ok\n");
   readline_init0();
-  printf("readline_init0 ok\n");
+  //printf("readline_init0 ok\n");
 
-#if !MPY_DEBUG
-	if (!access("main.mpy", 0)) {
-		if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
-			pyexec_frozen_module("main.mpy");
-    }
-  }
-	else if (!access("main.py", 0)) {
-		if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
-			pyexec_file("main.py");
-    }
-  }
+   /* Save the open flag */
+   old_flag = os_console_get_device()->open_flag;
+   /* clean the stream flag. stream flag will automatically append '\r' */
+   os_console_get_device()->open_flag &= ~OS_DEVICE_FLAG_STREAM;
+  
+   if (argument) {
+	    //os_kprintf(argument);
+#ifndef MICROPYTHON_USING_UOS
+        os_kprintf("Please enable uos module in sys module option first.\n");
+#else
+        pyexec_file(argument);
 #endif
-	
-  for(;;)
-  {
-      if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
-          if (pyexec_raw_repl() != 0) {
-              break;
-          }
-      } else {
-          if (pyexec_friendly_repl() != 0) {
-              break;
-          }
-      }
-  }
-	
+    } else {
+		#if MPY_DEBUG
+			if (!access("main.mpy", 0)) {
+				if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
+					pyexec_frozen_module("main.mpy");
+			}
+		}
+			else if (!access("main.py", 0)) {
+				if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
+					pyexec_file("main.py");
+			}
+		}
+		#endif
+			
+		for(;;)
+		{
+			if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
+				if (pyexec_raw_repl() != 0) {
+					break;
+				}
+			} else {
+				if (pyexec_friendly_repl() != 0) {
+					break;
+				}
+			}
+		}
+    }
+
+    /* restore the open flag */
+    os_console_get_device()->open_flag = old_flag;
+  
+
+
   gc_sweep_all();
   mp_deinit();
 #if MICROPY_PY_THREAD
@@ -140,4 +150,6 @@ void Mpy_Task(void* argument)
   usr_getchar_deinit();
 }
 
-SH_CMD_EXPORT(Mpy_Task, Mpy_Task, "Run MicroPython");
+
+
+

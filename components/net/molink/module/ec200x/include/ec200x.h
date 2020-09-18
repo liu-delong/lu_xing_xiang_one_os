@@ -63,9 +63,6 @@ extern "C" {
 typedef struct mo_ec200x
 {
     mo_object_t parent;
-#ifdef EC200X_USING_NETSERV_OPS
-    os_uint8_t netstat;
-#endif /* EC200X_USING_NETSERV_OPS */
 #ifdef EC200X_USING_NETCONN_OPS
     mo_netconn_t netconn[EC200X_NETCONN_NUM];
 

@@ -1,3 +1,11 @@
+/*
+ * @Author: your name
+ * @Date: 2020-08-24 09:20:09
+ * @LastEditTime: 2020-09-14 18:36:07
+ * @LastEditors: your name
+ * @Description: In User Settings Edit
+ * @FilePath: \OneOS_newlab_0824\Component\components\net\molink\module\m5311\include\m5311_netconn.h
+ */
 /**
  ***********************************************************************************************************************
  * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
@@ -37,6 +45,7 @@ os_err_t      m5311_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn);
 os_err_t      m5311_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_addr_t addr, os_uint16_t port);
 os_size_t     m5311_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const char *data, os_size_t size);
 os_err_t      m5311_netconn_gethostbyname(mo_object_t *self, const char *domain_name, ip_addr_t *addr);
+os_err_t      m5311_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info);
 
 #endif /* M5311_USING_NETCONN_OPS */
 

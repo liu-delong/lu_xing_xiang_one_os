@@ -366,8 +366,7 @@ void callbackRecvThread(void *lpParam)
          * This part will set up an interruption until an event happen on SDTIN or the socket until "tv" timed out (set
          * with the precedent function)
          */
-        /* result = select(FD_SETSIZE, &readfds, NULL, NULL, &tv); */ /* Adapt later Version */
-        result = lwip_select(FD_SETSIZE, &readfds, NULL, NULL, &tv);  /* Adapt Version OneOS-V1.1.0*/
+        result = select(FD_SETSIZE, &readfds, NULL, NULL, &tv);
         
         if (result < 0)
         {

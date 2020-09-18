@@ -86,8 +86,24 @@ static mo_netconn_t *m5310a_get_netconn_by_id(mo_object_t *module, os_int32_t co
     return OS_NULL;
 }
 
+os_err_t m5310a_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
+{
+    mo_m5310a_t *m5310a = os_container_of(module, mo_m5310a_t, parent);
+
+    info->netconn_array = m5310a->netconn;
+    info->netconn_nums  = sizeof(m5310a->netconn) / sizeof(m5310a->netconn[0]);
+
+    return OS_EOK;
+}
+
 mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
+    mo_m5310a_t *m5310a = os_container_of(module, mo_m5310a_t, parent);
+    at_parser_t *parser = &module->parser;
+    os_err_t     result = OS_EOK;
+
+    m5310a_lock(&m5310a->netconn_lock);
+
     mo_netconn_t *netconn = m5310a_netconn_alloc(module);
 
     if (OS_NULL == netconn)
@@ -95,16 +111,17 @@ mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
         return OS_NULL;
     }
 
-    at_parser_t *parser = &module->parser;
-    os_err_t     result = OS_EOK;
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
     switch (type)
     {
     case NETCONN_TYPE_TCP:
-        result = at_parser_exec_cmd(parser, "AT+NSOCR=\"STREAM\",%d,0,2", PROTOCOL_TYPE_TCP);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=\"STREAM\",%d,0,2", PROTOCOL_TYPE_TCP);
         break;
     case NETCONN_TYPE_UDP:
-        result = at_parser_exec_cmd(parser, "AT+NSOCR=\"DGRAM\",%d,0,2", PROTOCOL_TYPE_UDP);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=\"DGRAM\",%d,0,2", PROTOCOL_TYPE_UDP);
         break;
     default:
         result = OS_ERROR;
@@ -117,13 +134,13 @@ mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
         return OS_NULL;
     }
 
-    if (at_parser_get_data_by_line(parser, 2, "%d", &netconn->connect_id) <= 0)
+    if (at_resp_get_data_by_line(&resp, 2, "%d", &netconn->connect_id) <= 0)
     {
         LOG_EXT_E("Module %s get %s netconn id failed", module->name, (type == NETCONN_TYPE_TCP) ? "TCP" : "UDP");
         return OS_NULL;
     }
 
-    result = at_parser_exec_cmd(parser, "AT+NSOCFG=%d,1,1", netconn->connect_id);
+    result = at_parser_exec_cmd(parser, &resp, "AT+NSOCFG=%d,1,1", netconn->connect_id);
     if (OS_EOK != result)
     {
         LOG_EXT_E("Module %s set netconn %d data format failed", module->name, netconn->connect_id);
@@ -135,6 +152,8 @@ mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     netconn->stat = NETCONN_STAT_INIT;
     netconn->type = type;
 
+    m5310a_unlock(&m5310a->netconn_lock);
+
     return netconn;
 }
 
@@ -145,11 +164,15 @@ os_err_t m5310a_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
 
     LOG_EXT_I("Module %s in %d netconnn status", module->name, netconn->stat);
 
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     switch (netconn->stat)
     {
     case NETCONN_STAT_INIT:
     case NETCONN_STAT_CONNECT:
-        result = at_parser_exec_cmd(parser, "AT+NSOCL=%d", netconn->connect_id);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCL=%d", netconn->connect_id);
         if (result != OS_EOK)
         {
             LOG_EXT_E("Module %s destroy %s netconn failed",
@@ -182,10 +205,15 @@ os_err_t m5310a_netconn_gethostbyname(mo_object_t *self, const char *domain_name
     at_parser_t *parser = &self->parser;
 
 	char recvip[IPADDR_MAX_STR_LEN] = {0};
-	
-    at_parser_set_resp(parser, 256, 4, 20000);
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CMDNS=\"%s\"", domain_name);
+    char resp_buff[256] = {0};
+
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 4,
+                      .timeout   = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CMDNS=\"%s\"", domain_name);
     if (result < 0)
     {
         result = OS_ERROR;
@@ -194,7 +222,7 @@ os_err_t m5310a_netconn_gethostbyname(mo_object_t *self, const char *domain_name
 
     /* AT+CMDNS="www.baidu.com" return: OK \r\n  +CMDNS:183.232.231.172 \r\n */
     /* AT+CMDNS="8.8.8.8" return: +CMDNS:8.8.8.8 \r\n  OK */
-    if (at_parser_get_data_by_kw(parser, "+CMDNS:", "+CMDNS:%s", recvip) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CMDNS:", "+CMDNS:%s", recvip) <= 0)
     {
         LOG_EXT_E("M5310-A domain resolve: resp parse fail, try again, host: %s", domain_name);
         result = OS_ERROR;
@@ -225,31 +253,32 @@ os_err_t m5310a_netconn_gethostbyname(mo_object_t *self, const char *domain_name
 
 __exit:
 
-    at_parser_reset_resp(parser);
-
     return result;
 }
 
 static os_err_t m5310a_tcp_connect(at_parser_t *parser, os_int32_t connect_id, char *ip_addr, os_uint16_t port)
 {
-	char buf[16] = {0};
-	
-    at_parser_set_resp(parser, 128, 4, os_tick_from_ms(20000));
+    char buf[16]        = {0};
+    char resp_buff[128] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+NSOCO=%d,%s,%d", connect_id, ip_addr, port);
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 4,
+                      .timeout   = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+NSOCO=%d,%s,%d", connect_id, ip_addr, port);
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "CONNECT", "CONNECT %s", buf) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "CONNECT", "CONNECT %s", buf) <= 0)
     {
         result = OS_ERROR;
         goto __exit;
     }
 
 __exit:
-    at_parser_reset_resp(parser);
 
     return result;
 }
@@ -299,7 +328,10 @@ static os_size_t m5310a_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, con
     os_int32_t connect_id   = -1;
     os_size_t  cnt          = 0;
 
-    char send_cmd[30] = {0};
+    char send_cmd[30]                     = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
 
     while (sent_size < size)
     {
@@ -314,31 +346,39 @@ static os_size_t m5310a_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, con
         }
 
         snprintf(send_cmd, sizeof(send_cmd), "AT+NSOSD=%d,%d,", netconn->connect_id, (int)cur_pkt_size / 2);
+        /* M5310A sends data AT command far beyond the normal length of AT command, */
+        /* using a special process to execute */
 
+        /* Protect the M5310A data sending process, prevent other threads to send AT commands */
+        os_mutex_recursive_lock(&(parser->rx_lock), OS_IPC_WAITING_FOREVER);
+
+        /* step1: send at command prefix and parameter */
         if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
         {
             result = OS_ERROR;
             goto __exit;
         }
 
-        at_parser_set_resp(parser, 64, 0, 10 * OS_TICK_PER_SECOND);
-
+        /* step2: send data parameter */
         if (at_parser_send(parser, data + sent_size, cur_pkt_size) <= 0)
         {
             result = OS_ERROR;
             goto __exit;
         }
 
-        result = at_parser_exec_cmd(parser, "");
+        /* step3: send /r/n, enter the AT command execution process */
+        result = at_parser_exec_cmd(parser, &resp, "");
         if (result != OS_EOK)
         {
             goto __exit;
         }
 
+        os_mutex_recursive_unlock(&(parser->rx_lock));
+
         result = OS_ERROR;
-        for (int i = 1; i <= parser->resp.line_counts; i++)
+        for (int i = 1; i <= resp.line_counts; i++)
         {
-            if (at_parser_get_data_by_line(parser, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
+            if (at_resp_get_data_by_line(&resp, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
             {
                 result = OS_EOK;
                 break;
@@ -363,8 +403,6 @@ __exit:
                   cur_pkt_size / 2);
     }
 
-    at_parser_reset_resp(parser);
-
     return sent_size / 2;
 }
 
@@ -378,6 +416,9 @@ static os_size_t m5310a_udp_send(at_parser_t *parser, mo_netconn_t *netconn, con
 
     char send_cmd[40]                      = {0};
     char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF]  = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
 
     strncpy(remote_ip, inet_ntoa(netconn->remote_ip), IPADDR_MAX_STR_LEN);
 
@@ -401,30 +442,39 @@ static os_size_t m5310a_udp_send(at_parser_t *parser, mo_netconn_t *netconn, con
                  netconn->remote_port,
                  (int)cur_pkt_size / 2);
 
+        /* M5310A sends data AT command far beyond the normal length of AT command, */
+        /* using a special process to execute */
+
+        /* Protect the M5310A data sending process, prevent other threads to send AT commands */
+        os_mutex_recursive_lock(&(parser->rx_lock), OS_IPC_WAITING_FOREVER);
+
+        /* step1: send at command prefix and parameter */
         if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
         {
             result = OS_ERROR;
             goto __exit;
         }
 
+        /* step2: send data parameter */
         if (at_parser_send(parser, data + sent_size, cur_pkt_size) <= 0)
         {
             result = OS_ERROR;
             goto __exit;
         }
 
-        at_parser_set_resp(parser, 64, 0, 10 * OS_TICK_PER_SECOND);
-
-        result = at_parser_exec_cmd(parser, "");
+        /* step3: send /r/n, enter the AT command execution process */
+        result = at_parser_exec_cmd(parser, &resp, "");
         if (result != OS_EOK)
         {
             goto __exit;
         }
 
+        os_mutex_recursive_unlock(&(parser->rx_lock));
+
         result = OS_ERROR;
-        for (int i = 1; i <= parser->resp.line_counts; i++)
+        for (int i = 1; i <= resp.line_counts; i++)
         {
-            if (at_parser_get_data_by_line(parser, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
+            if (at_resp_get_data_by_line(&resp, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
             {
                 result = OS_EOK;
                 break;
@@ -447,8 +497,6 @@ __exit:
                   netconn->connect_id,
                   cur_pkt_size / 2);
     }
-
-    at_parser_reset_resp(parser);
 
     return sent_size / 2;
 }
@@ -513,9 +561,9 @@ static void urc_close_func(struct at_parser *parser, const char *data, os_size_t
 
     LOG_EXT_W("Module %s receive close urc data of connect %d", module->name, connect_id);
 
-    netconn->stat = NETCONN_STAT_CLOSE;
-
-    os_data_queue_reset(&netconn->data_queue);
+    mo_netconn_pasv_close_notice(netconn);
+    
+    return;
 }
 
 static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -541,15 +589,17 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
 
     if (netconn->stat == NETCONN_STAT_CONNECT)
     {
-        char *recv_buff = calloc(1, data_size * 2);
+        /*  bufflen >= strsize + 1 */
+        char *recv_buff = calloc(1, data_size * 2 + 1);
         if (recv_buff == OS_NULL)
         {
-            LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2);
+            LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2 + 1);
             return;
         }
 
         /* Get receive data to receive buffer */
-        sscanf(data, "+NSORF:%*d,%*[^,],%*d,%*d,%s", recv_buff);
+        /* Alert! if using sscanf stores strings, be rember allocating enouth memory! */
+        sscanf(data, "+NSORF:%*d,%*[^,],%*d,%*d,%[^,]", recv_buff);
 
         char *recv_str = calloc(1, data_size + 1);
         if (recv_str == OS_NULL)
@@ -559,8 +609,7 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
         }
 
         hexstr_to_bytes(recv_buff, recv_str, data_size * 2);
-
-        os_data_queue_push(&netconn->data_queue, recv_str, data_size, OS_IPC_WAITING_FOREVER);
+        mo_netconn_data_recv_notice(netconn, recv_str, data_size);
 
         free(recv_buff);
     }

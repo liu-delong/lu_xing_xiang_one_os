@@ -101,6 +101,16 @@ static mo_netconn_t *m5311_get_netconn_by_id(mo_object_t *module, os_int32_t con
     return OS_NULL;
 }
 
+os_err_t m5311_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
+{
+    mo_m5311_t *m5311 = os_container_of(module, mo_m5311_t, parent);
+
+    info->netconn_array = m5311->netconn;
+    info->netconn_nums  = sizeof(m5311->netconn) / sizeof(m5311->netconn[0]);
+
+    return OS_EOK;
+}
+
 mo_netconn_t *m5311_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
     mo_netconn_t *netconn = m5311_netconn_alloc(module);
@@ -115,7 +125,11 @@ mo_netconn_t *m5311_netconn_create(mo_object_t *module, mo_netconn_type_t type)
         return OS_NULL;
     }
 
-    os_err_t result = at_parser_exec_cmd(&module->parser, "AT+IPRCFG=1,0,1");
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    os_err_t result = at_parser_exec_cmd(&module->parser, &resp, "AT+IPRCFG=1,0,1");
     if (OS_EOK != result)
     {
         LOG_EXT_E("Module %s set netconn autorcv data HEX format failed", module->name);
@@ -145,10 +159,14 @@ os_err_t m5311_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
 
     LOG_EXT_I("Module %s in %d netconnn status", module->name, netconn->stat);
 
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
     switch (netconn->stat)
     {
     case NETCONN_STAT_CONNECT:
-        result = at_parser_exec_cmd(parser, "AT+IPCLOSE=%d", netconn->connect_id);
+        result = at_parser_exec_cmd(parser, &resp, "AT+IPCLOSE=%d", netconn->connect_id);
         if (result != OS_EOK)
         {
             LOG_EXT_E("Module %s destroy %s netconn failed",
@@ -181,9 +199,14 @@ os_err_t m5311_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
 
 	char recvip[IPADDR_MAX_STR_LEN] = {0};
 	
-    at_parser_set_resp(parser, 256, 4, 20000);
+    char resp_buff[256] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+CMDNS=\"%s\"", domain_name);
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 4,
+                      .timeout   = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CMDNS=\"%s\"", domain_name);
     if (result < 0)
     {
         result = OS_ERROR;
@@ -192,7 +215,7 @@ os_err_t m5311_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
 
     /* AT+CMDNS="www.baidu.com" return: OK \r\n  +CMDNS:183.232.231.172 \r\n */
     /* AT+CMDNS="8.8.8.8" return: +CMDNS:8.8.8.8 \r\n  OK */
-    if (at_parser_get_data_by_kw(parser, "+CMDNS:", "+CMDNS:%s", recvip) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CMDNS:", "+CMDNS:%s", recvip) <= 0)
     {
         LOG_EXT_E("M5311 domain resolve: resp parse fail, try again, host: %s", domain_name);
         result = OS_ERROR;
@@ -222,38 +245,43 @@ os_err_t m5311_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
     }
 
 __exit:
-
-    at_parser_reset_resp(parser);
-
     return result;
 }
 
 static os_err_t m5311_tcp_connect(at_parser_t *parser, os_int32_t connect_id, char *ip_addr, os_uint16_t port)
 {
-	char buf[16] = {0};
-	
-    at_parser_set_resp(parser, 128, 4, os_tick_from_ms(20000));
+	char buf[16]        = {0};
+	char resp_buff[128] = {0};
 
-    os_err_t result = at_parser_exec_cmd(parser, "AT+IPSTART=%d,\"TCP\",%s,%hu", connect_id, ip_addr, port);
+    at_resp_t resp = {.buff      = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .line_num  = 4,
+                      .timeout   = 20 * OS_TICK_PER_SECOND};
+
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+IPSTART=%d,\"TCP\",%s,%hu", connect_id, ip_addr, port);
     if (result != OS_EOK)
     {
         goto __exit;
     }
 
-    if (at_parser_get_data_by_kw(parser, "CONNECT", "CONNECT %s", buf) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "CONNECT", "CONNECT %s", buf) <= 0)
     {
         result = OS_ERROR;
         goto __exit;
     }
 
 __exit:
-    at_parser_reset_resp(parser);
+
     return result;
 }
 
 static os_err_t m5311_udp_connect(at_parser_t *parser, os_int32_t connect_id, char *ip_addr, os_uint16_t port)
 {
-    os_err_t result = at_parser_exec_cmd(parser, "AT+IPSTART=%d,\"UDP\",%s,%hu", connect_id, ip_addr, port);
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+    
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+IPSTART=%d,\"UDP\",%s,%hu", connect_id, ip_addr, port);
 
     return result;
 }
@@ -308,7 +336,9 @@ static os_size_t m5311_hexdata_send(at_parser_t *parser, mo_netconn_t *netconn, 
     char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
     strncpy(remote_ip, inet_ntoa(netconn->remote_ip), IPADDR_MAX_STR_LEN);
 
-    at_parser_set_resp(parser, SEND_DATA_MAX_SIZE + 60, 0, os_tick_from_ms(5000));
+    char resp_buff[SEND_DATA_MAX_SIZE + 60] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout =  10 * OS_TICK_PER_SECOND};
 
     while (sent_size < size)
     {
@@ -347,14 +377,14 @@ static os_size_t m5311_hexdata_send(at_parser_t *parser, mo_netconn_t *netconn, 
             }
         }
             
-        result = at_parser_exec_cmd(parser, "");
+        result = at_parser_exec_cmd(parser, &resp, "");
         
         if (result != OS_EOK)
         {
             goto __exit;
         }
 
-        if (at_parser_get_data_by_kw(parser, "+IPSEND:", "+IPSEND: %d,%d", &connect_id, &cnt) <= 0 || cnt != cur_pkt_size / 2)
+        if (at_resp_get_data_by_kw(&resp, "+IPSEND:", "+IPSEND: %d,%d", &connect_id, &cnt) <= 0 || cnt != cur_pkt_size / 2)
         {
             result = OS_ERROR;
             goto __exit;
@@ -371,9 +401,8 @@ __exit:
                   netconn->connect_id,
                   cur_pkt_size / 2);
     }
-    at_parser_reset_resp(parser);
 
-    return sent_size;
+    return sent_size / 2;
 }
 
 os_size_t m5311_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const char *data, os_size_t size)
@@ -441,9 +470,9 @@ static void urc_close_func(struct at_parser *parser, const char *data, os_size_t
 
     LOG_EXT_W("Module %s receive close urc data of connect %d", module->name, connect_id);
 
-    netconn->stat = NETCONN_STAT_CLOSE;
+    mo_netconn_pasv_close_notice(netconn);
 
-    os_data_queue_reset(&netconn->data_queue);
+    return;
 }
 
 static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t size)
@@ -466,14 +495,16 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
         return;
     }
 
-    char *recv_buff = calloc(1, data_size * 2);
+    /*  bufflen >= strsize + 1 */
+    char *recv_buff = calloc(1, data_size * 2 + 1);
     if (recv_buff == OS_NULL)
     {
-        LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2);
+        LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2 + 1);
         return;
     }
 
     /* Get receive data to receive buffer */
+    /* Alert! if using sscanf stores strings, be rember allocating enouth memory! */
     sscanf(data, "+IPRD: %*d,%*d,%s", recv_buff);
 
     char *recv_str = calloc(1, data_size + 1);
@@ -485,8 +516,9 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
 
     /* from mo_lib */
     hexstr_to_bytes(recv_buff, recv_str, data_size);
-
-    os_data_queue_push(&netconn->data_queue, recv_str, data_size, OS_IPC_WAITING_FOREVER);
+    
+    mo_netconn_data_recv_notice(netconn, recv_str, data_size);
+    
     return;
 }
 

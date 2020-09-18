@@ -951,3 +951,7 @@ int IOT_CoAP_Yield(iotx_coap_context_t *p_context)
     return Cloud_CoAPMessage_cycle(p_iotx_coap->p_coap_ctx);
 }
 
+int IOT_CoAP_Check_Auth(iotx_coap_context_t *p_iotx_coap)
+{
+    return ((iotx_coap_t *)p_iotx_coap)->is_authed;
+}

@@ -67,9 +67,6 @@ extern "C" {
 typedef struct mo_m5310a
 {
     mo_object_t parent;
-#ifdef M5310A_USING_NETSERV_OPS
-    os_uint8_t netstat;
-#endif /* M5310A_USING_NETSERV_OPS */
 #ifdef M5310A_USING_NETCONN_OPS
     mo_netconn_t netconn[M5310A_NETCONN_NUM];
     os_mutex_t   netconn_lock;

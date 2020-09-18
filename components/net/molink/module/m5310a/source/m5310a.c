@@ -56,8 +56,6 @@ static const struct mo_netserv_ops gs_netserv_ops = {
     .get_csq        = m5310a_get_csq,
     .get_radio      = m5310a_get_radio,
     .get_ipaddr     = m5310a_get_ipaddr,
-    .set_netstat    = m5310a_set_netstat,
-    .get_netstat    = m5310a_get_netstat,
     .ping           = m5310a_ping,
 };
 #endif /* M5310A_USING_NETSERV_OPS */
@@ -71,6 +69,7 @@ static const struct mo_netconn_ops gs_netconn_ops = {
     .gethostbyname = m5310a_netconn_gethostbyname,
     .connect       = m5310a_netconn_connect,
     .send          = m5310a_netconn_send,
+    .get_info      = m5310a_netconn_get_info,
 };
 #endif /* M5310A_USING_NETCONN_OPS */
 

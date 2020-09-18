@@ -84,6 +84,7 @@ STATIC mp_obj_t mp_audio_init(size_t n_args, const mp_obj_t *args, mp_map_t *kw_
 		ret = self->audio.device->ops->open(&self->audio, 0);
 		if (0 != ret){
 			mp_raise_ValueError("audio_init failed!\n");
+			return mp_const_none;
 		}
 	}
     
@@ -100,6 +101,7 @@ STATIC mp_obj_t mp_audio_deinit (mp_obj_t self)
         ret = audio->audio.device->ops->close(&audio->audio);
         if (0 != ret){
             mp_raise_ValueError("audio_deinit failed!\n");
+			return mp_const_none;
         }
     } else{
         printf("audio deinit function!\n");
@@ -115,6 +117,7 @@ STATIC mp_obj_t mp_audio_set_parameter(size_t n_args, const mp_obj_t *args, mp_m
 	device_audio_obj_t *self = (device_audio_obj_t *)args[0];
 	if (self->audio.device->open_flag == AUDIO_DEINIT_FLAG){
 		mp_raise_ValueError("write is poweroff! Please open it!\n");
+		return mp_const_none;
 	}
 	return audio_init_helper(args[0], n_args - 1, args + 1, kw_args, AUDIO_WRITE_FLAG);
 }
@@ -128,6 +131,7 @@ STATIC mp_obj_t mp_audio_player(mp_obj_t self_in, mp_obj_t wr_buf)
 	
 	if (self->audio.device->open_flag == AUDIO_DEINIT_FLAG){
 		mp_raise_ValueError("audio is poweroff! Please open it!\n");
+		return mp_const_none;
 	}
 	
 	if (NULL != self->audio.device->ops && NULL != self->audio.device->ops->write){
@@ -136,6 +140,7 @@ STATIC mp_obj_t mp_audio_player(mp_obj_t self_in, mp_obj_t wr_buf)
 
 		if (0 != self->audio.device->ops->write(&self->audio, 0, bufinfo.buf, bufinfo.len)) {
             mp_raise_ValueError("mp_audio_set_parameter failed!\n");
+			return mp_const_none;
         }
 		return mp_obj_new_int(0);
 	}else {
