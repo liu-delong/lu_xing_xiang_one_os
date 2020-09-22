@@ -42,7 +42,7 @@ OneOS 是中国移动针对物联网领域推出的轻量级操作系统，具�
 
 # 许可协议
 
-OneOS 代码遵循 Apache 2.0 license 开源协议。
+OneOS 代码遵循 Apache License 2.0 开源协议。
 
 ---
 # OneOS架构
