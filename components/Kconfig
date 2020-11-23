@@ -1,5 +1,6 @@
 menu "Components"
     source "$OS_ROOT/components/atest/Kconfig"
+    source "$OS_ROOT/components/ble/Kconfig"
     source "$OS_ROOT/components/cloud/Kconfig"
     source "$OS_ROOT/components/dlog/Kconfig"
     source "$OS_ROOT/components/net/Kconfig"

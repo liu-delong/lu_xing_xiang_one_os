@@ -982,6 +982,51 @@ EXPORT_SYMBOL(os_task_find);
 
 /**
  ***********************************************************************************************************************
+ * @brief           Verify task by id on the task object list 
+ *
+ * @details         This function will verify task by id on the task object list.
+ *
+ * @param[in]       id          a task control block descriptor
+ * 
+ * @return          On success, return OS_EOK; on error, OS_ERROR is returned.
+ * @retval          OS_EOK      Find the task with the same task id.
+ * @retval          OS_ERROR    No task found with the same task id.
+ ***********************************************************************************************************************
+ */
+os_err_t os_task_id_verify(os_task_t *id)
+{
+    os_object_info_t *info;
+    os_task_t        *task;
+    os_list_node_t   *node;
+
+    os_enter_critical();
+
+    /* Try to find device object. */
+    info = os_object_get_info(OS_OBJECT_TASK);
+    OS_ASSERT(OS_NULL != info);
+
+    /* Traverse task object list. */
+    os_list_for_each(node, &info->object_list)
+    {
+        task = os_list_entry(node, os_task_t, parent.list);
+        if (task == id)
+        {
+            os_exit_critical();
+
+            return OS_EOK;
+        }
+    }
+
+    os_exit_critical();
+
+    /* There is no task with this id on the list. */
+    return OS_ERROR;
+}
+EXPORT_SYMBOL(os_task_id_verify);
+
+
+/**
+ ***********************************************************************************************************************
  * @brief           Task sleep in tick 
  *
  * @details         This function will cause task to sleep.
@@ -1099,45 +1144,6 @@ os_err_t os_task_mdelay(os_uint32_t ms)
 }
 EXPORT_SYMBOL(os_task_mdelay);
 
-#ifdef OS_USING_OVERFLOW_CHECK
-static void os_scheduler_stack_check(os_task_t *task)
-{
-    OS_ASSERT(OS_NULL != task);
-
-#if defined(ARCH_CPU_STACK_GROWS_UPWARD)
-    if ((*((os_uint8_t *)((os_ubase_t)task->stack_addr + task->stack_size - 1)) != '#') ||
-#else
-    if ((*((os_uint8_t *)task->stack_addr) != '#') ||
-#endif
-        ((os_uint32_t)task->sp <= (os_uint32_t)task->stack_addr) ||
-        ((os_uint32_t)task->sp > (os_uint32_t)task->stack_addr + (os_uint32_t)task->stack_size))
-    {
-        os_uint32_t level;
-
-        OS_KERN_LOG(KERN_ERROR, TASK_TAG, "task:%s stack overflow", task->parent.name);
-#ifdef OS_USING_SHELL
-        {
-            extern os_err_t sh_list_task(os_int32_t argc, char **argv);
-            sh_list_task(0, OS_NULL);
-        }
-#endif
-        level = os_hw_interrupt_disable();
-        while (level);
-    }
-#if defined(ARCH_CPU_STACK_GROWS_UPWARD)
-    else if ((os_uint32_t)task->sp > ((os_uint32_t)task->stack_addr + task->stack_size - 64))
-    {
-        OS_KERN_LOG(KERN_WARNING, TASK_TAG, "warning: %s stack is close to the top of stack address.",task->parent.name);
-    }
-#else
-    else if ((os_uint32_t)task->sp <= ((os_uint32_t)task->stack_addr + 64))
-    {
-        OS_KERN_LOG(KERN_WARNING, TASK_TAG, "warning: %s stack is close to the bottom of stack address.",task->parent.name);
-    }
-#endif
-}
-#endif /* OS_USING_OVERFLOW_CHECK */
-
 /**
  ***********************************************************************************************************************
  * @brief           This function initializes the system's scheduler.
@@ -1254,6 +1260,14 @@ void os_schedule(void)
         /* If the destination task is not the same as current task. */
         if (to_task != gs_os_current_task)
         {
+
+#ifdef OS_USING_OVERFLOW_CHECK
+            extern void schedule_from_task_stack_check(os_task_t *task);
+            extern void schedule_to_task_stack_check(os_task_t *task);
+            schedule_from_task_stack_check(gs_os_current_task);
+            schedule_to_task_stack_check(to_task);          
+#endif
+
             from_task              = gs_os_current_task;
             gs_os_current_task     = to_task;
 
@@ -1269,10 +1283,6 @@ void os_schedule(void)
                         from_task->parent.name, 
                         from_task->sp);
 
-#ifdef OS_USING_OVERFLOW_CHECK
-            os_scheduler_stack_check(from_task);
-            os_scheduler_stack_check(to_task);
-#endif
             /* Switch to new task. */
             if (0 == g_os_interrupt_nest)
             {
@@ -1498,6 +1508,7 @@ static os_err_t sh_list_task_info(os_list_node_t *list)
     os_uint8_t     *ptr;
     os_task_t      *task;
     os_list_node_t *node;
+    os_uint32_t     task_sp;
     
     const char *item_title = "task";
 
@@ -1514,21 +1525,39 @@ static os_err_t sh_list_task_info(os_list_node_t *list)
         os_kprintf("%-*.*s %3d ", maxlen, OS_NAME_MAX, task->parent.name, task->current_priority);
 
         stat = (task->stat & OS_TASK_STAT_MASK);
-        if(stat == OS_TASK_READY)
+        if (stat == OS_TASK_READY)
         {
             os_kprintf(" ready  ");
         }
-        else if(stat == OS_TASK_SUSPEND)
+        else if (stat == OS_TASK_SUSPEND)
         {
             os_kprintf(" suspend");
         }
-        else if(stat == OS_TASK_INIT)
+        else if (stat == OS_TASK_INIT)
         {
             os_kprintf(" init   ");
         }
-        else if(stat == OS_TASK_CLOSE)
+        else if (stat == OS_TASK_CLOSE)
         {
             os_kprintf(" close  ");
+        }
+
+        if (os_interrupt_get_nest() > 0)
+        {
+            task_sp = (os_uint32_t)task->sp;
+        }
+        else
+        {
+            if (task == gs_os_current_task)
+            {
+                extern os_size_t *get_current_task_sp(void);
+                
+                task_sp = (os_uint32_t)get_current_task_sp();
+            }
+            else
+            {
+                task_sp = (os_uint32_t)task->sp;
+            }
         }
 
 #if defined(ARCH_CPU_STACK_GROWS_UPWARD)
@@ -1539,7 +1568,7 @@ static os_err_t sh_list_task_info(os_list_node_t *list)
         }
 
         os_kprintf(" 0x%08x 0x%08x 0x%08x    %02d%%   0x%08x %03d\r\n",
-                   (os_uint32_t)task->stack_addr,
+                   task_sp,
                    task->stack_addr,
                    task->stack_size,
                    ((os_uint32_t)ptr - (os_uint32_t)task->stack_addr) * 100 / task->stack_size,
@@ -1553,7 +1582,7 @@ static os_err_t sh_list_task_info(os_list_node_t *list)
         }
 
         os_kprintf(" 0x%08x 0x%08x 0x%08x    %02d%%   0x%08x %03d\r\n",
-                   (os_uint32_t)task->sp,
+                   task_sp,
                    task->stack_addr,
                    task->stack_size,
                    (task->stack_size + (os_uint32_t)task->stack_addr - (os_uint32_t) ptr) * 100 / task->stack_size,
@@ -1583,7 +1612,7 @@ os_err_t sh_list_task(os_int32_t argc, char **argv)
     return sh_list_task_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_task, sh_list_task, "list task");
+SH_CMD_EXPORT(task, sh_list_task, "show task information");
 
 #ifdef OS_USING_TASK_MONITOR
 

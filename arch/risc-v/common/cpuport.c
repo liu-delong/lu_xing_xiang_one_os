@@ -25,6 +25,7 @@
 #include <os_assert.h>
 #include <os_util.h>
 #include <os_hw.h>
+#include <os_task.h>
 #include "cpuport.h"
 
 /* Flag in interrupt handling. */
@@ -148,3 +149,95 @@ void os_hw_cpu_shutdown()
         OS_ASSERT(0);
     }
 }
+
+/**
+ ***********************************************************************************************************************
+ * @brief           This function will return stack pointer of the current running task.
+ *
+ * @param           No parameter.
+ *
+ * @return          Return stack pointer of the current running task.
+ ***********************************************************************************************************************
+ */
+os_size_t *get_current_task_sp(void)
+{
+	extern os_size_t *get_sp(void);
+    return get_sp();
+}
+
+#ifdef OS_USING_OVERFLOW_CHECK
+
+/**
+ ***********************************************************************************************************************
+ * @brief           This function is used to check the stack of "from" task when switching task.
+ *
+ * @param[in]       task            The descriptor of task control block
+ * 
+ * @return          None.
+ ***********************************************************************************************************************
+ */
+void schedule_from_task_stack_check(os_task_t *task)
+{
+    os_size_t sp;
+    OS_ASSERT(OS_NULL != task);
+
+    sp = (os_size_t)task->sp;
+
+#if defined(ARCH_CPU_STACK_GROWS_UPWARD)
+    if ((*((os_uint8_t *)((os_ubase_t)task->stack_addr + task->stack_size - 1)) != '#') ||
+#else
+    if ((*((os_uint8_t *)task->stack_addr) != '#') ||
+#endif
+        ((os_uint32_t)sp < (os_uint32_t)task->stack_addr) ||
+        ((os_uint32_t)sp >= (os_uint32_t)task->stack_addr + (os_uint32_t)task->stack_size))
+    {
+        os_kprintf("schedule to task:%s stack overflow,the sp is 0x%x.\r\n", task->parent.name, sp);
+#ifdef OS_USING_SHELL
+        {
+            extern os_err_t sh_list_task(os_int32_t argc, char **argv);
+            sh_list_task(0, OS_NULL);
+        }
+#endif
+        (void)os_hw_interrupt_disable();
+        OS_ASSERT(0);
+    }
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           This function is used to check the stack of "to" task when switching task.
+ *
+ * @param[in]       task            The descriptor of task control block
+ * 
+ * @return          None.
+ ***********************************************************************************************************************
+ */
+void schedule_to_task_stack_check(os_task_t *task)
+{
+    os_size_t sp;
+    OS_ASSERT(OS_NULL != task);
+
+    sp = (os_size_t)task->sp;
+
+#if defined(ARCH_CPU_STACK_GROWS_UPWARD)
+    if ((*((os_uint8_t *)((os_ubase_t)task->stack_addr + task->stack_size - 1)) != '#') ||
+#else
+    if ((*((os_uint8_t *)task->stack_addr) != '#') ||
+#endif
+        ((os_uint32_t)sp < (os_uint32_t)task->stack_addr) ||
+        ((os_uint32_t)sp >= (os_uint32_t)task->stack_addr + (os_uint32_t)task->stack_size))
+    {
+        os_kprintf("schedule to task:%s stack overflow,the sp is 0x%x.\r\n", task->parent.name, sp);
+#ifdef OS_USING_SHELL
+        {
+            extern os_err_t sh_list_task(os_int32_t argc, char **argv);
+            sh_list_task(0, OS_NULL);
+        }
+#endif
+        (void)os_hw_interrupt_disable();
+        OS_ASSERT(0);
+    }
+}
+
+#endif /* OS_USING_OVERFLOW_CHECK */
+

@@ -483,7 +483,7 @@ static os_err_t sh_list_sem(os_int32_t argc, char **argv)
     return list_sem_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_sem, sh_list_sem, "list semaphore in system");
+SH_CMD_EXPORT(sem, sh_list_sem, "show semaphore information");
 #endif /* OS_USING_SHELL */
 
 #endif /* OS_USING_SEMAPHORE */

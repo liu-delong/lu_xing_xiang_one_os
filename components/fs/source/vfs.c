@@ -718,5 +718,5 @@ static os_err_t sh_list_fd(os_int32_t argc, char **argv)
 
     return OS_EOK;
 }
-SH_CMD_EXPORT(list_fd, sh_list_fd, "list file descriptor");
+SH_CMD_EXPORT(fd, sh_list_fd, "show file descriptor information");
 #endif

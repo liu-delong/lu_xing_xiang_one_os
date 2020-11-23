@@ -160,7 +160,7 @@ struct zconfig_data {
 #define zc_android_ssid                (&zconfig_data->android_ssid[0])
 #define zc_android_bssid               (&zconfig_data->android_bssid[0])
 #define zc_android_src                 (&zconfig_data->android_src[0])
-#define zc_mutex                       zconfig_data->mutex
+#define zc_mutex                       zconfig_data->mutex 
 #define zc_got_ssid_passwd_from_p2p    zconfig_data->got_ssid_passwd_from_p2p
 
 void zconfig_force_destroy(void);

@@ -40,7 +40,7 @@ struct imxrt_uart
 {
     struct os_serial_device serial;
 
-    struct imxrt_uart_info *huart;
+    struct nxp_lpuart_info *huart;
 
     os_uint8_t *rx_buff;
     os_size_t   rx_count;
@@ -58,14 +58,15 @@ void uart_tx_callback(struct imxrt_uart *uart)
     os_interrupt_leave();
 }
 
-void uart_rx_callback(struct imxrt_uart *uart)
+static void uart_irq_callback(struct imxrt_uart *uart)
 {
+    /* kLPUART_RxDataRegFullFlag can only cleared or set by hardware */
     if (LPUART_GetStatusFlags(uart->huart->uart_base) & kLPUART_RxDataRegFullFlag)
     {
         uart->rx_buff[uart->rx_count++] = LPUART_ReadByte(uart->huart->uart_base);
         if (uart->rx_count == uart->rx_size)
         {
-            DisableIRQ(uart->huart->irqn);
+            LPUART_DisableInterrupts(uart->huart->uart_base, kLPUART_RxDataRegFullInterruptEnable);
 
             os_interrupt_enter();
             os_hw_serial_isr_rxdone((struct os_serial_device *)uart, uart->rx_count);
@@ -76,28 +77,6 @@ void uart_rx_callback(struct imxrt_uart *uart)
             uart->rx_size  = 0;
         }
     }
-}
-
-void LPUART1_IRQHandler(void)
-{
-    struct imxrt_uart *uart;
-
-    os_list_for_each_entry(uart, &imxrt_uart_list, struct imxrt_uart, list)
-    {
-        if (uart->huart->uart_base == LPUART1)
-        {
-            break;
-        }
-    }
-
-    if (uart->huart->uart_base != LPUART1)
-        return;
-
-    /* kLPUART_RxDataRegFullFlag can only cleared or set by hardware */
-    if (LPUART_GetStatusFlags(uart->huart->uart_base) & kLPUART_RxDataRegFullFlag)
-    {
-        uart_rx_callback(uart);
-    }
 
     if (LPUART_GetStatusFlags(uart->huart->uart_base) & kLPUART_RxOverrunFlag)
     {
@@ -105,6 +84,32 @@ void LPUART1_IRQHandler(void)
         LPUART_ClearStatusFlags(uart->huart->uart_base, kLPUART_RxOverrunFlag);
     }
 }
+
+#define LPUART_IRQHandler_DEFINE(__uart_index)                                  \
+void LPUART##__uart_index##_IRQHandler(void)                                    \
+{                                                                               \
+    struct imxrt_uart *uart;                                                    \
+                                                                                \
+    os_list_for_each_entry(uart, &imxrt_uart_list, struct imxrt_uart, list)     \
+    {                                                                           \
+        if (uart->huart->uart_base == LPUART##__uart_index)                     \
+        {                                                                       \
+            break;                                                              \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    if (uart->huart->uart_base == LPUART##__uart_index)                         \
+        uart_irq_callback(uart);                                                \
+}
+
+LPUART_IRQHandler_DEFINE(1);
+LPUART_IRQHandler_DEFINE(2);
+LPUART_IRQHandler_DEFINE(3);
+LPUART_IRQHandler_DEFINE(4);
+LPUART_IRQHandler_DEFINE(5);
+LPUART_IRQHandler_DEFINE(6);
+LPUART_IRQHandler_DEFINE(7);
+LPUART_IRQHandler_DEFINE(8);
 
 static uint32_t GetUartSrcFreq(void)
 {
@@ -179,6 +184,7 @@ static os_err_t imxrt_configure(struct os_serial_device *serial, struct serial_c
     return OS_EOK;
 }
 
+#if 0
 static int imxrt_uart_start_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
 {
     return size;
@@ -188,6 +194,7 @@ static int imxrt_uart_stop_send(struct os_serial_device *serial)
 {
     return 0;
 }
+#endif
 
 static int imxrt_uart_start_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
 {
@@ -202,8 +209,6 @@ static int imxrt_uart_start_recv(struct os_serial_device *serial, os_uint8_t *bu
     uart->rx_size  = size;
 
     LPUART_EnableInterrupts(uart->huart->uart_base, kLPUART_RxDataRegFullInterruptEnable);
-    NVIC_SetPriority(uart->huart->irqn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 4, 0));
-    EnableIRQ(uart->huart->irqn);
 
     return size;
 }
@@ -216,7 +221,7 @@ static int imxrt_uart_stop_recv(struct os_serial_device *serial)
 
     uart = os_container_of(serial, struct imxrt_uart, serial);
 
-    DisableIRQ(uart->huart->irqn);
+    LPUART_DisableInterrupts(uart->huart->uart_base, kLPUART_RxDataRegFullInterruptEnable);
 
     uart->rx_buff  = OS_NULL;
     uart->rx_count = 0;
@@ -275,8 +280,8 @@ static int imxrt_uart_poll_recv(struct os_serial_device *serial, os_uint8_t *buf
 static const struct os_uart_ops imxrt_uart_ops = {
     .configure    = imxrt_configure,
 
-    .start_send   = imxrt_uart_start_send,
-    .stop_send    = imxrt_uart_stop_send,
+    .start_send   = OS_NULL,
+    .stop_send    = OS_NULL,
 
     .start_recv   = imxrt_uart_start_recv,
     .stop_recv    = imxrt_uart_stop_recv,
@@ -297,12 +302,13 @@ static int imxrt_usart_probe(const os_driver_info_t *drv, const os_device_info_t
 
     OS_ASSERT(uart);
 
-    uart->huart = (struct imxrt_uart_info *)dev->info;
+    uart->huart = (struct nxp_lpuart_info *)dev->info;
 
     struct os_serial_device *serial = &uart->serial;
 
     serial->ops    = &imxrt_uart_ops;
     serial->config = config;
+    serial->config.baud_rate = uart->huart->config->baudRate_Bps;
 
     level = os_hw_interrupt_disable();
     os_list_add_tail(&imxrt_uart_list, &uart->list);
@@ -316,7 +322,7 @@ static int imxrt_usart_probe(const os_driver_info_t *drv, const os_device_info_t
 }
 
 OS_DRIVER_INFO imxrt_uart_driver = {
-    .name   = "IMX_UART",
+    .name   = "LPUART_Type",
     .probe  = imxrt_usart_probe,
 };
 

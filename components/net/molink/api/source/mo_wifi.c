@@ -221,4 +221,35 @@ os_err_t mo_wifi_connect_ap(mo_object_t *module, const char *ssid, const char *p
     return ops->connect_ap(module, ssid, password);
 }
 
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute AT command to disconnect to ap 
+ *
+ * @param[in]       module            The descriptor of molink module instance
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code.
+ * @retval          OS_EOK             Disconnect successfully
+ * @retval          OS_ETIMEOUT        Disconnect timeout
+ * @retval          OS_ERROR           Disconnect error
+ ***********************************************************************************************************************
+ */
+os_err_t mo_wifi_disconnect_ap(mo_object_t *module)
+{
+    OS_ASSERT(OS_NULL != module);
+
+    mo_wifi_ops_t *ops = get_wifi_ops(module);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->disconnect_ap)
+    {
+        LOG_EXT_E("Module %s does not support disconnect wifi ap operate", module->name);
+        return OS_ERROR;
+    }
+
+    return ops->disconnect_ap(module);
+}
 #endif /* MOLINK_USING_WIFI_OPS */

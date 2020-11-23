@@ -1,7 +1,7 @@
-menu "Virtual file system"
+menu "FileSystem"
 
 config OS_USING_VFS
-    bool "Using virtual file system"
+    bool "Enable virtual file system"
     select OS_USING_MUTEX
     default y
     help
@@ -34,7 +34,7 @@ if OS_USING_VFS
             JFFS2 is journalling flash file system version2.
 
     config OS_USING_VFS_FATFS
-        bool "Enable elm-chan FatFs"
+        bool "Enable FatFs"
         select OS_USING_FAL
         default n
         help
@@ -92,18 +92,18 @@ if OS_USING_VFS
     endif
 
     config OS_USING_VFS_DEVFS
-        bool "Using DevFs for device objects"
+        bool "Enable DevFs for device objects"
         default y
 
     config OS_USING_VFS_CUTEFS
-        bool "Enable cute file system"
+        bool "Enable CuteFs file system"
         select OS_USING_RAMDISK
         default n
         help
             cutefs is a cute filesystem, now only support run on ramdisk.
 
     config OS_USING_VFS_NFS
-        bool "Using NFS v3 client file system"
+        bool "Enable NFS v3 client file system"
         default n
 
     if OS_USING_VFS_NFS
@@ -112,6 +112,9 @@ if OS_USING_VFS
             default "192.168.1.3:/"
     endif
 
+    config OS_USING_VFS_YAFFS
+        bool "Enable Yaffs2 file system"
+        default n
 
 endif
 

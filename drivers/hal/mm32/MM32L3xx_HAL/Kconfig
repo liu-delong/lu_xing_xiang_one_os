@@ -1,0 +1,10 @@
+config SOC_SERIES_MM32L3
+    bool
+    select ARCH_ARM_CORTEX_M3
+    default n
+
+config SOC_MM32L3XXPF
+    bool
+    select SOC_FAMILY_MM32
+    select SOC_SERIES_MM32L3
+    default n

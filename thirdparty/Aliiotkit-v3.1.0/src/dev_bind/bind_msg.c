@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2015-2019 Alibaba Group Holding Limited
  */
-#include <memory.h>
+#include <os_memory.h>
 #include "mqtt_api.h"
 #include "bind_utils.h"
 #include "bind_msg.h"
@@ -10,6 +10,7 @@
 #include "infra_string.h"
 #include "infra_compat.h"
 #include "wrappers.h"
+#include "string.h"
 
 void bind_set_step(void *context, bind_steps_type step)
 {

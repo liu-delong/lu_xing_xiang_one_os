@@ -268,7 +268,6 @@ const static struct udcd_ops _udc_ops = {
     _wakeup,
 };
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops _ops = {
     _init,
     OS_NULL,
@@ -277,7 +276,6 @@ const static struct os_device_ops _ops = {
     OS_NULL,
     OS_NULL,
 };
-#endif
 
 static int stm32_usbd_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
 {
@@ -285,11 +283,7 @@ static int stm32_usbd_probe(const os_driver_info_t *drv, const os_device_info_t 
     
     memset((void *)&_stm_udc, 0, sizeof(struct udcd));
     _stm_udc.parent.type = OS_DEVICE_TYPE_USBDEVICE;
-#ifdef OS_USING_DEVICE_OPS
     _stm_udc.parent.ops = &_ops;
-#else
-    _stm_udc.parent.init = _init;
-#endif
     _stm_udc.parent.user_data = _stm_pcd;
     _stm_udc.ops              = &_udc_ops;
     /* Register endpoint infomation */

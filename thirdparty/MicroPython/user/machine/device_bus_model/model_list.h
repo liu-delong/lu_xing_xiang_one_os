@@ -21,8 +21,7 @@
 extern "C" {
 #endif
 #include "model_def.h"  //added by chowhan at 2018-12-25
-//#include <string.h>
-//#include <stdio.h>
+
 
 
 struct mpy_os_list_node
@@ -378,6 +377,26 @@ os_inline int mpy_os_list_isempty(const mpy_os_list_t *list)
 os_inline int mpy_os_list_is_end(const mpy_os_list_t *list)
 {
     return list->next == list;
+}
+
+/**
+*********************************************************************************************************
+*                                      检查链表是结束
+*
+* @Description: 这个函数用来测试一个链表是否是最后一个节点。
+*
+* @Arguments  : head:         链表头节点
+*
+*				list:         链表节点
+*
+* @Returns    : 真：链表结束；假：链表没有结束
+*
+* @Notes	  : 这个函数操作的链表是一个双向链表环形链表。
+*********************************************************************************************************
+*/
+os_inline int mpy_os_cycle_list_is_end(const mpy_os_list_t *head, const mpy_os_list_t *list)
+{
+    return head == list->next;
 }
 
 /**

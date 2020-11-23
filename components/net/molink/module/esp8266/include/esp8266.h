@@ -30,8 +30,12 @@
 #include "esp8266_general.h"
 #endif
 
-#ifdef ESP8266_USING_NETSERV_OPS
-#include "esp8266_netserv.h"
+#ifdef ESP8266_USING_PING_OPS
+#include "esp8266_ping.h"
+#endif
+
+#ifdef ESP8266_USING_IFCONFIG_OPS
+#include "esp8266_ifconfig.h"
 #endif
 
 #ifdef ESP8266_USING_NETCONN_OPS
@@ -82,8 +86,12 @@ typedef struct mo_esp8266
 #endif /* ESP8266_USING_NETCONN_OPS */
 } mo_esp8266_t;
 
-mo_object_t *module_esp8266_create(const char *name, os_device_t *device, os_size_t recv_len);
+mo_object_t *module_esp8266_create(const char *name, void *parser_config);
 os_err_t     module_esp8266_destroy(mo_object_t *self);
+
+#ifdef ESP8266_USING_HW_CONTROL
+void esp8266_hw_rst(os_base_t rst_pin);
+#endif
 
 #endif /* MOLINK_USING_ESP8266 */
 

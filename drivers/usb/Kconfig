@@ -3,8 +3,8 @@ menu "USB"
         bool "Using USB device"
         default n
         if OS_USING_USB_DEVICE || OS_USING_USB_HOST
-            config OS_USBD_THREAD_STACK_SZ
-                int "usb thread stack size"
+            config OS_USBD_TASK_STACK_SZ
+                int "usb task stack size"
                 default 4096
         endif
         if OS_USING_USB_DEVICE
@@ -79,7 +79,7 @@ menu "USB"
 
                 if OS_USB_DEVICE_CDC
                     config OS_VCOM_TASK_STK_SIZE
-                        int "virtual com thread stack size"
+                        int "virtual com task stack size"
                         default 512
                     config OS_VCOM_TX_USE_DMA
                         bool "Enable to use dma for vcom tx"

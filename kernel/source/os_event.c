@@ -556,7 +556,7 @@ static os_err_t sh_list_event(os_int32_t argc, char **argv)
     return list_event_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_event, sh_list_event, "list event in system");
+SH_CMD_EXPORT(event, sh_list_event, "show event information");
 #endif /* OS_USING_SHELL */
 
 #endif /* OS_USING_EVENT */

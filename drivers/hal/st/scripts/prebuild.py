@@ -15,6 +15,11 @@ def gen_stm32_bsp_file(prj_path, bsp_path):
     for ss in f1.readlines():
         if ss.find("SDRAM_HandleTypeDef", 0) != -1:
             defined_sdram = True
+            
+        ss = ss.replace("#include \"main.h\"", 
+                        "#include \"main.h\"\n"
+                      + "#include <oneos_config.h>")
+            
         ss = ss.replace("int main(void)", "int hardware_init(void)")
         ss = ss.replace("while (1)", "return 0;")
         ss = ss.replace("if (HAL_ETH_Init", "if (0 && HAL_ETH_Init")
@@ -24,6 +29,11 @@ def gen_stm32_bsp_file(prj_path, bsp_path):
                           + "  void SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram);\n"
                           + "  SDRAM_Initialization_Sequence(&hsdram1);")
         
+        ss = ss.replace("  SystemClock_Config();", 
+                        "#ifndef DEFAULT_SYSTEM_CLOCK_CONFIG\n"
+                      + "  SystemClock_Config();\n"
+                      + "#endif")
+    
         f2.write(ss)
         
     f1.close()

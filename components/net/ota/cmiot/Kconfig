@@ -1,0 +1,118 @@
+menu "Fota by CMIOT"
+    
+    config FOTA_USING_CMIOT
+        bool "Enable fota by cmiot"
+        default n
+        select NET_USING_BSD
+        select OS_USING_FAL
+
+    if FOTA_USING_CMIOT
+        
+        choice
+        prompt "The supported network protocol"
+        default CMIOT_NETWORKING_MODE_COAP
+        config CMIOT_NETWORKING_MODE_COAP
+            bool "Coap"
+        config CMIOT_NETWORKING_MODE_HTTP
+            bool "Http"
+        endchoice
+
+        config CMIOT_DEFAULT_NETWORK_PROTOCOL
+            int
+            default 1  if CMIOT_NETWORKING_MODE_COAP
+            default 2 if CMIOT_NETWORKING_MODE_HTTP
+        
+        choice
+        prompt "The supported algorithm"
+        default CMIOT_ALGORITHM_LUSUN
+        config CMIOT_ALGORITHM_LUSUN
+            bool "Lusun"
+        config CMIOT_ALGORITHM_WOSUN
+            bool "Wosun low"
+        config CMIOT_ALGORITHM_WOSUN_HIGH
+            bool "Wosun high"
+        endchoice
+
+        config CMIOT_FOTA_ALGORITHM
+            int
+            default 0  if CMIOT_ALGORITHM_LUSUN
+            default 1 if CMIOT_ALGORITHM_WOSUN
+            default 2 if CMIOT_ALGORITHM_WOSUN_HIGH
+
+        config CMIOT_DEFAULT_SECTOR_SIZE
+            hex
+            default 0x800  if SOC_SERIES_STM32F0
+            default 0x800 if SOC_SERIES_STM32F1
+            default 0x20000 if SOC_SERIES_STM32F2
+            default 0x800 if SOC_SERIES_STM32F3
+            default 0x20000 if SOC_SERIES_STM32F4
+            default 0x40000 if SOC_SERIES_STM32F7
+            default 0x20000 if SOC_SERIES_STM32H7
+            default 0x100 if SOC_SERIES_STM32L1
+            default 0x800 if SOC_SERIES_STM32L4
+            default 0x800 if SOC_SERIES_STM32G0
+
+        if CMIOT_ALGORITHM_WOSUN || CMIOT_ALGORITHM_WOSUN_HIGH
+
+            config CMIOT_FLASH_APP_ADDR
+                hex "App part addr from fal's OS_APP_PART_ADDR"
+                default 0x8010000
+
+            config CMIOT_UPDATE_SIZE
+                hex "Download part size from fal's OS_DL_PART_SIZE"
+                default 0x30000
+
+        endif
+
+        config CMIOT_FOTA_WOSUN_VERSION
+            string "Wosun version"
+            default "IOT4.0_R42641"
+        
+        config CMIOT_FOTA_LUSUN_VERSION
+            string "Lun version"
+            default "IOT5.0_LUSUN11_R50426"
+        
+        config CMIOT_DEFAULT_SEGMENT_SIZE_INDEX
+            int "Segment size index"
+            range 0 5
+            default 3
+        
+        config CMIOT_FOTA_SERVICE_OEM
+            string "Oem"
+            default "cmiot_cd"
+        
+        config CMIOT_FOTA_SERVICE_MODEL
+            string "Model"
+            default "L475RE"
+        
+        config CMIOT_FOTA_SERVICE_PRODUCT_ID
+            string "Product id"
+            default "1571101950"
+        
+        config CMIOT_FOTA_SERVICE_PRODUCT_SEC
+            string "Product secret"
+            default "c36b6a45f78546e1a11390a90ee7f158"
+        
+        config CMIOT_FOTA_SERVICE_DEVICE_TYPE
+            string "Device type"
+            default "box"
+        
+        config CMIOT_FOTA_SERVICE_PLATFORM
+            string "Platform"
+            default "stm32l4"
+        
+        config CMIOT_FIRMWARE_VERSION
+            string "Firmware version"
+            default "1.0"
+        
+        config CMIOT_FOTA_APP_VERSION
+            string "App Version"
+            default "CMIOT_V4.0"
+        
+        config CMIOT_FOTA_OS_VERSION
+            string "OS version"
+            default "ONEOS_V1.0"
+        
+    endif
+
+endmenu

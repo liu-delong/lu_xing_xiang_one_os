@@ -29,7 +29,7 @@
 #include "hc_sysctrl.h"
 #include "hc_gpio.h"
 
-#if defined(SOC_SERIES_HC32L19)
+#if defined(SOC_SERIES_HC32L17) || defined(SOC_SERIES_HC32L19)
 
 #define	GPIOPORTA (0)
 #define	GPIOPORTB (1)
@@ -49,8 +49,8 @@
 #define GET_PIN(PORTx, PIN)                                                                                            \
     (os_base_t)((16 * ((os_base_t)__HC32_PORT(PORTx) - (os_base_t)GPIOPORTA)) + PIN)
 
-//#define PIN_BASE(__pin)   (GPIO_TypeDef *)(((__pin) / 16) * 0x0400UL + (os_base_t)GPIOA_BASE)
-//#define PIN_OFFSET(__pin) (1 << ((__pin) % 16))
+en_gpio_port_t PIN_BASE(os_base_t pin);
+en_gpio_pin_t PIN_OFFSET(os_base_t pin);
 
 #define __INDEX_PIN(index, gpio, gpio_index)                                                                           \
     {                                                                                                                  \

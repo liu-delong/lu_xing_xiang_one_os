@@ -334,7 +334,6 @@ static os_err_t os_ecm_eth_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops ecm_device_ops =
 {
     os_ecm_eth_init,
@@ -344,7 +343,6 @@ const static struct os_device_ops ecm_device_ops =
     os_ecm_eth_write,
     os_ecm_eth_control
 };
-#endif
 
 struct pbuf *os_ecm_eth_rx(os_device_t *dev)
 {
@@ -584,13 +582,8 @@ ufunction_t os_usbd_function_ecm_create(udevice_t device)
     _ecm_eth->host_addr[3] = 0x94;
     _ecm_eth->host_addr[4] = 0xEC;
     _ecm_eth->host_addr[5] = 0xAB;
-
-    _ecm_eth->parent.parent.init      = os_ecm_eth_init;
-    _ecm_eth->parent.parent.open      = os_ecm_eth_open;
-    _ecm_eth->parent.parent.close     = os_ecm_eth_close;
-    _ecm_eth->parent.parent.read      = os_ecm_eth_read;
-    _ecm_eth->parent.parent.write     = os_ecm_eth_write;
-    _ecm_eth->parent.parent.control   = os_ecm_eth_control;
+    
+    _ecm_eth->parent.parent.ops = &ecm_device_ops;
     _ecm_eth->parent.parent.user_data = device;
 
     _ecm_eth->parent.eth_rx = os_ecm_eth_rx;

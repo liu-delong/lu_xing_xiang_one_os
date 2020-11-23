@@ -30,6 +30,7 @@
 #include <os_errno.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netdb.h>
 #include <libc_errno.h>
 #include <os_assert.h>
@@ -329,7 +330,7 @@ void TimerRelease(Timer *timer)
 static uintptr_t ssl_establish(const char *host, uint16_t port, const char *ca_crt, uint32_t ca_crt_len)
 {
     char        port_str[6] = {0};
-    uintptr_t   tls_session_ptr = NULL;
+    uintptr_t   tls_session_ptr = (uintptr_t)NULL;
 
     if (host == OS_NULL || ca_crt == OS_NULL)
     {
@@ -603,44 +604,68 @@ static int mqtt_write_ssl(Network *pNetwork, unsigned char *buffer, uint32_t len
 }
 
 #else
+
 static int mqtt_read_tcp(Network *pNetwork, unsigned char *buffer, int len, int timeout_ms)
 {
-    os_tick_t       xTicksToWait = os_tick_from_ms(timeout_ms); /* convert milliseconds to ticks */
+    uintptr_t       fd = pNetwork->handle;
+    os_tick_t       xTicksToWait = os_tick_from_ms(timeout_ms); /* convert milliseconds to ticks. */ 
     Timer           xTimeOut = {0, 0, NULL};
     int             recvLen = 0;
-    int             rc = 0;
+    int             ret;
     struct timeval  tv;
-
-    tv.tv_sec = 0;
+    fd_set          sets;
+		
+    tv.tv_sec  = 0;
     tv.tv_usec = timeout_ms * 1000;
 
     TimerInit(&xTimeOut);
-    TimerSetTimeOutState(&xTimeOut, xTicksToWait); /* Record the time at which this function was entered. */
+    TimerSetTimeOutState(&xTimeOut, xTicksToWait); /* Record the time at which this function was entered. */ 
 
     do
     {
         xTicksToWait = xTimeOut.xTicksToWait;
         tv.tv_sec = 0;
         tv.tv_usec = xTicksToWait * (1000 / OS_TICK_PER_SECOND) * 1000;
-
-        setsockopt(pNetwork->handle, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
-        rc = recv(pNetwork->handle, buffer + recvLen, len - recvLen, 0);
-        if (-1 == rc)
+			
+        FD_ZERO(&sets);
+        FD_SET(fd, &sets);
+			
+        ret = select(fd + 1, &sets, NULL, NULL, &tv);
+        if (ret > 0)
         {
-            if (errno != EINTR && errno != EWOULDBLOCK && errno != EAGAIN)
+            ret = recv(fd, buffer + recvLen, len - recvLen, 0);
+            if (ret > 0)
             {
+                recvLen += ret;
+            }
+            else if (0 == ret)
+            {
+                LOG_EXT_E("connection close");
+                recvLen = -1;
+                break;
+            }
+            else
+            {
+                if (EINTR == errno)
+                {
+                    LOG_EXT_E("EINTR be caught");
+                    continue;
+                }
+                LOG_EXT_E("recv fail");
                 recvLen = -1;
                 break;
             }
         }
-        else if (0 == rc)
+        else if (0 == ret)
         {
-            recvLen = -1;
             break;
         }
         else
-            recvLen += rc;
-
+        {
+            LOG_EXT_E("select-recv fail");
+            recvLen = -1;
+            break;
+        }
     } while ((recvLen < len) && (TimerCheckForTimeOut(&xTimeOut) == OS_FALSE));
 
     TimerRelease(&xTimeOut);
@@ -648,44 +673,98 @@ static int mqtt_read_tcp(Network *pNetwork, unsigned char *buffer, int len, int 
     return recvLen;
 }
 
+#endif
+
 static int mqtt_write_tcp(Network *pNetwork, unsigned char *buffer, int len, int timeout_ms)
-{
-    os_tick_t       xTicksToWait = os_tick_from_ms(timeout_ms); /* convert milliseconds to ticks */
+{  
+    uintptr_t       fd = pNetwork->handle;
+    os_tick_t       xTicksToWait = os_tick_from_ms(timeout_ms); /* convert milliseconds to ticks. */
     Timer           xTimeOut = {0, 0, NULL};
     int             sentLen = 0;
-    int             rc = 0;
+    int             ret;
     struct timeval  tv;
-
-    tv.tv_sec = 0;
+    fd_set          sets;
+		
+    ret        = 1;
+    tv.tv_sec  = 0;
     tv.tv_usec = timeout_ms * 1000;
-
+		
     TimerInit(&xTimeOut);
-    TimerSetTimeOutState(&xTimeOut, xTicksToWait); /* Record the time at which this function was entered. */
+    TimerSetTimeOutState(&xTimeOut, xTicksToWait); /* Record the time at which this function was entered. */ 
 
-    do
+    do	
     {
-        xTicksToWait = xTimeOut.xTicksToWait;
-        tv.tv_sec = 0;
-        tv.tv_usec = xTicksToWait * (1000 / OS_TICK_PER_SECOND) * 1000;
-
-        setsockopt(pNetwork->handle, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(struct timeval));
-        rc = send(pNetwork->handle, buffer + sentLen, len - sentLen, 0);
-        if (rc > 0)
+        if (0 != xTicksToWait)
         {
-            sentLen += rc;
-        }
-        else if (rc < 0)
-        {
-            sentLen = rc;
-            break;
-        }
-    } while ((sentLen < len) && (TimerCheckForTimeOut(&xTimeOut) == OS_FALSE));
+            xTicksToWait = xTimeOut.xTicksToWait;
+            tv.tv_sec = 0;
+            tv.tv_usec = xTicksToWait * (1000 / OS_TICK_PER_SECOND) * 1000;
+            FD_ZERO(&sets);
+            FD_SET(fd, &sets);
 
+            tv.tv_sec  = xTicksToWait / 1000;
+            tv.tv_usec = (xTicksToWait % 1000) * 1000;
+
+            ret = select(fd + 1, NULL, &sets, NULL, &tv);
+            if (ret > 0)
+            {
+                if (0 == FD_ISSET(fd, &sets))
+                {
+                    LOG_EXT_E("Should NOT arrive");
+                    /* If timeout in next loop, it will not sent any data */
+                    ret = 0;
+                    continue;
+                }
+            }
+            else if (0 == ret)
+            {
+                LOG_EXT_E("select-write timeout %d", timeout_ms);
+                sentLen = -1;
+                break;
+            }
+            else
+            {
+                if (EINTR == errno)
+                {
+                    LOG_EXT_E("EINTR be caught");
+                    continue;
+                }
+
+                LOG_EXT_E("select-write fail");
+                sentLen = -1;
+                break;
+            }
+        }
+
+        if (ret > 0)
+        {
+            ret = send(fd, buffer + sentLen, len - sentLen, 0);
+            if (ret > 0)
+            {
+                sentLen += ret;
+            }
+            else if (0 == ret)
+            {
+                LOG_EXT_E("No data be sent");
+            }
+            else
+            {
+                if (EINTR == errno)
+                {
+                    LOG_EXT_E("EINTR be caught");
+                    continue;
+                }
+
+                LOG_EXT_E("send fail");
+                sentLen = -1;
+                break;
+            }
+        }
+    }while ((sentLen < len) && (TimerCheckForTimeOut(&xTimeOut) == OS_FALSE));
     TimerRelease(&xTimeOut);
 
     return sentLen;
 }
-#endif
 
 static int MQTT_net_read(Network *pNetwork, unsigned char *buffer, int len, int timeout_ms)
 {

@@ -1077,7 +1077,7 @@ os_err_t sh_list_msgqueue(os_int32_t argc, char **argv)
     return list_msgqueue_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_msgqueue, sh_list_msgqueue, "list message queue in system");
+SH_CMD_EXPORT(mq, sh_list_msgqueue, "show message queue information");
 
 #endif /* end of OS_USING_SHELL*/
 

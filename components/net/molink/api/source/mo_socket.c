@@ -589,6 +589,8 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
 
     os_size_t recv_left = (len <= OS_UINT32_MAX) ? (ssize_t)len : OS_UINT32_MAX;
     
+    os_tick_t timeout = os_tick_from_ms(sock->recv_timeout);
+
     MO_SYS_ARCH_DECL_PROTECT(lev);
     
     do
@@ -605,7 +607,7 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
         {
             MO_SYS_ARCH_UNPROTECT(lev);
             /* No data was left from the previous operation, so we try to get some from the network. */
-            result = mo_netconn_recv(module, sock->netconn, &data_ptr, &data_len, os_tick_from_ms(sock->recv_timeout));
+            result = mo_netconn_recv(module, sock->netconn, &data_ptr, &data_len, timeout);
             if (result != OS_EOK)
             {
                 if (recvd > 0)
@@ -674,6 +676,10 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
 
             free(data_ptr);
         }
+
+        /* once we have some data to return, only add more if we don't need to wait */
+        timeout = OS_IPC_WAITING_NO;
+
     } while (recv_left > 0);
 
     return recvd;
@@ -682,13 +688,16 @@ static int module_recv_tcp(mo_object_t *module, mo_sock_t *sock, void *mem, size
 static int module_recv_udp(mo_object_t *module, mo_sock_t *sock, void *mem, size_t len, int flags)
 {
     os_size_t data_len = 0;
-    void *    data_tmp = OS_NULL;
+    void     *data_tmp = OS_NULL;
     os_err_t  result   = OS_EOK;
 
     result = mo_netconn_recv(module, sock->netconn, &data_tmp, &data_len, os_tick_from_ms(sock->recv_timeout));
     if (OS_ERROR == result)
     {
-        LOG_EXT_E("Module %s receive error, socket %d state %d error", module->name, sock->netconn->socket_id, sock->netconn->stat);
+        LOG_EXT_E("Module %s receive error, socket %d state %d error",
+                  module->name,
+                  sock->netconn->socket_id,
+                  sock->netconn->stat);
         return 0;
     }
     else if (OS_ETIMEOUT == result)
@@ -777,7 +786,7 @@ int mo_recvfrom(mo_object_t     *module,
  *
  * @return          status.
  * @retval          -1            failed.
- * @retval          others        size of data sent successfully
+ * @retval          others        size of received data.
  ***********************************************************************************************************************
  */
 int mo_recv(mo_object_t *module, int socket, void *mem, size_t len, int flags)

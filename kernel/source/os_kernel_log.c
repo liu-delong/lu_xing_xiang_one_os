@@ -74,17 +74,17 @@ static const char *gs_klog_color_output_info[] =
 
 struct os_klog_tag_lvl_filter
 {
-    os_list_node_t list;
-    char           tag[KLOG_FILTER_TAG_MAX_LEN + 1];
-    os_uint16_t    level; 
+    os_list_node_t list;                                    /* The filter list */
+    char           tag[KLOG_FILTER_TAG_MAX_LEN + 1];        /* Tag name */
+    os_uint16_t    level;                                   /* The filter level of the tag */
 };
 typedef struct os_klog_tag_lvl_filter os_klog_tag_lvl_filter_t;
 
 struct os_klog_ctrl_info
 {
-    os_list_node_t tag_lvl_list;
-    os_uint16_t    global_level;
-    char           log_buff[OS_LOG_BUFF_SIZE];
+    os_list_node_t tag_lvl_list;                            /* The tag filter list */
+    os_uint16_t    global_level;                            /* The global filter level */
+    char           log_buff[OS_LOG_BUFF_SIZE];              /* Buffer of formatted log information */
 };
 typedef struct os_klog_ctrl_info os_klog_ctrl_info_t;
 

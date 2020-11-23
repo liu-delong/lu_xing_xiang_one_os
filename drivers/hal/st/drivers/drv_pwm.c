@@ -95,7 +95,7 @@ static os_err_t stm32_pwm_enabled(struct os_pwm_device *dev, os_uint32_t channel
 
     if (get_pwm_channel(channel, &st_timer_channel) != OS_EOK)
     {
-        LOG_EXT_E("pwm cahnnel &d is illegal!", channel);
+        LOG_EXT_E("pwm channel %d is illegal!\n", channel);
         return OS_ENOSYS;
     }
     
@@ -113,32 +113,28 @@ static os_err_t stm32_pwm_enabled(struct os_pwm_device *dev, os_uint32_t channel
 
 static os_err_t stm32_pwm_set_period(struct os_pwm_device *dev, os_uint32_t channel, os_uint32_t nsec)
 {
-    os_uint64_t os_tim_tick = 0;
+    os_uint64_t tim_tick = 0;
     os_uint64_t prescaler = 0;
+    os_uint64_t Period = 0;
     
     struct stm32_pwm *st_pwm;
 
     st_pwm = os_container_of(dev, struct stm32_pwm, pwm);
     
-    os_tim_tick = (os_uint64_t)nsec * st_pwm->tim_mult >> st_pwm->tim_shift;
-    prescaler = os_tim_tick / st_pwm->pwm.max_value;
-    if (st_pwm->tim->handle->Init.Prescaler != prescaler)
+    tim_tick = (os_uint64_t)nsec * st_pwm->tim_mult >> st_pwm->tim_shift;
+    prescaler = tim_tick / st_pwm->pwm.max_value;
+    Period = tim_tick / (prescaler + 1) - 1;
+    
+    if ((st_pwm->tim->handle->Init.Prescaler != prescaler) || (st_pwm->tim->handle->Init.Period != Period))
     {
         st_pwm->tim->handle->Init.Prescaler = prescaler;
-        st_pwm->tim->handle->Init.Period = os_tim_tick / (st_pwm->tim->handle->Init.Prescaler + 1) - 1;
-
-        if (st_pwm->tim->handle->Init.Period == 65535)
-            st_pwm->tim->handle->Init.Period = 65534;
+        st_pwm->tim->handle->Init.Period = Period;
         
         st_pwm->freq = st_pwm->tim->freq / (st_pwm->tim->handle->Init.Prescaler + 1);
         
         HAL_TIM_Base_Stop(st_pwm->tim->handle);
         __HAL_TIM_SET_PRESCALER(st_pwm->tim->handle, st_pwm->tim->handle->Init.Prescaler);
         __HAL_TIM_SET_AUTORELOAD(st_pwm->tim->handle, st_pwm->tim->handle->Init.Period);
-        
-        calc_mult_shift(&st_pwm->pwm.mult, &st_pwm->pwm.shift, NSEC_PER_SEC, st_pwm->freq, st_pwm->pwm.max_value);
-        calc_mult_shift(&st_pwm->pwm.mult_t, &st_pwm->pwm.shift_t, st_pwm->freq, NSEC_PER_SEC, (os_uint64_t)st_pwm->freq * st_pwm->pwm.max_value >> 16);
-        st_pwm->pwm.max_sec = (os_uint64_t)st_pwm->pwm.max_value * st_pwm->pwm.mult_t >> st_pwm->pwm.shift_t;
     }
 
     return OS_EOK;
@@ -155,28 +151,24 @@ static os_err_t stm32_pwm_set_pulse(struct os_pwm_device *dev, os_uint32_t chann
 
     if (get_pwm_channel(channel, &st_timer_channel) != OS_EOK)
     {
-        LOG_EXT_E("pwm cahnnel &d is illegal!", channel);
+        LOG_EXT_E("pwm channel %d is illegal!\n", channel);
         return OS_ENOSYS;
     }
     
     if (buffer > dev->period)
     {
-        LOG_EXT_E("pwm pulse value over range!");
+        LOG_EXT_E("pwm pulse value over range!\n");
         return OS_ERROR;
-    }
-    else if (buffer == dev->period)
-    {
-        pwm_pulse = st_pwm->tim->handle->Init.Period + 1;
     }
     else
     {
-        pwm_pulse = (os_uint64_t)buffer * dev->mult >> dev->shift;
+        pwm_pulse = ((os_uint64_t)buffer * st_pwm->tim_mult >> st_pwm->tim_shift) / (st_pwm->tim->handle->Init.Prescaler + 1);
     }
 
     
     if (pwm_pulse > dev->max_value)
     {
-        LOG_EXT_E("pwm pulse value over range!");
+        LOG_EXT_E("pwm pulse value over range!\n");
         return OS_EFULL;
     }
     
@@ -221,10 +213,7 @@ os_err_t stm32_pwm_register(const char *name, struct stm32_timer *tim)
         st_pwm->pwm.max_value = 0xFFFF;
     }
     
-    calc_mult_shift(&st_pwm->tim_mult, &st_pwm->tim_shift, NSEC_PER_SEC, st_pwm->tim->freq, st_pwm->pwm.max_value);
-    calc_mult_shift(&st_pwm->pwm.mult, &st_pwm->pwm.shift, NSEC_PER_SEC, st_pwm->freq, st_pwm->pwm.max_value);
-    calc_mult_shift(&st_pwm->pwm.mult_t, &st_pwm->pwm.shift_t, st_pwm->freq, NSEC_PER_SEC, (os_uint64_t)st_pwm->freq * st_pwm->pwm.max_value >> 16);
-    st_pwm->pwm.max_sec = (os_uint64_t)st_pwm->pwm.max_value * st_pwm->pwm.mult_t >> st_pwm->pwm.shift_t;
+    calc_mult_shift(&st_pwm->tim_mult, &st_pwm->tim_shift, NSEC_PER_SEC, st_pwm->tim->freq, st_pwm->pwm.max_value / st_pwm->tim->freq);
    
     st_pwm->pwm.ops = &stm32_pwm_ops;
    

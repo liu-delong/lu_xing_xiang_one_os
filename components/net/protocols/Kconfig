@@ -2,6 +2,8 @@ menu "Protocols"
 
 source "$OS_ROOT/components/net/protocols/libcoap-4.2.1/Kconfig"
 source "$OS_ROOT/components/net/protocols/pahomqtt-v1.1.0/Kconfig"
+source "$OS_ROOT/components/net/protocols/websocket/Kconfig"
+source "$OS_ROOT/components/net/protocols/httpclient/Kconfig"
 
 endmenu
 

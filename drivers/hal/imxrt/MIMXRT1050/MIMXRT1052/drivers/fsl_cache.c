@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2019 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -19,15 +18,15 @@
 
 #if defined(FSL_FEATURE_SOC_L2CACHEC_COUNT) && FSL_FEATURE_SOC_L2CACHEC_COUNT
 #define L2CACHE_OPERATION_TIMEOUT 0xFFFFFU
-#define L2CACHE_8WAYS_MASK 0xFFU
-#define L2CACHE_16WAYS_MASK 0xFFFFU
-#define L2CACHE_SMALLWAYS_NUM 8U
-#define L2CACHE_1KBCOVERTOB 1024U
-#define L2CACHE_SAMLLWAYS_SIZE 16U
-#define L2CACHE_LOCKDOWN_REGNUM 8 /*!< Lock down register numbers.*/
-                                  /*******************************************************************************
-                                  * Prototypes
-                                  ******************************************************************************/
+#define L2CACHE_8WAYS_MASK        0xFFU
+#define L2CACHE_16WAYS_MASK       0xFFFFU
+#define L2CACHE_SMALLWAYS_NUM     8U
+#define L2CACHE_1KBCOVERTOB       1024U
+#define L2CACHE_SAMLLWAYS_SIZE    16U
+#define L2CACHE_LOCKDOWN_REGNUM   8 /*!< Lock down register numbers.*/
+                                    /*******************************************************************************
+                                     * Prototypes
+                                     ******************************************************************************/
 /*!
  * @brief Set for all ways and waiting for the operation finished.
  *  This is provided for all the background operations.
@@ -98,7 +97,7 @@ static void L2CACHE_GetWayNumSize(uint32_t *num_ways, uint32_t *size_way);
  ******************************************************************************/
 static void L2CACHE_SetAndWaitBackGroundOperate(uint32_t auxCtlReg, uint32_t regAddr)
 {
-    uint16_t mask = L2CACHE_8WAYS_MASK;
+    uint16_t mask    = L2CACHE_8WAYS_MASK;
     uint32_t timeout = L2CACHE_OPERATION_TIMEOUT;
 
     /* Check the ways used at first. */
@@ -256,14 +255,14 @@ void L2CACHE_GetDefaultConfig(l2cache_config_t *config)
                     L2CACHEC_REG1_AUX_CONTROL_WAYSIZE_SHIFT;
 
     /* Get the default value */
-    config->wayNum = (l2cache_way_num_t)number;
-    config->waySize = (l2cache_way_size)size;
-    config->repacePolicy = kL2CACHE_Roundrobin;
-    config->lateConfig = NULL;
+    config->wayNum             = (l2cache_way_num_t)number;
+    config->waySize            = (l2cache_way_size)size;
+    config->repacePolicy       = kL2CACHE_Roundrobin;
+    config->lateConfig         = NULL;
     config->istrPrefetchEnable = false;
     config->dataPrefetchEnable = false;
-    config->nsLockdownEnable = false;
-    config->writeAlloc = kL2CACHE_UseAwcache;
+    config->nsLockdownEnable   = false;
+    config->writeAlloc         = kL2CACHE_UseAwcache;
 }
 
 /*!
@@ -377,7 +376,7 @@ void L2CACHE_CleanByRange(uint32_t address, uint32_t size_byte)
 {
     uint32_t num_ways = 0;
     uint32_t size_way = 0;
-    uint32_t endAddr = address + size_byte;
+    uint32_t endAddr  = address + size_byte;
 
     /* Get the number and size of the cache way. */
     L2CACHE_GetWayNumSize(&num_ways, &size_way);
@@ -415,7 +414,7 @@ void L2CACHE_CleanInvalidateByRange(uint32_t address, uint32_t size_byte)
 {
     uint32_t num_ways = 0;
     uint32_t size_way = 0;
-    uint32_t endAddr = address + size_byte;
+    uint32_t endAddr  = address + size_byte;
 
     /* Get the number and size of the cache way. */
     L2CACHE_GetWayNumSize(&num_ways, &size_way);
@@ -497,16 +496,16 @@ void L2CACHE_LockdownByWayEnable(uint32_t masterId, uint32_t mask, bool enable)
 void L1CACHE_InvalidateICacheByRange(uint32_t address, uint32_t size_byte)
 {
 #if (__DCACHE_PRESENT == 1U)
-    uint32_t addr = address & (uint32_t) ~(FSL_FEATURE_L1ICACHE_LINESIZE_BYTE - 1);
-    int32_t size = size_byte + address - addr;
-    uint32_t linesize = 32U;
+    uint32_t addr      = address & ~((uint32_t)FSL_FEATURE_L1ICACHE_LINESIZE_BYTE - 1U);
+    uint32_t align_len = address - addr;
+    int32_t size       = (int32_t)size_byte + (int32_t)align_len;
 
     __DSB();
     while (size > 0)
     {
         SCB->ICIMVAU = addr;
-        addr += linesize;
-        size -= linesize;
+        addr += (uint32_t)FSL_FEATURE_L1ICACHE_LINESIZE_BYTE;
+        size -= (int32_t)FSL_FEATURE_L1ICACHE_LINESIZE_BYTE;
     }
     __DSB();
     __ISB();

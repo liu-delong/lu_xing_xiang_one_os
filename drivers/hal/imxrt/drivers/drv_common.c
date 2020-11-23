@@ -122,12 +122,9 @@ static void BOARD_ConfigMPU(void)
 /* This is the timer interrupt service routine. */
 void SysTick_Handler(void)
 {
-    /* enter interrupt */
     os_interrupt_enter();
-
     os_tick_increase();
-
-    /* leave interrupt */
+    os_clocksource_update();
     os_interrupt_leave();
 }
 
@@ -464,7 +461,8 @@ void os_hw_board_init(void)
 {
     BOARD_ConfigMPU();
     BOARD_InitPins();
-    BOARD_BootClockRUN();
+    BOARD_InitBootClocks();
+    BOARD_InitPeripherals();
 
     NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
     SysTick_Config(SystemCoreClock / OS_TICK_PER_SECOND);
@@ -491,6 +489,10 @@ void os_hw_board_init(void)
 
 #ifdef OS_USING_HEAP
     os_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
+#endif
+
+#if defined(OS_USING_CLOCKSOURCE_CORTEXM) && defined(DWT)
+    cortexm_dwt_init();
 #endif
 
     os_board_auto_init();

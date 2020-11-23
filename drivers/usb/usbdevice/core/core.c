@@ -2175,7 +2175,7 @@ os_size_t os_usbd_ep0_read(udevice_t device, void *buffer, os_size_t size,
 
 static struct os_mq usb_mq;
 
-static void os_usbd_thread_entry(void *parameter)
+static void os_usbd_task_entry(void *parameter)
 {
     while (1)
     {
@@ -2243,8 +2243,8 @@ os_err_t os_usbd_event_signal(struct udev_msg *msg)
 }
 
 OS_ALIGN(OS_ALIGN_SIZE)
-static os_uint8_t     usb_thread_stack[OS_USBD_THREAD_STACK_SZ];
-static struct os_task usb_thread;
+static os_uint8_t     usb_task_stack[OS_USBD_TASK_STACK_SZ];
+static struct os_task usb_task;
 #define USBD_MQ_MSG_SZ  32
 #define USBD_MQ_MAX_MSG 16
 /*
@@ -2261,16 +2261,16 @@ os_err_t os_usbd_core_init(void)
     /* Create an usb message queue */
     os_mq_init(&usb_mq, "usbd", usb_mq_pool, sizeof(usb_mq_pool), USBD_MQ_MSG_SZ, OS_IPC_FLAG_FIFO);
 
-    /* Init usb device thread */
-    os_task_init(&usb_thread,
+    /* Init usb device task */
+    os_task_init(&usb_task,
                  "usbd",
-                 os_usbd_thread_entry,
+                 os_usbd_task_entry,
                  OS_NULL,
-                 usb_thread_stack,
-                 OS_USBD_THREAD_STACK_SZ,
-                 OS_USBD_THREAD_PRIO,
+                 usb_task_stack,
+                 OS_USBD_TASK_STACK_SZ,
+                 OS_USBD_TASK_PRIO,
                  20);
-    /* os_thread_init should always be OK, so start the thread without further
+    /* os_task_init should always be OK, so start the task without further
      * Checking. */
-    return os_task_startup(&usb_thread);
+    return os_task_startup(&usb_task);
 }

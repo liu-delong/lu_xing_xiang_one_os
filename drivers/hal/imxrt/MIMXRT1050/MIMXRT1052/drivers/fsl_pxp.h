@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, NXP Semiconductors, Inc.
+ * Copyright 2017-2020 NXP
  * All rights reserved.
  *
  *
@@ -48,7 +48,7 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_PXP_DRIVER_VERSION (MAKE_VERSION(2, 0, 1)) /*!< Version 2.0.1 */
+#define FSL_PXP_DRIVER_VERSION (MAKE_VERSION(2, 1, 0))
 /*@}*/
 
 /* This macto indicates whether the rotate sub module is shared by process surface and output buffer. */
@@ -97,10 +97,10 @@ enum _pxp_flags
 /*! @brief PXP output flip mode. */
 typedef enum _pxp_flip_mode
 {
-    kPXP_FlipDisable = 0U,       /*!< Flip disable. */
+    kPXP_FlipDisable    = 0U,    /*!< Flip disable. */
     kPXP_FlipHorizontal = 0x01U, /*!< Horizontal flip. */
-    kPXP_FlipVertical = 0x02U,   /*!< Vertical flip. */
-    kPXP_FlipBoth = 0x03U,       /*!< Flip both directions. */
+    kPXP_FlipVertical   = 0x02U, /*!< Vertical flip. */
+    kPXP_FlipBoth       = 0x03U, /*!< Flip both directions. */
 } pxp_flip_mode_t;
 
 /*! @brief PXP rotate mode. */
@@ -131,23 +131,23 @@ typedef enum _pxp_interlaced_output_mode
 /*! @brief PXP output buffer format. */
 typedef enum _pxp_output_pixel_format
 {
-    kPXP_OutputPixelFormatARGB8888 = 0x0,   /*!< 32-bit pixels with alpha. */
-    kPXP_OutputPixelFormatRGB888 = 0x4,     /*!< 32-bit pixels without alpha (unpacked 24-bit format) */
-    kPXP_OutputPixelFormatRGB888P = 0x5,    /*!< 24-bit pixels without alpha (packed 24-bit format) */
-    kPXP_OutputPixelFormatARGB1555 = 0x8,   /*!< 16-bit pixels with alpha. */
-    kPXP_OutputPixelFormatARGB4444 = 0x9,   /*!< 16-bit pixels with alpha. */
-    kPXP_OutputPixelFormatRGB555 = 0xC,     /*!< 16-bit pixels without alpha. */
-    kPXP_OutputPixelFormatRGB444 = 0xD,     /*!< 16-bit pixels without alpha. */
-    kPXP_OutputPixelFormatRGB565 = 0xE,     /*!< 16-bit pixels without alpha. */
-    kPXP_OutputPixelFormatYUV1P444 = 0x10,  /*!< 32-bit pixels (1-plane XYUV unpacked). */
+    kPXP_OutputPixelFormatARGB8888  = 0x0,  /*!< 32-bit pixels with alpha. */
+    kPXP_OutputPixelFormatRGB888    = 0x4,  /*!< 32-bit pixels without alpha (unpacked 24-bit format) */
+    kPXP_OutputPixelFormatRGB888P   = 0x5,  /*!< 24-bit pixels without alpha (packed 24-bit format) */
+    kPXP_OutputPixelFormatARGB1555  = 0x8,  /*!< 16-bit pixels with alpha. */
+    kPXP_OutputPixelFormatARGB4444  = 0x9,  /*!< 16-bit pixels with alpha. */
+    kPXP_OutputPixelFormatRGB555    = 0xC,  /*!< 16-bit pixels without alpha. */
+    kPXP_OutputPixelFormatRGB444    = 0xD,  /*!< 16-bit pixels without alpha. */
+    kPXP_OutputPixelFormatRGB565    = 0xE,  /*!< 16-bit pixels without alpha. */
+    kPXP_OutputPixelFormatYUV1P444  = 0x10, /*!< 32-bit pixels (1-plane XYUV unpacked). */
     kPXP_OutputPixelFormatUYVY1P422 = 0x12, /*!< 16-bit pixels (1-plane U0,Y0,V0,Y1 interleaved bytes) */
     kPXP_OutputPixelFormatVYUY1P422 = 0x13, /*!< 16-bit pixels (1-plane V0,Y0,U0,Y1 interleaved bytes) */
-    kPXP_OutputPixelFormatY8 = 0x14,        /*!< 8-bit monochrome pixels (1-plane Y luma output) */
-    kPXP_OutputPixelFormatY4 = 0x15,        /*!< 4-bit monochrome pixels (1-plane Y luma, 4 bit truncation) */
-    kPXP_OutputPixelFormatYUV2P422 = 0x18,  /*!< 16-bit pixels (2-plane UV interleaved bytes) */
-    kPXP_OutputPixelFormatYUV2P420 = 0x19,  /*!< 16-bit pixels (2-plane UV) */
-    kPXP_OutputPixelFormatYVU2P422 = 0x1A,  /*!< 16-bit pixels (2-plane VU interleaved bytes) */
-    kPXP_OutputPixelFormatYVU2P420 = 0x1B,  /*!< 16-bit pixels (2-plane VU) */
+    kPXP_OutputPixelFormatY8        = 0x14, /*!< 8-bit monochrome pixels (1-plane Y luma output) */
+    kPXP_OutputPixelFormatY4        = 0x15, /*!< 4-bit monochrome pixels (1-plane Y luma, 4 bit truncation) */
+    kPXP_OutputPixelFormatYUV2P422  = 0x18, /*!< 16-bit pixels (2-plane UV interleaved bytes) */
+    kPXP_OutputPixelFormatYUV2P420  = 0x19, /*!< 16-bit pixels (2-plane UV) */
+    kPXP_OutputPixelFormatYVU2P422  = 0x1A, /*!< 16-bit pixels (2-plane VU interleaved bytes) */
+    kPXP_OutputPixelFormatYVU2P420  = 0x1B, /*!< 16-bit pixels (2-plane VU) */
 } pxp_output_pixel_format_t;
 
 /*! @brief PXP output buffer configuration. */
@@ -166,22 +166,29 @@ typedef struct _pxp_output_buffer_config
 /*! @brief PXP process surface buffer pixel format. */
 typedef enum _pxp_ps_pixel_format
 {
-    kPXP_PsPixelFormatRGB888 = 0x4,     /*!< 32-bit pixels without alpha (unpacked 24-bit format) */
-    kPXP_PsPixelFormatRGB555 = 0xC,     /*!< 16-bit pixels without alpha. */
-    kPXP_PsPixelFormatRGB444 = 0xD,     /*!< 16-bit pixels without alpha. */
-    kPXP_PsPixelFormatRGB565 = 0xE,     /*!< 16-bit pixels without alpha. */
-    kPXP_PsPixelFormatYUV1P444 = 0x10,  /*!< 32-bit pixels (1-plane XYUV unpacked). */
+    kPXP_PsPixelFormatRGB888    = 0x4,  /*!< 32-bit pixels without alpha (unpacked 24-bit format) */
+    kPXP_PsPixelFormatRGB555    = 0xC,  /*!< 16-bit pixels without alpha. */
+    kPXP_PsPixelFormatRGB444    = 0xD,  /*!< 16-bit pixels without alpha. */
+    kPXP_PsPixelFormatRGB565    = 0xE,  /*!< 16-bit pixels without alpha. */
+    kPXP_PsPixelFormatYUV1P444  = 0x10, /*!< 32-bit pixels (1-plane XYUV unpacked). */
     kPXP_PsPixelFormatUYVY1P422 = 0x12, /*!< 16-bit pixels (1-plane U0,Y0,V0,Y1 interleaved bytes) */
     kPXP_PsPixelFormatVYUY1P422 = 0x13, /*!< 16-bit pixels (1-plane V0,Y0,U0,Y1 interleaved bytes) */
-    kPXP_PsPixelFormatY8 = 0x14,        /*!< 8-bit monochrome pixels (1-plane Y luma output) */
-    kPXP_PsPixelFormatY4 = 0x15,        /*!< 4-bit monochrome pixels (1-plane Y luma, 4 bit truncation) */
-    kPXP_PsPixelFormatYUV2P422 = 0x18,  /*!< 16-bit pixels (2-plane UV interleaved bytes) */
-    kPXP_PsPixelFormatYUV2P420 = 0x19,  /*!< 16-bit pixels (2-plane UV) */
-    kPXP_PsPixelFormatYVU2P422 = 0x1A,  /*!< 16-bit pixels (2-plane VU interleaved bytes) */
-    kPXP_PsPixelFormatYVU2P420 = 0x1B,  /*!< 16-bit pixels (2-plane VU) */
-    kPXP_PsPixelFormatYVU422 = 0x1E,    /*!< 16-bit pixels (3-plane) */
-    kPXP_PsPixelFormatYVU420 = 0x1F,    /*!< 16-bit pixels (3-plane) */
+    kPXP_PsPixelFormatY8        = 0x14, /*!< 8-bit monochrome pixels (1-plane Y luma output) */
+    kPXP_PsPixelFormatY4        = 0x15, /*!< 4-bit monochrome pixels (1-plane Y luma, 4 bit truncation) */
+    kPXP_PsPixelFormatYUV2P422  = 0x18, /*!< 16-bit pixels (2-plane UV interleaved bytes) */
+    kPXP_PsPixelFormatYUV2P420  = 0x19, /*!< 16-bit pixels (2-plane UV) */
+    kPXP_PsPixelFormatYVU2P422  = 0x1A, /*!< 16-bit pixels (2-plane VU interleaved bytes) */
+    kPXP_PsPixelFormatYVU2P420  = 0x1B, /*!< 16-bit pixels (2-plane VU) */
+    kPXP_PsPixelFormatYVU422    = 0x1E, /*!< 16-bit pixels (3-plane) */
+    kPXP_PsPixelFormatYVU420    = 0x1F, /*!< 16-bit pixels (3-plane) */
 } pxp_ps_pixel_format_t;
+
+/*! @brief PXP process surface buffer YUV format. */
+typedef enum _pxp_ps_yuv_format
+{
+    kPXP_PsYUVFormatYUV = 0U, /*!< YUV format.   */
+    kPXP_PsYUVFormatYCbCr,    /*!< YCbCr format. */
+} pxp_ps_yuv_format_t;
 
 /*! @brief PXP process surface buffer configuration. */
 typedef struct _pxp_ps_buffer_config
@@ -198,12 +205,12 @@ typedef struct _pxp_ps_buffer_config
 typedef enum _pxp_as_pixel_format
 {
     kPXP_AsPixelFormatARGB8888 = 0x0, /*!< 32-bit pixels with alpha. */
-    kPXP_AsPixelFormatRGB888 = 0x4,   /*!< 32-bit pixels without alpha (unpacked 24-bit format) */
+    kPXP_AsPixelFormatRGB888   = 0x4, /*!< 32-bit pixels without alpha (unpacked 24-bit format) */
     kPXP_AsPixelFormatARGB1555 = 0x8, /*!< 16-bit pixels with alpha. */
     kPXP_AsPixelFormatARGB4444 = 0x9, /*!< 16-bit pixels with alpha. */
-    kPXP_AsPixelFormatRGB555 = 0xC,   /*!< 16-bit pixels without alpha. */
-    kPXP_AsPixelFormatRGB444 = 0xD,   /*!< 16-bit pixels without alpha. */
-    kPXP_AsPixelFormatRGB565 = 0xE,   /*!< 16-bit pixels without alpha. */
+    kPXP_AsPixelFormatRGB555   = 0xC, /*!< 16-bit pixels without alpha. */
+    kPXP_AsPixelFormatRGB444   = 0xD, /*!< 16-bit pixels without alpha. */
+    kPXP_AsPixelFormatRGB565   = 0xE, /*!< 16-bit pixels without alpha. */
 } pxp_as_pixel_format_t;
 
 /*! @brief PXP alphs surface buffer configuration. */
@@ -239,18 +246,18 @@ typedef enum _pxp_alpha_mode
  */
 typedef enum _pxp_rop_mode
 {
-    kPXP_RopMaskAs = 0x0,     /*!< AS AND PS. */
-    kPXP_RopMaskNotAs = 0x1,  /*!< nAS AND PS. */
-    kPXP_RopMaskAsNot = 0x2,  /*!< AS AND nPS. */
-    kPXP_RopMergeAs = 0x3,    /*!< AS OR PS. */
+    kPXP_RopMaskAs     = 0x0, /*!< AS AND PS. */
+    kPXP_RopMaskNotAs  = 0x1, /*!< nAS AND PS. */
+    kPXP_RopMaskAsNot  = 0x2, /*!< AS AND nPS. */
+    kPXP_RopMergeAs    = 0x3, /*!< AS OR PS. */
     kPXP_RopMergeNotAs = 0x4, /*!< nAS OR PS. */
     kPXP_RopMergeAsNot = 0x5, /*!< AS OR nPS. */
-    kPXP_RopNotCopyAs = 0x6,  /*!< nAS. */
-    kPXP_RopNot = 0x7,        /*!< nPS. */
-    kPXP_RopNotMaskAs = 0x8,  /*!< AS NAND PS. */
+    kPXP_RopNotCopyAs  = 0x6, /*!< nAS. */
+    kPXP_RopNot        = 0x7, /*!< nPS. */
+    kPXP_RopNotMaskAs  = 0x8, /*!< AS NAND PS. */
     kPXP_RopNotMergeAs = 0x9, /*!< AS NOR PS. */
-    kPXP_RopXorAs = 0xA,      /*!< AS XOR PS. */
-    kPXP_RopNotXorAs = 0xB    /*!< AS XNOR PS. */
+    kPXP_RopXorAs      = 0xA, /*!< AS XOR PS. */
+    kPXP_RopNotXorAs   = 0xB  /*!< AS XNOR PS. */
 } pxp_rop_mode_t;
 
 /*!
@@ -371,8 +378,8 @@ typedef enum _pxp_ram
 enum _pxp_dither_mode
 {
     kPXP_DitherPassThrough = 0U, /*!< Pass through, no dither. */
-    kPXP_DitherOrdered = 3U,     /*!< Ordered dither. */
-    kPXP_DitherQuantOnly = 4U,   /*!< No dithering, only quantization. */
+    kPXP_DitherOrdered     = 3U, /*!< Ordered dither. */
+    kPXP_DitherQuantOnly   = 4U, /*!< No dithering, only quantization. */
 };
 
 /*! @brief PXP dither LUT mode. */
@@ -422,6 +429,91 @@ typedef struct _pxp_dither_config
     uint32_t enableFinalLut : 1; /*!< Enable the final LUT, set 1 to enable, 0 to disable. */
     uint32_t : 8;
 } pxp_dither_config_t;
+
+/*! @brief pxp_porter_duff_factor_mode Porter Duff factor mode. */
+enum
+{
+    kPXP_PorterDuffFactorOne = 0U, /*!< Use 1. */
+    kPXP_PorterDuffFactorZero,     /*!< Use 0. */
+    kPXP_PorterDuffFactorStraight, /*!< Use straight alpha. */
+    kPXP_PorterDuffFactorInversed, /*!< Use inversed alpha. */
+};
+
+/*! @brief pxp_porter_duff_global_alpha_mode Porter Duff global alpha mode. */
+enum
+{
+    kPXP_PorterDuffGlobalAlpha = 0U, /*!< Use global alpha. */
+    kPXP_PorterDuffLocalAlpha,       /*!< Use local alpha in each pixel. */
+    kPXP_PorterDuffScaledAlpha,      /*!< Use global alpha * local alpha. */
+};
+
+/*! @brief pxp_porter_duff_alpha_mode Porter Duff alpha mode. */
+enum
+{
+    kPXP_PorterDuffAlphaStraight = 0U,
+    kPXP_PorterDuffAlphaInversed
+};
+
+/*! @brief pxp_porter_duff_color_mode Porter Duff color mode. */
+enum
+{
+    kPXP_PorterDuffColorStraight = 0,
+    kPXP_PorterDuffColorInversed
+};
+
+/*! @brief PXP Porter Duff configuration. */
+typedef struct
+{
+    uint32_t enable : 1;             /*!< Enable or disable Porter Duff. */
+    uint32_t srcFactorMode : 2;      /*!< Source layer (or AS, s1) factor mode, see pxp_porter_duff_factor_mode. */
+    uint32_t dstGlobalAlphaMode : 2; /*!< Destination layer (or PS, s0) global alpha mode, see
+                                        pxp_porter_duff_global_alpha_mode. */
+    uint32_t dstAlphaMode : 1;       /*!< Destination layer (or PS, s0) alpha mode, see pxp_porter_duff_alpha_mode. */
+    uint32_t dstColorMode : 1;       /*!< Destination layer (or PS, s0) color mode, see pxp_porter_duff_color_mode. */
+    uint32_t : 1;
+    uint32_t dstFactorMode : 2;      /*!< Destination layer (or PS, s0) factor mode, see pxp_porter_duff_factor_mode. */
+    uint32_t srcGlobalAlphaMode : 2; /*!< Source layer (or AS, s1) global alpha mode, see
+                                        pxp_porter_duff_global_alpha_mode. */
+    uint32_t srcAlphaMode : 1;       /*!< Source layer (or AS, s1) alpha mode, see pxp_porter_duff_alpha_mode. */
+    uint32_t srcColorMode : 1;       /*!< Source layer (or AS, s1) color mode, see pxp_porter_duff_color_mode. */
+    uint32_t : 2;
+    uint32_t dstGlobalAlpha : 8; /*!< Destination layer (or PS, s0) global alpha value, 0~255. */
+    uint32_t srcGlobalAlpha : 8; /*!< Source layer (or AS, s1) global alpha value, 0~255. */
+} pxp_porter_duff_config_t;
+
+/*! @brief PXP Porter Duff blend mode. Note: don't change the enum item value */
+typedef enum _pxp_porter_duff_blend_mode
+{
+    kPXP_PorterDuffSrc = 0, /*!< Source Only */
+    kPXP_PorterDuffAtop,    /*!< Source Atop */
+    kPXP_PorterDuffOver,    /*!< Source Over */
+    kPXP_PorterDuffIn,      /*!< Source In. */
+    kPXP_PorterDuffOut,     /*!< Source Out. */
+    kPXP_PorterDuffDst,     /*!< Destination Only. */
+    kPXP_PorterDuffDstAtop, /*!< Destination Atop. */
+    kPXP_PorterDuffDstOver, /*!< Destination Over. */
+    kPXP_PorterDuffDstIn,   /*!< Destination In. */
+    kPXP_PorterDuffDstOut,  /*!< Destination Out. */
+    kPXP_PorterDuffXor,     /*!< XOR. */
+    kPXP_PorterDuffClear,   /*!< Clear. */
+    kPXP_PorterDuffMax,
+} pxp_porter_duff_blend_mode_t;
+
+/*! @brief PXP Porter Duff blend mode. Note: don't change the enum item value */
+typedef struct _pxp_pic_copy_config
+{
+    uint32_t srcPicBaseAddr;           /*!< Source picture base address. */
+    uint16_t srcPitchBytes;            /*!< Pitch of the source buffer. */
+    uint16_t srcOffsetX;               /*!< Copy position in source picture. */
+    uint16_t srcOffsetY;               /*!< Copy position in source picture. */
+    uint32_t destPicBaseAddr;          /*!< Destination picture base address. */
+    uint16_t destPitchBytes;           /*!< Pitch of the destination buffer. */
+    uint16_t destOffsetX;              /*!< Copy position in destination picture. */
+    uint16_t destOffsetY;              /*!< Copy position in destination picture. */
+    uint16_t width;                    /*!< Pixel number each line to copy. */
+    uint16_t height;                   /*!< Lines to copy. */
+    pxp_as_pixel_format_t pixelFormat; /*!< Buffer pixel format. */
+} pxp_pic_copy_config_t;
 
 /*******************************************************************************
  * API
@@ -717,6 +809,7 @@ static inline void PXP_EnableAlphaSurfaceOverlayColorKey(PXP_Type *base, bool en
     {
         base->AS_CTRL |= PXP_AS_CTRL_ENABLE_COLORKEY_MASK;
     }
+    else
     {
         base->AS_CTRL &= ~PXP_AS_CTRL_ENABLE_COLORKEY_MASK;
     }
@@ -800,6 +893,29 @@ void PXP_SetProcessSurfacePosition(
  * @param colorKeyHigh Color key high range.
  */
 void PXP_SetProcessSurfaceColorKey(PXP_Type *base, uint32_t colorKeyLow, uint32_t colorKeyHigh);
+
+/*!
+ * @brief Set the process surface input pixel format YUV or YCbCr.
+ *
+ * If process surface input pixel format is YUV and CSC1 is not enabled,
+ * in other words, the process surface output pixel format is also YUV,
+ * then this function should be called to set whether input pixel format
+ * is YUV or YCbCr.
+ *
+ * @param base PXP peripheral base address.
+ * @param format The YUV format.
+ */
+static inline void PXP_SetProcessSurfaceYUVFormat(PXP_Type *base, pxp_ps_yuv_format_t format)
+{
+    if (kPXP_PsYUVFormatYUV == format)
+    {
+        base->CSC1_COEF0 &= ~PXP_CSC1_COEF0_YCBCR_MODE_MASK;
+    }
+    else
+    {
+        base->CSC1_COEF0 |= PXP_CSC1_COEF0_YCBCR_MODE_MASK;
+    }
+}
 /* @} */
 
 /*!
@@ -884,7 +1000,7 @@ static inline void PXP_SetRotateConfig(PXP_Type *base,
         (base->CTRL & ~(PXP_CTRL_ROTATE_MASK | PXP_CTRL_ROT_POS_MASK | PXP_CTRL_VFLIP_MASK | PXP_CTRL_HFLIP_MASK)) |
         PXP_CTRL_ROTATE(degree) | PXP_CTRL_ROT_POS(position) | ((uint32_t)flipMode << PXP_CTRL_HFLIP_SHIFT);
 #else
-    uint32_t ctrl = base->CTRL;
+    uint32_t ctrl       = base->CTRL;
 
     if (kPXP_RotateOutputBuffer == position)
     {
@@ -948,23 +1064,19 @@ static inline void PXP_SetRotateConfig(PXP_Type *base,
    uint32_t pxp_command1[48];
    uint32_t pxp_command2[48];
 
-   // Prepare the register values.
    pxp_command1[0] = ...;
    pxp_command1[1] = ...;
-   // ...
+   ...
    pxp_command2[0] = ...;
    pxp_command2[1] = ...;
-   // ...
+   ...
 
-   // Make sure no new command pending.
    while (PXP_IsNextCommandPending(PXP))
    {
    }
 
-   // Set new operation.
    PXP_SetNextCommand(PXP, pxp_command1);
 
-   // Wait for new command loaded. Here could check @ref kPXP_CommandLoadFlag too.
    while (PXP_IsNextCommandPending(PXP))
    {
    }
@@ -975,13 +1087,7 @@ static inline void PXP_SetRotateConfig(PXP_Type *base,
  * @param base PXP peripheral base address.
  * @param commandAddr Address of the new command.
  */
-static inline void PXP_SetNextCommand(PXP_Type *base, void *commandAddr)
-{
-    /* Make sure commands have been saved to memory. */
-    __DSB();
-
-    base->NEXT = (uint32_t)commandAddr & PXP_NEXT_POINTER_MASK;
-}
+void PXP_SetNextCommand(PXP_Type *base, void *commandAddr);
 
 /*!
  * @brief Check whether the next command is pending.
@@ -1219,6 +1325,109 @@ void PXP_EnableDither(PXP_Type *base, bool enable);
 /* @} */
 
 #endif /* FSL_FEATURE_PXP_HAS_DITHER */
+
+/*!
+ * @name Porter Duff
+ * @{
+ */
+
+/*!
+ * @brief Set the Porter Duff configuration.
+ *
+ * @param base PXP peripheral base address.
+ * @param config Pointer to the configuration.
+ */
+void PXP_SetPorterDuffConfig(PXP_Type *base, const pxp_porter_duff_config_t *config);
+
+/*!
+ * @brief Get the Porter Duff configuration by blend mode.
+ *
+ * @param mode The blend mode.
+ * @param config Pointer to the configuration.
+ * @retval kStatus_Success Successfully get the configuratoin.
+ * @retval kStatus_InvalidArgument The blend mode not supported.
+ */
+status_t PXP_GetPorterDuffConfig(pxp_porter_duff_blend_mode_t mode, pxp_porter_duff_config_t *config);
+
+/* @} */
+
+/*!
+ * @name Buffer copy
+ * @{
+ */
+
+/*!
+ * @brief Copy picture from one buffer to another buffer.
+ *
+ * This function copies a rectangle from one buffer to another buffer.
+ *
+ * @verbatim
+                      Source buffer:
+   srcPicBaseAddr
+   +-----------------------------------------------------------+
+   |                                                           |
+   |  (srcOffsetX, srcOffsetY)                                 |
+   |           +-------------------+                           |
+   |           |                   |                           |
+   |           |                   |                           |
+   |           |                   | height                    |
+   |           |                   |                           |
+   |           |                   |                           |
+   |           +-------------------+                           |
+   |                 width                                     |
+   |                                                           |
+   |                       srcPicthBytes                       |
+   +-----------------------------------------------------------+
+
+                     Destination buffer:
+   destPicBaseAddr
+   +-------------------------------------------+
+   |                                           |
+   |                                           |
+   |                                           |
+   |  (destOffsetX, destOffsetY)               |
+   |       +-------------------+               |
+   |       |                   |               |
+   |       |                   |               |
+   |       |                   | height        |
+   |       |                   |               |
+   |       |                   |               |
+   |       +-------------------+               |
+   |             width                         |
+   |                                           |
+   |                                           |
+   |                                           |
+   |                  destPicthBytes           |
+   +-------------------------------------------+
+   @endverbatim
+ *
+ * @note This function resets the old PXP settings, which means the settings
+ * like rotate, flip, will be reseted to disabled status.
+ *
+ * @param base PXP peripheral base address.
+ * @param config Pointer to the picture copy configuration structure.
+ * @retval kStatus_Success Successfully started the copy process.
+ * @retval kStatus_InvalidArgument Invalid argument.
+ */
+status_t PXP_StartPictureCopy(PXP_Type *base, const pxp_pic_copy_config_t *config);
+
+/*!
+ * @brief Copy continous memory.
+ *
+ * @note The copy size should be 512 byte aligned.
+ * @note This function resets the old PXP settings, which means the settings
+ * like rotate, flip, will be reseted to disabled status.
+ *
+ * @param base PXP peripheral base address.
+ * @param srcAddr Source memory address.
+ * @param destAddr Destination memory address.
+ * @param size How many bytes to copy, should be 512 byte aligned.
+ * @retval kStatus_Success Successfully started the copy process.
+ * @retval kStatus_InvalidArgument Invalid argument.
+ */
+status_t PXP_StartMemCopy(PXP_Type *base, uint32_t srcAddr, uint32_t destAddr, uint32_t size);
+
+/* @} */
 
 #if defined(__cplusplus)
 }

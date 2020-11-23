@@ -28,7 +28,7 @@
 
 #include "model_device.h"
 #include "py/mpprint.h"
-
+#include "serial/serial.h"
 
 #define MP_SPI_NAME_MAX (8)
 typedef device_info_t mp_uart_device_handler;
@@ -66,10 +66,9 @@ typedef struct middle_uart_config
 #define MP_UART_STOP_BITS_2  STOP_BITS_2  //(1)
 
 
-//#define UART_HWCONTROL_RTS  (0)
-//#define UART_HWCONTROL_CTS  (1)
-//#define UART_HWCONTROL_NONE (2)
-
+#define UART_HWCONTROL_RTS  (0x1UL << 8U)            /*!< 0x00000100 */
+#define UART_HWCONTROL_CTS  (0x1UL << 9U)            /*!< 0x00000200 */
+#define UART_HWCONTROL_NONE 0x00000000U              /*!< No hardware control       */
 
 void middle_uart_print(mp_uart_device_handler * uart_device, const mp_print_t *print);
 

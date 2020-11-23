@@ -73,7 +73,7 @@ int jffs2_flash_erase_all(os_device_t *dev_id)
     os_err_t    result;
     fal_part_t *fal_part;
 
-    fal_part = fal_part_find(dev_id->parent.name);
+    fal_part = fal_part_find(device_name(dev_id));
 
     if (OS_NULL == fal_part)
     {

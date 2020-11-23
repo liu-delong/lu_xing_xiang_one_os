@@ -1,0 +1,31 @@
+menu "Websocket Client"
+
+
+config WEBSOCKET_CLIENT_TASK_MAX_INSTANCE
+	int "The maximum number of websocket client instances"
+	range 1 9
+	default 1	
+	
+config WEBSOCKET_CLIENT_TASK_STACKSIZE
+	int "The stack size of task"
+	default 2048
+	
+config WEBSOCKET_CLIENT_TASK_PRIORITY
+	int "The priority level value of task"	
+	default 5   if OS_TASK_PRIORITY_8
+	default 13  if OS_TASK_PRIORITY_32
+	default 64 if OS_TASK_PRIORITY_256
+	
+config WEBSOCKET_CLIENT_TASK_TICK
+	int "The tick of task"
+	default 5
+	
+config WEBSOCKET_CLIENT_MAX_BUFF_DEP
+	int "The maximum number of send & rece buffer depth"
+	default 1452
+
+config WEBSOCKET_CLIENT_EXAMPLE
+    bool "Enable Websocket Client example"
+    default n
+	
+endmenu

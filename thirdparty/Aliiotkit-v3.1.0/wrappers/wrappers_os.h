@@ -3,9 +3,11 @@
 #include <stdarg.h>
 #include "infra_types.h"
 #include "infra_defs.h"
+#include "wrappers_defs.h"
 
+typedef void ( *iotx_thread_routine_t )( void * argument );
 
-#define HAL_Printf printf
+void   HAL_Printf(const char *fmt, ...);
 
 void *HAL_Malloc(uint32_t size);
 

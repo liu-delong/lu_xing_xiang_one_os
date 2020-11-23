@@ -28,59 +28,36 @@
 #include <drv_cfg.h>
 #include <os_completion.h>
 
-enum
-{
-    SAI_REPLAY_EVT_NONE  = 0x00,
-    SAI_REPLAY_EVT_START = 0x01,
-    SAI_REPLAY_EVT_STOP  = 0x02,
-};
+#ifndef OS_AUDIO_CMD_ENABLE
+#define OS_AUDIO_CMD_ENABLE                   0x00
+#define OS_AUDIO_CMD_DISABLE                  0x01
+#define OS_AUDIO_CMD_SET_FRQ                  0x02
+#define OS_AUDIO_CMD_SET_CHANNEL              0x03
+#define OS_AUDIO_CMD_SET_INFO                 0x04
+#define OS_AUDIO_CMD_SET_TXBUF                0x05
+#define OS_AUDIO_CMD_SET_RXBUF                0x06
+#define OS_AUDIO_CMD_SET_QUEUE                0x08
+#define OS_AUDIO_CMD_SET_CMP                  0x09
+#define OS_AUDIO_CMD_SET_EVENT                0x0A
+#endif
 
 typedef struct os_device_sai os_device_sai_t;
 
-struct os_sai_buf_info
-{
-    os_uint8_t *buffer;
-    os_uint16_t block_size;
-    os_uint16_t block_count;
-    os_uint32_t total_size;
-};
-
 struct os_device_sai_ops
 {
-    void (*transimit)(os_device_sai_t *sai, uint8_t *pData, uint16_t Size);
-    void (*stop)(os_device_sai_t *sai);
-    void (*frequency_set)(os_device_sai_t *sai, uint32_t frequency);
-    void (*channel_set)(os_device_sai_t *sai, uint8_t channels);
-    void (*sai_info)(os_device_sai_t *sai, uint8_t *tx_fifo, struct os_data_queue *queue, struct os_completion *cmp, os_uint8_t *event);
-};
-
-struct os_sai_replay
-{
-    struct os_data_queue *queue;
-    struct os_sai_buf_info buf_info;
-    struct os_completion *cmp;
-    
-    os_uint8_t *write_data;
-    os_uint16_t write_index;
-    os_uint16_t read_index;
-    os_uint32_t pos;
-
-    os_uint8_t *event;
+    os_err_t (*transimit)(os_device_sai_t *sai, uint8_t *buff, uint32_t size);
+    os_err_t (*receive)(os_device_sai_t *sai, uint8_t *buff, uint32_t size);
+    os_err_t (*enable)(os_device_sai_t *sai, os_bool_t enable);
+    os_err_t (*set_frq)(os_device_sai_t *sai, uint32_t frequency);
+    os_err_t (*set_channel)(os_device_sai_t *sai, uint8_t channels);
 };
 
 struct os_device_sai {
     os_device_t parent;
-    SAI_HandleTypeDef *hsai;
-    struct  os_sai_replay *replay;  
     struct os_device_sai_ops *ops;
 };
 
-#define os_sai_transimit(sai, pData, Size)      sai->ops->transimit(sai, pData, Size)
-#define os_sai_stop(sai)                        sai->ops->stop(sai)
-#define os_sai_frequency_set(sai, frequency)    sai->ops->frequency_set(sai, frequency)
-#define os_sai_channel_set(sai, channel)        sai->ops->channel_set(sai, channel)
-#define os_sai_info(sai, tx_fifo, queue, cmp, event)  sai->ops->sai_info(sai, tx_fifo, queue, cmp, event)
-
-void os_sai_register(const char *name, os_device_sai_t *graphic);
+os_err_t os_sai_register(const char *name, os_device_sai_t *graphic);
+void os_hw_sai_isr(struct os_device_sai *sai, struct os_device_cb_info *info);
 
 #endif /* _sai_H_ */

@@ -797,7 +797,6 @@ static struct pbuf *enc28j60_rx(os_device_t *dev)
     return p;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops enc28j60_ops = 
 {
     enc28j60_init,
@@ -807,7 +806,6 @@ const static struct os_device_ops enc28j60_ops =
     enc28j60_write,
     enc28j60_control
 };
-#endif
 
 os_err_t enc28j60_attach(const char *spi_device_name)
 {
@@ -874,16 +872,7 @@ os_err_t enc28j60_attach(const char *spi_device_name)
 
     /* init device struct */
     enc28j60_dev.parent.parent.type = OS_DEVICE_TYPE_NETIF;
-#ifdef OS_USING_DEVICE_OPS
     enc28j60_dev.parent.parent.ops = &enc28j60_ops;
-#else
-    enc28j60_dev.parent.parent.init    = enc28j60_init;
-    enc28j60_dev.parent.parent.open    = enc28j60_open;
-    enc28j60_dev.parent.parent.close   = enc28j60_close;
-    enc28j60_dev.parent.parent.read    = enc28j60_read;
-    enc28j60_dev.parent.parent.write   = enc28j60_write;
-    enc28j60_dev.parent.parent.control = enc28j60_control;
-#endif
 
     /* init ethernet device struct */
     enc28j60_dev.parent.eth_rx = enc28j60_rx;

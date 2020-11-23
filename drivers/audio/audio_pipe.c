@@ -102,8 +102,12 @@ static os_size_t os_pipe_read(os_device_t *dev, os_off_t pos, void *buffer, os_s
 
 static void _os_pipe_resume_reader(struct os_audio_pipe *pipe)
 {
-    if (pipe->parent.rx_indicate)
-        pipe->parent.rx_indicate(&pipe->parent, rb_ring_buff_data_len(&pipe->ringbuffer));
+    struct os_device_cb_info *info = &pipe->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+    if (info->cb != OS_NULL)
+    {
+        info->size = rb_ring_buff_data_len(&pipe->ringbuffer);
+        info->cb(&pipe->parent, info);
+    }
 
     if (!os_list_empty(&pipe->suspended_read_list))
     {
@@ -185,7 +189,6 @@ static os_err_t os_pipe_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops audio_pipe_ops =
 {
     OS_NULL, 
@@ -195,7 +198,6 @@ const static struct os_device_ops audio_pipe_ops =
     os_pipe_write, 
     os_pipe_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -233,16 +235,7 @@ os_err_t os_audio_pipe_init(struct os_audio_pipe *pipe,
 
     /* create pipe */
     pipe->parent.type = OS_DEVICE_TYPE_PIPE;
-#ifdef OS_USING_DEVICE_OPS
     pipe->parent.ops = &audio_pipe_ops;
-#else
-    pipe->parent.init    = OS_NULL;
-    pipe->parent.open    = OS_NULL;
-    pipe->parent.close   = OS_NULL;
-    pipe->parent.read    = os_pipe_read;
-    pipe->parent.write   = os_pipe_write;
-    pipe->parent.control = os_pipe_control;
-#endif
 
     return os_device_register(&(pipe->parent), name, OS_DEVICE_FLAG_RDWR);
 }

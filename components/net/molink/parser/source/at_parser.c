@@ -36,8 +36,7 @@
 static os_slist_node_t gs_parser_list = {0};
 
 /* AT Parser send buffer */
-static char      send_buf[AT_CMD_LEN_MAX] = {0};
-static os_size_t last_cmd_len             = 0;
+static char *gs_at_cmd_buff = OS_NULL;
 
 static void at_parser_list_add(at_parser_t *parser)
 {
@@ -120,32 +119,64 @@ void at_parser_print_raw(const char *name, const char *buf, os_size_t size)
     }
 }
 
-static const char *at_parser_get_last_cmd(os_size_t *cmd_size)
+static os_size_t at_parser_vasprintf(os_device_t *device, const char *format, va_list args)
 {
-    *cmd_size = last_cmd_len;
-    return send_buf;
-}
+    /* Gets the actual length of the source string */
+    os_size_t len = vsnprintf(OS_NULL, 0, format, args);
+    if (len <= 0)
+    {
+        return 0;
+    }
 
-os_size_t at_parser_vprintf(os_device_t *device, const char *format, va_list args)
-{
-    last_cmd_len = vsnprintf(send_buf, sizeof(send_buf), format, args);
+    gs_at_cmd_buff = calloc(1, len + 1);
+    if (OS_NULL == gs_at_cmd_buff)
+    {
+        LOG_EXT_E("Send AT command failed. Unable to calloc memory.");
+        return 0;
+    }
+
+    len = vsnprintf(gs_at_cmd_buff, len + 1, format, args);
 
 #ifdef AT_PARSER_PRINT_RAW
-    at_parser_print_raw("send", send_buf, last_cmd_len);
+    at_parser_print_raw("send", gs_at_cmd_buff, len);
 #endif
 
-    return os_device_write(device, 0, send_buf, last_cmd_len);
+    return os_device_write(device, 0, gs_at_cmd_buff, len);
 }
 
-os_size_t at_parser_vprintfln(os_device_t *device, const char *format, va_list args)
+static os_size_t at_parser_vasprintfln(os_device_t *device, const char *format, va_list args)
 {
-    os_size_t len = 0;
-
-    len = at_parser_vprintf(device, format, args);
+    os_size_t len = at_parser_vasprintf(device, format, args);
 
     os_device_write(device, 0, "\r\n", 2);
 
     return len + 2;
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Lock the recursive lock that protects the execution of the AT command process. 
+ * @param[in]       parser          A pointer to AT Parser instance
+ * 
+ * @return          @see os_mutex_recursive_lock.
+ ***********************************************************************************************************************
+ */
+os_err_t at_parser_exec_lock(at_parser_t *parser)
+{
+    return os_mutex_recursive_lock(&parser->exec_lock, OS_IPC_WAITING_FOREVER);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Unlock the recursive lock that protects the execution of the AT command process. 
+ * @param[in]       parser          A pointer to AT Parser instance
+ * 
+ * @return          @see os_mutex_recursive_unlock.
+ ***********************************************************************************************************************
+ */
+os_err_t at_parser_exec_unlock(at_parser_t *parser)
+{
+    return os_mutex_recursive_unlock(&parser->exec_lock);
 }
 
 /**
@@ -172,11 +203,9 @@ os_err_t at_parser_exec_cmd_valist(at_parser_t *parser, at_resp_t *resp, const c
     OS_ASSERT(cmd_expr != OS_NULL);
     OS_ASSERT(OS_TASK_INIT != (parser->task->stat & OS_TASK_STAT_MASK));
 
-    os_err_t    result   = OS_EOK;
-    const char *at_cmd   = OS_NULL;
-    os_size_t   cmd_size = 0;
+    os_err_t result = OS_EOK;
 
-    os_mutex_recursive_lock(&(parser->rx_lock), OS_IPC_WAITING_FOREVER);
+    at_parser_exec_lock(parser);
 
     memset(resp->buff, 0, resp->buff_size);
     resp->stat          = RESP_STAT_NULL;
@@ -184,16 +213,13 @@ os_err_t at_parser_exec_cmd_valist(at_parser_t *parser, at_resp_t *resp, const c
     resp->line_counts   = 0;
 
     parser->resp = resp;
-
-	(void)at_cmd; /* Avoid compiling warnings. T__T */
 	
     /* Send at command to module */
-    at_parser_vprintfln(parser->device, cmd_expr, args);
+    at_parser_vasprintfln(parser->device, cmd_expr, args);
 
     if (os_sem_wait(&(parser->resp_notice), resp->timeout) != OS_EOK)
     {
-        at_cmd = at_parser_get_last_cmd(&cmd_size);
-        LOG_EXT_E("execute command (%s) timeout (%d ticks)!\n", at_cmd, resp->timeout);
+        LOG_EXT_E("execute command (%s) timeout (%d ticks)!\n", gs_at_cmd_buff, resp->timeout);
         resp->stat = RESP_STAT_TIMEOUT;
         result     = OS_ETIMEOUT;
         goto __exit;
@@ -201,17 +227,22 @@ os_err_t at_parser_exec_cmd_valist(at_parser_t *parser, at_resp_t *resp, const c
 
     if (resp->stat != RESP_STAT_OK)
     {
-        at_cmd = at_parser_get_last_cmd(&cmd_size);
-        LOG_EXT_E("execute command (%s) failed, parser->resp_status:%d\n", at_cmd, resp->stat);
+        LOG_EXT_E("execute command (%s) failed, parser->resp_status:%d\n", gs_at_cmd_buff, resp->stat);
         result = OS_ERROR;
         goto __exit;
     }
 
 __exit:
 
+    if (gs_at_cmd_buff != OS_NULL)
+    {
+        free(gs_at_cmd_buff);
+        gs_at_cmd_buff = OS_NULL;
+    }
+
     parser->resp = OS_NULL;
 
-    os_mutex_recursive_unlock(&(parser->rx_lock));
+    at_parser_exec_unlock(parser);
 
     return result;
 }
@@ -345,6 +376,50 @@ os_size_t at_parser_recv(at_parser_t *parser, char *buf, os_size_t size, os_int3
 #endif
 
     return read_idx;
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT test command to test whether the module is connected correctly
+ *
+ * @param[in]       parser          A pointer to AT Parser instance
+ * @param[in]       retry_times     The number of times the AT test was repeated
+ *
+ * @retval          OS_EOK          The connection was successful
+ * @retval          Other           connect failed
+ ***********************************************************************************************************************
+ */
+os_err_t at_parser_connect(at_parser_t *parser, os_uint8_t retry_times)
+{
+    OS_ASSERT(parser != OS_NULL);
+
+    os_err_t result = OS_EOK;
+
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff,
+                      .buff_size = sizeof(resp_buff)}; 
+
+    at_parser_exec_lock(parser);
+
+    parser->resp = &resp;
+
+    for (int i = 0; i < retry_times; i++)
+    {
+        at_parser_send(parser, "AT\r\n", 4);
+
+        result = os_sem_wait(&parser->resp_notice, AT_RESP_TIMEOUT_DEF);
+        if (OS_EOK == result)
+        {
+            break;
+        }
+    }
+
+    parser->resp = OS_NULL;
+
+    at_parser_exec_unlock(parser);
+
+    return result;
 }
 
 /**
@@ -546,8 +621,7 @@ static void at_parser_resp_handle(at_parser_t *parser)
         /* get the end data by response result, return response state END_OK. */
         resp->stat = RESP_STAT_OK;
     }
-    else if (strstr(parser->recv_buff, AT_RESP_ERROR) ||
-             memcpy(parser->recv_buff, AT_RESP_FAIL, strlen(AT_RESP_FAIL)) == 0)
+    else if (strstr(parser->recv_buff, AT_RESP_ERROR))
     {
         resp->stat = RESP_STAT_ERROR;
     }
@@ -588,26 +662,13 @@ static void at_parser_task(at_parser_t *parser)
     }
 }
 
-static os_err_t at_parser_rx_indicate(os_device_t *dev, os_size_t size)
+static os_err_t at_parser_rx_indicate(os_device_t *dev, struct os_device_cb_info *info)
 {
-    if (size > 0)
+    if (info->size > 0)
     {
-        os_slist_node_t *node  = OS_NULL;
-        at_parser_t     *entry = OS_NULL;
+        at_parser_t *parser = (at_parser_t *)info->data;
 
-        os_base_t level = os_hw_interrupt_disable();
-
-        for (node = &gs_parser_list; node; node = os_slist_next(node))
-        {
-            entry = os_slist_entry(node, at_parser_t, list);
-            if (entry->device == dev)
-            {
-                os_sem_post(&entry->rx_notice);
-                break;
-            }
-        }
-
-        os_hw_interrupt_enable(level);
+        os_sem_post(&parser->rx_notice);
     }
 
     return OS_EOK;
@@ -625,21 +686,27 @@ static os_err_t at_parser_device_open(at_parser_t *parser, os_device_t *device)
         if (result != OS_EOK)
         {
             LOG_EXT_E("AT Parser initialize failed! Can not open the device.");
-            goto __exit;
+            return result;
         }
     }
     else if (result != OS_EOK)
     {
         LOG_EXT_E("AT Parser initialize failed! Can not open the device.");
-        goto __exit;
+        return result;
     }
 
-__exit:
-    if (OS_EOK == result)
-    {
-        parser->device    = device;
+    parser->device = device;
 
-        os_device_set_rx_indicate(parser->device, at_parser_rx_indicate);
+    struct os_device_cb_info cb_info = {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .data = parser, /* The AT Parser operator is passed through a callback structure */
+        .cb   = at_parser_rx_indicate,
+    };
+
+    result = os_device_control(parser->device, IOC_SET_CB, &cb_info);
+    if (result != OS_EOK)
+    {
+        LOG_EXT_E("Set AT Parse device receive indicate failed.");
     }
 
     return result;
@@ -692,7 +759,7 @@ os_err_t at_parser_init(at_parser_t *parser, const char *name, os_device_t *devi
 
     snprintf(name_buffer, OS_NAME_MAX, "%s_lock", name);
 
-    os_mutex_init(&(parser->rx_lock), name_buffer, OS_IPC_FLAG_FIFO, OS_TRUE);
+    os_mutex_init(&(parser->exec_lock), name_buffer, OS_IPC_FLAG_FIFO, OS_TRUE);
 
     os_slist_init(&(parser->urc_list));
 
@@ -760,7 +827,7 @@ os_err_t at_parser_deinit(at_parser_t *parser)
 
     os_sem_deinit(&(parser->resp_notice));
 
-    os_mutex_deinit(&(parser->rx_lock));
+    os_mutex_deinit(&(parser->exec_lock));
 
     if (parser->recv_buff != OS_NULL)
     {

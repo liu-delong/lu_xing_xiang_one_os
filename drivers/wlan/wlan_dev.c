@@ -882,7 +882,6 @@ static os_err_t _os_wlan_dev_control(os_device_t *dev, int cmd, void *args)
     return err;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops wlan_ops =
 {
     _os_wlan_dev_init,
@@ -892,7 +891,6 @@ const static struct os_device_ops wlan_ops =
     OS_NULL,
     _os_wlan_dev_control
 };
-#endif
 
 os_err_t os_wlan_dev_register(struct os_wlan_device        *wlan,
                               const char                   *name,
@@ -911,19 +909,8 @@ os_err_t os_wlan_dev_register(struct os_wlan_device        *wlan,
 
     memset(wlan, 0, sizeof(struct os_wlan_device));
 
-#ifdef OS_USING_DEVICE_OPS
     wlan->device.ops = &wlan_ops;
-#else
-    wlan->device.init    = _os_wlan_dev_init;
-    wlan->device.open    = OS_NULL;
-    wlan->device.close   = OS_NULL;
-    wlan->device.read    = OS_NULL;
-    wlan->device.write   = OS_NULL;
-    wlan->device.control = _os_wlan_dev_control;
-#endif
-
     wlan->device.user_data = OS_NULL;
-
     wlan->device.type = OS_DEVICE_TYPE_NETIF;
 
     wlan->ops       = ops;

@@ -838,4 +838,52 @@ lwiperf_abort(void *lwiperf_session)
   }
 }
 
+#include <shell.h>
+#include <os_kernel.h>
+#include <lwip/inet.h>
+
+void *gs_lwiperf_session = OS_NULL;
+
+static int lwip_ipref_proc(int argc, char **argv)
+{
+    if (argc != 2)
+    {
+        os_kprintf("Input error, please input: ipref_task start/stop\n");
+        return OS_ERROR;
+    }
+
+    if (strstr(argv[1], "start"))
+    {
+        if (OS_NULL == gs_lwiperf_session)
+        {
+            gs_lwiperf_session = lwiperf_start_tcp_server_default(NULL, NULL);
+        }
+        if (OS_NULL == gs_lwiperf_session)
+        {
+            os_kprintf("lwiperf tcp server start failed\n");
+            return OS_ERROR;
+        }
+    }
+    else if (strstr(argv[1], "stop"))
+    {
+#if 0
+        if (OS_NULL == gs_lwiperf_session)
+        {
+            return OS_EOK;
+        }
+        lwiperf_abort(gs_lwiperf_session);
+        gs_lwiperf_session = OS_NULL;
+#endif
+        os_kprintf("TODO: next support cmd stop\n");
+    }
+    else
+    {
+        os_kprintf("Input error, please input: ipref_task start/stop\n");
+        return OS_ERROR;
+    }
+
+    return OS_EOK;
+}
+SH_CMD_EXPORT(lwip_ipref, lwip_ipref_proc, "start_lwip_ipref");
+
 #endif /* LWIP_TCP && LWIP_CALLBACK_API */

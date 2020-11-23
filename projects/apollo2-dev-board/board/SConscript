@@ -1,0 +1,44 @@
+import os
+import osconfig
+from build_tools import *
+
+
+
+pwd = PresentDir()
+
+# add general drivers
+src = Split('''
+board.c
+''')
+
+if IsDefined(['BSP_USING_QSPI_FLASH']):
+    src += Glob('ports/drv_qspi_flash.c')
+    
+if IsDefined('BSP_USING_SPI_LCD'):
+    src = src + ['ports/drv_lcd.c']
+
+if IsDefined(['BSP_USING_SDCARD']):
+    src += Glob('ports/sdcard_port.c')
+
+if IsDefined(['BSP_USING_ICM20608']) or IsDefined(['BSP_USING_AHT10']):
+    src += Glob('ports/sensor/sensor_port.c')
+
+# path   include path in project
+path =  [pwd]
+path += [pwd + '/CubeMX_Config/Inc']
+path += [pwd + '/ports']
+
+if IsDefined(['BSP_USING_AUDIO']):
+    path += [pwd + '/ports/audio']
+
+if osconfig.CROSS_TOOL == 'gcc':
+    src += [pwd + '/startup/startup_gcc.c']
+elif osconfig.CROSS_TOOL == 'keil':
+    src += [pwd + '/startup/startup_keil.s']
+elif osconfig.CROSS_TOOL == 'iar':
+    src += [pwd + '/startup/startup_iar.c']
+
+CPPDEFINES = ['AM_PACKAGE_BGA', 'AM_PART_APOLLO2', 'OS_USING_ARM_LIBC', 'keil'] 
+group = AddCodeGroup('bsp', src, depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

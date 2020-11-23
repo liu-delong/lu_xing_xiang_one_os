@@ -1249,14 +1249,15 @@ os_err_t os_rndis_eth_tx(os_device_t *dev, struct pbuf *p)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
-const static struct os_device_ops rndis_device_ops = {os_rndis_eth_init,
-                                                      os_rndis_eth_open,
-                                                      os_rndis_eth_close,
-                                                      os_rndis_eth_read,
-                                                      os_rndis_eth_write,
-                                                      os_rndis_eth_control};
-#endif
+const static struct os_device_ops rndis_device_ops = 
+{
+    os_rndis_eth_init,
+    os_rndis_eth_open,
+    os_rndis_eth_close,
+    os_rndis_eth_read,
+    os_rndis_eth_write,
+    os_rndis_eth_control,
+};
 
 #endif /* NET_USING_LWIP */
 
@@ -1418,16 +1419,7 @@ ufunction_t os_usbd_function_rndis_create(udevice_t device)
     _rndis->host_addr[4] = 0xEA;
     _rndis->host_addr[5] = 0x13;
 
-#ifdef OS_USING_DEVICE_OPS
     _rndis->parent.parent.ops = &rndis_device_ops;
-#else
-    _rndis->parent.parent.init    = os_rndis_eth_init;
-    _rndis->parent.parent.open    = os_rndis_eth_open;
-    _rndis->parent.parent.close   = os_rndis_eth_close;
-    _rndis->parent.parent.read    = os_rndis_eth_read;
-    _rndis->parent.parent.write   = os_rndis_eth_write;
-    _rndis->parent.parent.control = os_rndis_eth_control;
-#endif
     _rndis->parent.parent.user_data = device;
 
     _rndis->parent.eth_rx = os_rndis_eth_rx;

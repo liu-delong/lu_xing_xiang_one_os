@@ -38,17 +38,11 @@
 #define AT_ECHO_MODE       OS_FALSE
 #endif
 
-#define SEND_DATA_MAX_SIZE (720)
-#define RCIV_DATA_MAX_SIZE (1440)
+#define M5311_TCP_SEND_MAX_SIZE (720)
+#define M5311_UDP_SEND_MAX_SIZE (712)
 
 #ifndef M5311_DATA_QUEUE_SIZE
-#define M5311_DATA_QUEUE_SIZE (5)
-#endif
-
-#ifdef MOLINK_USING_IPV6
-#define IPADDR_MAX_STR_LEN (63)
-#else
-#define IPADDR_MAX_STR_LEN (15)
+#define M5311_DATA_QUEUE_SIZE   (5)
 #endif
 
 #ifdef M5311_USING_NETCONN_OPS
@@ -113,15 +107,23 @@ os_err_t m5311_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
 
 mo_netconn_t *m5311_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
+    mo_m5311_t   *m5311 = os_container_of(module, mo_m5311_t, parent);
+    at_parser_t *parser = &module->parser;
+    os_err_t     result = OS_EOK;
+
+    m5311_lock(&m5311->netconn_lock);
+
     mo_netconn_t *netconn = m5311_netconn_alloc(module);
 
     if (OS_NULL == netconn)
     {
+        m5311_unlock(&m5311->netconn_lock);
         return OS_NULL;
     }
 
     if (type != NETCONN_TYPE_TCP && type != NETCONN_TYPE_UDP)
     {
+        m5311_unlock(&m5311->netconn_lock);
         return OS_NULL;
     }
 
@@ -129,18 +131,12 @@ mo_netconn_t *m5311_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    os_err_t result = at_parser_exec_cmd(&module->parser, &resp, "AT+IPRCFG=1,0,1");
+    result = at_parser_exec_cmd(parser, &resp, "AT+IPRCFG=1,0,1");
+    
     if (OS_EOK != result)
     {
         LOG_EXT_E("Module %s set netconn autorcv data HEX format failed", module->name);
-        return OS_NULL;
-    }
-
-    /* close AT echo mode */
-    result = m5311_set_echo(module, AT_ECHO_MODE);
-    if (OS_EOK != result)
-    {
-        LOG_EXT_E("Module %s set netconn AT echo mode %s failed", module->name, AT_ECHO_MODE ? "ON" : "OFF");
+        m5311_unlock(&m5311->netconn_lock);
         return OS_NULL;
     }
 
@@ -149,6 +145,7 @@ mo_netconn_t *m5311_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     netconn->stat = NETCONN_STAT_INIT;
     netconn->type = type;
 
+    m5311_unlock(&m5311->netconn_lock);
     return netconn;
 }
 
@@ -180,13 +177,15 @@ os_err_t m5311_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
         break;
     }
 
-    if (netconn->data_queue.queue != OS_NULL)
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        os_data_queue_deinit(&netconn->data_queue);
+        mo_netconn_data_queue_deinit(&netconn->data_queue);
     }
-    
-    netconn->stat       = NETCONN_STAT_NULL;
-    netconn->type       = NETCONN_TYPE_NULL;
+
+    netconn->stat        = NETCONN_STAT_NULL;
+    netconn->type        = NETCONN_TYPE_NULL;
+    netconn->remote_port = 0;
+    inet_aton("0.0.0.0", &netconn->remote_ip);
     
     LOG_EXT_I("Module %s netconnn_id:%d destroyed", module->name, netconn->connect_id);
     
@@ -197,7 +196,7 @@ os_err_t m5311_netconn_gethostbyname(mo_object_t *self, const char *domain_name,
 {
     at_parser_t *parser = &self->parser;
 
-	char recvip[IPADDR_MAX_STR_LEN] = {0};
+	char recvip[IPADDR_MAX_STR_LEN + 1] = {0};
 	
     char resp_buff[256] = {0};
 
@@ -256,7 +255,7 @@ static os_err_t m5311_tcp_connect(at_parser_t *parser, os_int32_t connect_id, ch
     at_resp_t resp = {.buff      = resp_buff,
                       .buff_size = sizeof(resp_buff),
                       .line_num  = 4,
-                      .timeout   = 20 * OS_TICK_PER_SECOND};
+                      .timeout   = 41 * OS_TICK_PER_SECOND}; /* about 40s return failed */
 
     os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+IPSTART=%d,\"TCP\",%s,%hu", connect_id, ip_addr, port);
     if (result != OS_EOK)
@@ -266,6 +265,13 @@ static os_err_t m5311_tcp_connect(at_parser_t *parser, os_int32_t connect_id, ch
 
     if (at_resp_get_data_by_kw(&resp, "CONNECT", "CONNECT %s", buf) <= 0)
     {
+        result = OS_ERROR;
+        goto __exit;
+    }
+
+    if (strcmp(buf, "OK"))
+    {
+        LOG_EXT_I("Module connect[%d]:%s!", connect_id, buf);
         result = OS_ERROR;
         goto __exit;
     }
@@ -310,7 +316,7 @@ os_err_t m5311_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_ad
 
     if (result != OS_EOK)
     {
-        LOG_EXT_E("Module %s connect to %s:%d failed!", module->name, remote_ip, port);
+        LOG_EXT_E("Module %s connect to %s:%hu failed!", module->name, remote_ip, port);
         return result;
     }
 
@@ -318,42 +324,53 @@ os_err_t m5311_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_ad
     netconn->remote_port = port;
     netconn->stat        = NETCONN_STAT_CONNECT;
 
-    LOG_EXT_D("Module %s connect to %s:%d successfully!", module->name, remote_ip, port)
+    LOG_EXT_D("Module %s connect to %s:%hu successfully!", module->name, remote_ip, port);
 
     return OS_EOK;
 }
 
 static os_size_t m5311_hexdata_send(at_parser_t *parser, mo_netconn_t *netconn, const char *data, os_size_t size)
 {
-    os_err_t   result       = OS_EOK;
-    os_size_t  sent_size    = 0;
-    os_size_t  cur_pkt_size = 0;
-    os_int32_t connect_id   = -1;
-    os_size_t  cnt          = 0; 
-
+    os_err_t   result        = OS_EOK;
+    os_size_t  sent_size     = 0;
+    os_size_t  cur_pkt_size  = 0;
+    os_int32_t connect_id    = -1;
+    os_size_t  cnt           = 0; 
     char prefix_send_cmd[30] = {0};
     char suffix_send_cmd[30] = {0};
-    char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
+    char remote_ip[IPADDR_MAX_STR_LEN + 1]  = {0};
+
+    /* M5311 UDP send size <= 712, different from the spec size 720 */
+    const os_int32_t send_max_size = netconn->type == NETCONN_TYPE_TCP ? M5311_TCP_SEND_MAX_SIZE : M5311_UDP_SEND_MAX_SIZE;
+    
+    char *resp_buff = calloc(1, send_max_size + 60);
+    if (OS_NULL == resp_buff)
+    {
+        fprintf(stdout, "No enough memory!\n");
+        LOG_EXT_E("Module %s %s no enough memory!", parser->name, __FUNCTION__);
+        return 0;
+    }
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = send_max_size + 60, .timeout =  10 * OS_TICK_PER_SECOND};
+
     strncpy(remote_ip, inet_ntoa(netconn->remote_ip), IPADDR_MAX_STR_LEN);
-
-    char resp_buff[SEND_DATA_MAX_SIZE + 60] = {0};
-
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout =  10 * OS_TICK_PER_SECOND};
 
     while (sent_size < size)
     {
-        if (size - sent_size < SEND_DATA_MAX_SIZE)
+        if (size - sent_size < send_max_size * 2)
         {
             cur_pkt_size = size - sent_size;
         }
         else
         {
-            cur_pkt_size = SEND_DATA_MAX_SIZE;
+            cur_pkt_size = send_max_size * 2;
         }
 
         snprintf(prefix_send_cmd, sizeof(prefix_send_cmd), "AT+IPSEND=%d,%d,", netconn->connect_id, (int)cur_pkt_size / 2);
         snprintf(suffix_send_cmd, sizeof(suffix_send_cmd), ",%s,%hu", remote_ip, netconn->remote_port);
         /* send cmd */
+        at_parser_exec_lock(parser);
+        
         if (at_parser_send(parser, prefix_send_cmd, strlen(prefix_send_cmd)) <= 0)
         {
             result = OS_ERROR;
@@ -378,7 +395,6 @@ static os_size_t m5311_hexdata_send(at_parser_t *parser, mo_netconn_t *netconn, 
         }
             
         result = at_parser_exec_cmd(parser, &resp, "");
-        
         if (result != OS_EOK)
         {
             goto __exit;
@@ -389,6 +405,8 @@ static os_size_t m5311_hexdata_send(at_parser_t *parser, mo_netconn_t *netconn, 
             result = OS_ERROR;
             goto __exit;
         }
+        
+        at_parser_exec_unlock(parser);
 
         sent_size += cur_pkt_size;
     }
@@ -400,7 +418,10 @@ __exit:
                   parser->name,
                   netconn->connect_id,
                   cur_pkt_size / 2);
+                  
+        at_parser_exec_unlock(parser);
     }
+    
 
     return sent_size / 2;
 }
@@ -415,7 +436,7 @@ os_size_t m5311_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const c
     char *hexstr = calloc(1, size * 2 + 1);
     if (OS_NULL == hexstr)
     {
-        LOG_EXT_E("Moudle &s netconn %d calloc %d bytes memory failed!",
+        LOG_EXT_E("Moudle %s netconn %d calloc %d bytes memory failed!",
                   module->name,
                   netconn->connect_id,
                   size * 2 + 1);
@@ -424,7 +445,7 @@ os_size_t m5311_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const c
 
     if (OS_EOK != m5311_lock(&m5311->netconn_lock))
     {
-        LOG_EXT_E("Moudle &s netconn %d send lock failed.");
+        LOG_EXT_E("Moudle %s netconn %d send lock failed.", module->name, netconn->connect_id);
         free(hexstr);
         return sent_size;
     }
@@ -444,7 +465,10 @@ os_size_t m5311_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const c
     }
 
     result = m5311_unlock(&m5311->netconn_lock);
-    OS_ASSERT(OS_FALSE != result);
+    if (OS_EOK != result)
+    {
+        LOG_EXT_E("Moudle %s netconn %d send unlock failed.", module->name, netconn->connect_id);
+    }
 
     free(hexstr);
 

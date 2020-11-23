@@ -52,7 +52,9 @@ static char *const sensor_name_str[] =
 
 void os_sensor_cb(os_sensor_t sen)
 {
-    if (sen->parent.rx_indicate == OS_NULL)
+    struct os_device_cb_info *info = &sen->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+
+    if (info->cb == OS_NULL)
     {
         return;
     }
@@ -65,16 +67,19 @@ void os_sensor_cb(os_sensor_t sen)
     /* The buffer is not empty. Read the data in the buffer first */
     if (sen->data_len > 0)
     {
-        sen->parent.rx_indicate(&sen->parent, sen->data_len / sizeof(struct os_sensor_data));
+        info->size = sen->data_len / sizeof(struct os_sensor_data);
+        info->cb(&sen->parent, info);
     }
     else if (sen->config.mode == OS_SENSOR_MODE_INT)
     {
         /* The interrupt mode only produces one data at a time */
-        sen->parent.rx_indicate(&sen->parent, 1);
+        info->size = 1;
+        info->cb(&sen->parent, info);
     }
     else if (sen->config.mode == OS_SENSOR_MODE_FIFO)
     {
-        sen->parent.rx_indicate(&sen->parent, sen->info.fifo_max);
+        info->size = sen->info.fifo_max;
+        info->cb(&sen->parent, info);
     }
 }
 
@@ -370,7 +375,6 @@ static os_err_t os_sensor_control(os_device_t *dev, int cmd, void *args)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops os_sensor_ops =
 {
     OS_NULL,
@@ -380,7 +384,6 @@ const static struct os_device_ops os_sensor_ops =
     OS_NULL,
     os_sensor_control
 };
-#endif
 
 int os_hw_sensor_register(os_sensor_t sensor, const char *name, os_uint32_t flag, void *data)
 {
@@ -415,19 +418,11 @@ int os_hw_sensor_register(os_sensor_t sensor, const char *name, os_uint32_t flag
 
     device = &sensor->parent;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &os_sensor_ops;
-#else
-    device->init    = OS_NULL;
-    device->open    = os_sensor_open;
-    device->close   = os_sensor_close;
-    device->read    = os_sensor_read;
-    device->write   = OS_NULL;
-    device->control = os_sensor_control;
-#endif
+    
     device->type        = OS_DEVICE_TYPE_SENSOR;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     device->user_data   = data;
 
     result = os_device_register(device, device_name, flag | OS_DEVICE_FLAG_STANDALONE);

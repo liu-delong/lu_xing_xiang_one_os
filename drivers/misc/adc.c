@@ -45,11 +45,15 @@ void os_hw_adc_isr(struct os_adc_device *adc, int event)
     switch (event & 0xff)
     {
     case OS_ADC_EVENT_CONVERT_DONE:
-        if (adc->parent.rx_indicate != OS_NULL)
+    {
+        struct os_device_cb_info *info = &adc->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+        if (info->cb != OS_NULL)
         {
-            adc->parent.rx_indicate(dev, 0x00);
+            info->size = 0;
+            info->cb(dev, info);
         }
         break;
+    }
     default:
         break;
     }    
@@ -135,7 +139,6 @@ static os_err_t _adc_control(struct os_device *dev, int cmd, void *args)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops adc_ops = {
     OS_NULL,
     OS_NULL,
@@ -144,7 +147,6 @@ const static struct os_device_ops adc_ops = {
     OS_NULL,
     _adc_control,
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -169,15 +171,9 @@ os_hw_adc_register(struct os_adc_device *device, const char *name, os_uint32_t f
     calc_mult_shift(&device->mult, &device->shift, device->max_value, device->ref_hight - device->ref_low, 1);
 
     device->parent.type        = OS_DEVICE_TYPE_MISCELLANEOUS;
-    device->parent.rx_indicate = OS_NULL;
-    device->parent.tx_complete = OS_NULL;
-
-#ifdef OS_USING_DEVICE_OPS
+    device->parent.cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     device->parent.ops = &adc_ops;
-#else
-    device->parent.read    = _adc_read;
-    device->parent.control = _adc_control;
-#endif
     device->parent.user_data = device;
 
     result = os_device_register(&device->parent, name, flag);

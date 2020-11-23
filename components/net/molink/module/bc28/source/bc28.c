@@ -32,6 +32,8 @@
 
 #ifdef MOLINK_USING_BC28
 
+#define BC28_RETRY_TIMES (5)
+
 #ifdef BC28_USING_GENERAL_OPS
 static const struct mo_general_ops gs_general_ops = {
     .at_test               = bc28_at_test,
@@ -44,6 +46,8 @@ static const struct mo_general_ops gs_general_ops = {
 #endif /* BC28_USING_GENERAL_OPS */
 
 #ifdef BC28_USING_NETSERV_OPS
+extern void bc28_netserv_init(mo_bc28_t *module);
+
 static const struct mo_netserv_ops gs_netserv_ops = {
     .set_attach            = bc28_set_attach,
     .get_attach            = bc28_get_attach,
@@ -53,12 +57,28 @@ static const struct mo_netserv_ops gs_netserv_ops = {
     .get_cgact             = bc28_get_cgact,
     .get_csq               = bc28_get_csq,
     .get_radio             = bc28_get_radio,
+    .set_psm               = bc28_set_psm,
+    .get_psm               = bc28_get_psm,
+    .set_edrx_cfg          = bc28_set_edrx_cfg,
+    .get_edrx_cfg          = bc28_get_edrx_cfg,
+    .get_edrx_dynamic      = bc28_get_edrx_dynamic,
+};
+#endif /* BC28_USING_NETSERV_OPS */
+
+#ifdef BC28_USING_PING_OPS
+static const struct mo_ping_ops gs_ping_ops = {
+    .ping                  = bc28_ping,
+};
+#endif /* BC28_USING_PING_OPS */
+
+#ifdef BC28_USING_IFCONFIG_OPS
+static const struct mo_ifconfig_ops gs_ifconfig_ops = {
+    .ifconfig              = bc28_ifconfig,
     .get_ipaddr            = bc28_get_ipaddr,
     .set_dnsserver         = bc28_set_dnsserver,
     .get_dnsserver         = bc28_get_dnsserver,
-    .ping                  = bc28_ping,
 };
-#endif /* BC28_USING_NETSERV_OPS */
+#endif /* BC28_USING_IFCONFIG_OPS */
 
 #ifdef BC28_USING_NETCONN_OPS
 extern void bc28_netconn_init(mo_bc28_t *module);
@@ -98,7 +118,26 @@ static const mo_onenet_ops_t gs_onenet_ops = {
 };
 #endif /* BC28_USING_ONENET_OPS */
 
-mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t recv_len)
+static os_err_t bc28_at_init(mo_object_t *self)
+{
+    at_parser_t *parser = &self->parser;
+
+    os_err_t result = at_parser_connect(parser, BC28_RETRY_TIMES);
+    if (result != OS_EOK)
+    {
+        LOG_EXT_E("Connect to %s module failed, please check whether the module connection is correct", self->name);
+    }
+
+#ifdef BC28_USING_IFCONFIG_OPS
+    dns_server_t dns = {"8.8.8.8", "114.114.114.114"};
+
+    bc28_set_dnsserver(self, dns);
+#endif /* BC28_USING_IFCONFIG_OPS */
+
+    return result;
+}
+
+mo_object_t *module_bc28_create(const char *name, void *parser_config)
 {
     os_err_t result = OS_ERROR;
     
@@ -106,10 +145,17 @@ mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t
     if (OS_NULL == module)
     {
         LOG_EXT_E("Create BC28 failed, no enough memory.");
-        result = OS_ENOMEM;
-        goto __exit;
+        return OS_NULL;
     }
-    result = mo_object_init(&(module->parent), name, device, recv_len);
+
+    result = mo_object_init(&(module->parent), name, parser_config);
+    if (result != OS_EOK)
+    {
+        free(module);
+        return OS_NULL;
+    }
+
+    result = bc28_at_init(&module->parent);
     if (result != OS_EOK)
     {
         goto __exit;
@@ -121,7 +167,16 @@ mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t
 
 #ifdef BC28_USING_NETSERV_OPS
     module->parent.ops_table[MODULE_OPS_NETSERV] = &gs_netserv_ops;
+    bc28_netserv_init(module);
 #endif /* BC28_USING_NETSERV_OPS */
+
+#ifdef BC28_USING_PING_OPS
+    module->parent.ops_table[MODULE_OPS_PING] = &gs_ping_ops;
+#endif /* BC28_USING_PING_OPS */
+
+#ifdef BC28_USING_IFCONFIG_OPS
+    module->parent.ops_table[MODULE_OPS_IFCONFIG] = &gs_ifconfig_ops;
+#endif /* BC28_USING_IFCONFIG_OPS */
 
 #ifdef BC28_USING_NETCONN_OPS
     module->parent.ops_table[MODULE_OPS_NETCONN] = &gs_netconn_ops;
@@ -139,11 +194,11 @@ mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t
 #endif /* BC28_USING_ONENET_NB_OPS */
 	
 __exit:
-    if (result != OS_EOK)
+    if (OS_EOK != result)
     {
 #ifdef BC28_USING_NETCONN_OPS
-        /* 0xFF means module netconn_lock has been init */
-        if (0xFF    == module->netconn_lock.original_priority)
+        /* 0x00 means module netconn_lock has not been init */
+        if (0x00 != module->netconn_lock.original_priority)
         {
             os_mutex_deinit(&module->netconn_lock);
         }
@@ -155,6 +210,11 @@ __exit:
             bc28_onenetnb_deinit(module);
         }
 #endif /* BC28_USING_ONENET_NB_OPS */
+
+        if (mo_object_get_by_name(name) != OS_NULL)
+        {
+            mo_object_deinit(&module->parent);
+        }
 
         free(module);
         
@@ -202,7 +262,11 @@ int bc28_auto_create(void)
 
     os_device_control(device, OS_DEVICE_CTRL_CONFIG, &uart_config);
 
-    mo_object_t *module = module_bc28_create(BC28_NAME, device, BC28_RECV_BUFF_LEN);
+    mo_parser_config_t parser_config = {.parser_name   = BC28_NAME,
+                                        .parser_device = device,
+                                        .recv_buff_len = BC28_RECV_BUFF_LEN};
+
+    mo_object_t *module = module_bc28_create(BC28_NAME, &parser_config);
 
     if (OS_NULL == module)
     {

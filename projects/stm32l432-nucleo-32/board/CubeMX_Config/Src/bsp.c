@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <oneos_config.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -103,7 +104,9 @@ int hardware_init(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
+#ifndef DEFAULT_SYSTEM_CLOCK_CONFIG
   SystemClock_Config();
+#endif
 
   /* USER CODE BEGIN SysInit */
 

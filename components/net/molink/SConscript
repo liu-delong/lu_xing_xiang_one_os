@@ -22,6 +22,12 @@ if IsDefined(['MOLINK_USING_GENERAL_OPS']):
 if IsDefined(['MOLINK_USING_NETSERV_OPS']):
     src += Glob('api/source/mo_netserv.c')
 
+if IsDefined(['MOLINK_USING_PING_OPS']):
+    src += Glob('api/source/mo_ping.c')
+
+if IsDefined(['MOLINK_USING_IFCONFIG_OPS']):
+    src += Glob('api/source/mo_ifconfig.c')
+
 if IsDefined(['MOLINK_USING_NETCONN_OPS']):
     src += Glob('api/source/mo_netconn.c')
 
@@ -39,6 +45,8 @@ if IsDefined(['MOLINK_USING_PARSER']):
     src += Glob('parser/source/at_parser.c')
     src += Glob('parser/source/at_resp.c')
 
+
+#*************************** TYPE OF NB-IoT MODULES ************************#
 if IsDefined(['MOLINK_USING_M5310A']):
     path += [pwd + '/module/m5310a/include']
     src += Glob('module/m5310a/source/m5310a.c')
@@ -46,6 +54,10 @@ if IsDefined(['MOLINK_USING_M5310A']):
         src += Glob('module/m5310a/source/m5310a_general.c')
     if IsDefined(['M5310A_USING_NETSERV_OPS']):
         src += Glob('module/m5310a/source/m5310a_netserv.c')
+    if IsDefined(['M5310A_USING_PING_OPS']):
+        src += Glob('module/m5310a/source/m5310a_ping.c')
+    if IsDefined(['M5310A_USING_IFCONFIG_OPS']):
+        src += Glob('module/m5310a/source/m5310a_ifconfig.c')
     if IsDefined(['M5310A_USING_NETCONN_OPS']):
         src += Glob('module/m5310a/source/m5310a_netconn.c')
     if IsDefined(['M5310A_USING_ONENET_NB_OPS']):
@@ -58,42 +70,14 @@ if IsDefined(['MOLINK_USING_M5311']):
         src += Glob('module/m5311/source/m5311_general.c')
     if IsDefined(['M5311_USING_NETSERV_OPS']):
         src += Glob('module/m5311/source/m5311_netserv.c')
+    if IsDefined(['M5311_USING_PING_OPS']):
+        src += Glob('module/m5311/source/m5311_ping.c')
+    if IsDefined(['M5311_USING_IFCONFIG_OPS']):
+        src += Glob('module/m5311/source/m5311_ifconfig.c')
     if IsDefined(['M5311_USING_NETCONN_OPS']):
         src += Glob('module/m5311/source/m5311_netconn.c')
     if IsDefined(['M5311_USING_ONENET_NB_OPS']):
         src += Glob('module/m5311/source/m5311_onenet_nb.c')
-        
-if IsDefined(['MOLINK_USING_EC200X']):
-    path += [pwd + '/module/ec200x/include']
-    src += Glob('module/ec200x/source/ec200x.c')
-    if IsDefined(['EC200X_USING_GENERAL_OPS']):
-        src += Glob('module/ec200x/source/ec200x_general.c')
-    if IsDefined(['EC200X_USING_NETSERV_OPS']):
-        src += Glob('module/ec200x/source/ec200x_netserv.c')
-    if IsDefined(['EC200X_USING_NETCONN_OPS']):
-        src += Glob('module/ec200x/source/ec200x_netconn.c')	
-
-if IsDefined(['MOLINK_USING_ML302']):
-    path += [pwd + '/module/ml302/include']
-    src += Glob('module/ml302/source/ml302.c')
-    if IsDefined(['ML302_USING_GENERAL_OPS']):
-        src += Glob('module/ml302/source/ml302_general.c')
-    if IsDefined(['ML302_USING_NETSERV_OPS']):
-        src += Glob('module/ml302/source/ml302_netserv.c')
-    if IsDefined(['ML302_USING_NETCONN_OPS']):
-        src += Glob('module/ml302/source/ml302_netconn.c')		
-
-if IsDefined(['MOLINK_USING_ESP8266']):
-    path += [pwd + '/module/esp8266/include']
-    src += Glob('module/esp8266/source/esp8266.c')
-    if IsDefined(['ESP8266_USING_GENERAL_OPS']):
-        src += Glob('module/esp8266/source/esp8266_general.c')
-    if IsDefined(['ESP8266_USING_WIFI_OPS']):
-        src += Glob('module/esp8266/source/esp8266_wifi.c')
-    if IsDefined(['ESP8266_USING_NETSERV_OPS']):
-        src += Glob('module/esp8266/source/esp8266_netserv.c')
-    if IsDefined(['ESP8266_USING_NETCONN_OPS']):
-        src += Glob('module/esp8266/source/esp8266_netconn.c')
 
 if IsDefined(['MOLINK_USING_BC95']):
     path += [pwd + '/module/bc95/include']
@@ -102,6 +86,10 @@ if IsDefined(['MOLINK_USING_BC95']):
         src += Glob('module/bc95/source/bc95_general.c')
     if IsDefined(['BC95_USING_NETSERV_OPS']):
         src += Glob('module/bc95/source/bc95_netserv.c')
+    if IsDefined(['BC95_USING_PING_OPS']):
+        src += Glob('module/bc95/source/bc95_ping.c')
+    if IsDefined(['BC95_USING_IFCONFIG_OPS']):
+        src += Glob('module/bc95/source/bc95_ifconfig.c')
     if IsDefined(['BC95_USING_NETCONN_OPS']):
         src += Glob('module/bc95/source/bc95_netconn.c')
     if IsDefined(['BC95_USING_ONENET_NB_OPS']):
@@ -114,10 +102,135 @@ if IsDefined(['MOLINK_USING_BC28']):
         src += Glob('module/bc28/source/bc28_general.c')
     if IsDefined(['BC28_USING_NETSERV_OPS']):
         src += Glob('module/bc28/source/bc28_netserv.c')
+    if IsDefined(['BC28_USING_PING_OPS']):
+        src += Glob('module/bc28/source/bc28_ping.c')
+    if IsDefined(['BC28_USING_IFCONFIG_OPS']):
+        src += Glob('module/bc28/source/bc28_ifconfig.c')
     if IsDefined(['BC28_USING_NETCONN_OPS']):
         src += Glob('module/bc28/source/bc28_netconn.c')
     if IsDefined(['BC28_USING_ONENET_NB_OPS']):
         src += Glob('module/bc28/source/bc28_onenet_nb.c')
+
+if IsDefined(['MOLINK_USING_SIM7020']):
+    path += [pwd + '/module/sim7020/include']
+    src += Glob('module/sim7020/source/sim7020.c')
+    if IsDefined(['SIM7020_USING_GENERAL_OPS']):
+        src += Glob('module/sim7020/source/sim7020_general.c')
+    if IsDefined(['SIM7020_USING_NETSERV_OPS']):
+        src += Glob('module/sim7020/source/sim7020_netserv.c')
+    if IsDefined(['SIM7020_USING_PING_OPS']):
+        src += Glob('module/sim7020/source/sim7020_ping.c')
+    if IsDefined(['SIM7020_USING_IFCONFIG_OPS']):
+        src += Glob('module/sim7020/source/sim7020_ifconfig.c')
+    if IsDefined(['SIM7020_USING_NETCONN_OPS']):
+        src += Glob('module/sim7020/source/sim7020_netconn.c')
+
+
+#*************************** TYPE OF 4G CAT1 MODULES ***********************#
+if IsDefined(['MOLINK_USING_EC200X']):
+    path += [pwd + '/module/ec200x/include']
+    src += Glob('module/ec200x/source/ec200x.c')
+    if IsDefined(['EC200X_USING_GENERAL_OPS']):
+        src += Glob('module/ec200x/source/ec200x_general.c')
+    if IsDefined(['EC200X_USING_NETSERV_OPS']):
+        src += Glob('module/ec200x/source/ec200x_netserv.c')
+    if IsDefined(['EC200X_USING_PING_OPS']):
+        src += Glob('module/ec200x/source/ec200x_ping.c')
+    if IsDefined(['EC200X_USING_IFCONFIG_OPS']):
+        src += Glob('module/ec200x/source/ec200x_ifconfig.c')
+    if IsDefined(['EC200X_USING_NETCONN_OPS']):
+        src += Glob('module/ec200x/source/ec200x_netconn.c')
+
+if IsDefined(['MOLINK_USING_ML302']):
+    path += [pwd + '/module/ml302/include']
+    src += Glob('module/ml302/source/ml302.c')
+    if IsDefined(['ML302_USING_GENERAL_OPS']):
+        src += Glob('module/ml302/source/ml302_general.c')
+    if IsDefined(['ML302_USING_NETSERV_OPS']):
+        src += Glob('module/ml302/source/ml302_netserv.c')
+    if IsDefined(['ML302_USING_PING_OPS']):
+        src += Glob('module/ml302/source/ml302_ping.c')
+    if IsDefined(['ML302_USING_IFCONFIG_OPS']):
+        src += Glob('module/ml302/source/ml302_ifconfig.c')
+    if IsDefined(['ML302_USING_NETCONN_OPS']):
+        src += Glob('module/ml302/source/ml302_netconn.c')
+
+if IsDefined(['MOLINK_USING_GM190']):
+    path += [pwd + '/module/gm190/include']
+    src += Glob('module/gm190/source/gm190.c')
+    if IsDefined(['GM190_USING_GENERAL_OPS']):
+        src += Glob('module/gm190/source/gm190_general.c')
+    if IsDefined(['GM190_USING_NETSERV_OPS']):
+        src += Glob('module/gm190/source/gm190_netserv.c')
+    if IsDefined(['GM190_USING_NETCONN_OPS']):
+        src += Glob('module/gm190/source/gm190_netconn.c')
+    if IsDefined(['GM190_USING_IFCONFIG_OPS']):
+        src += Glob('module/gm190/source/gm190_ifconfig.c')
+
+if IsDefined(['MOLINK_USING_A7600X']):
+    path += [pwd + '/module/a7600x/include']
+    src += Glob('module/a7600x/source/a7600x.c')
+    if IsDefined(['A7600X_USING_GENERAL_OPS']):
+        src += Glob('module/a7600x/source/a7600x_general.c')
+    if IsDefined(['A7600X_USING_NETSERV_OPS']):
+        src += Glob('module/a7600x/source/a7600x_netserv.c')
+    if IsDefined(['A7600X_USING_PING_OPS']):
+        src += Glob('module/a7600x/source/a7600x_ping.c')
+    if IsDefined(['A7600X_USING_IFCONFIG_OPS']):
+        src += Glob('module/a7600x/source/a7600x_ifconfig.c')
+    if IsDefined(['A7600X_USING_NETCONN_OPS']):
+        src += Glob('module/a7600x/source/a7600x_netconn.c')
+
+if IsDefined(['MOLINK_USING_L610']):
+    path += [pwd + '/module/l610/include']
+    src += Glob('module/l610/source/l610.c')
+    if IsDefined(['L610_USING_GENERAL_OPS']):
+        src += Glob('module/l610/source/l610_general.c')
+    if IsDefined(['L610_USING_NETSERV_OPS']):
+        src += Glob('module/l610/source/l610_netserv.c')
+    if IsDefined(['L610_USING_PING_OPS']):
+        src += Glob('module/l610/source/l610_ping.c')
+    if IsDefined(['L610_USING_IFCONFIG_OPS']):
+        src += Glob('module/l610/source/l610_ifconfig.c')
+    if IsDefined(['L610_USING_NETCONN_OPS']):
+        src += Glob('module/l610/source/l610_netconn.c')
+
+#*************************** TYPE OF 4G CAT4 MODULES ***********************#
+if IsDefined(['MOLINK_USING_GM510']):
+    path += [pwd + '/module/gm510/include']
+    src += Glob('module/gm510/source/gm510.c')
+    if IsDefined(['GM510_USING_GENERAL_OPS']):
+        src += Glob('module/gm510/source/gm510_general.c')
+
+
+#*************************** TYPE OF WIFI MODULES **************************#
+if IsDefined(['MOLINK_USING_ESP8266']):
+    path += [pwd + '/module/esp8266/include']
+    src += Glob('module/esp8266/source/esp8266.c')
+    if IsDefined(['ESP8266_USING_GENERAL_OPS']):
+        src += Glob('module/esp8266/source/esp8266_general.c')
+    if IsDefined(['ESP8266_USING_WIFI_OPS']):
+        src += Glob('module/esp8266/source/esp8266_wifi.c')
+    if IsDefined(['ESP8266_USING_PING_OPS']):
+        src += Glob('module/esp8266/source/esp8266_ping.c')
+    if IsDefined(['ESP8266_USING_IFCONFIG_OPS']):
+        src += Glob('module/esp8266/source/esp8266_ifconfig.c')
+    if IsDefined(['ESP8266_USING_NETCONN_OPS']):
+        src += Glob('module/esp8266/source/esp8266_netconn.c')
+
+if IsDefined(['MOLINK_USING_ESP32']):
+    path += [pwd + '/module/esp32/include']
+    src += Glob('module/esp32/source/esp32.c')
+    if IsDefined(['ESP32_USING_GENERAL_OPS']):
+        src += Glob('module/esp32/source/esp32_general.c')
+    if IsDefined(['ESP32_USING_WIFI_OPS']):
+        src += Glob('module/esp32/source/esp32_wifi.c')
+    if IsDefined(['ESP32_USING_PING_OPS']):
+        src += Glob('module/esp32/source/esp32_ping.c')
+    if IsDefined(['ESP32_USING_IFCONFIG_OPS']):
+        src += Glob('module/esp32/source/esp32_ifconfig.c')
+    if IsDefined(['ESP32_USING_NETCONN_OPS']):
+        src += Glob('module/esp32/source/esp32_netconn.c')
 
 group = AddCodeGroup('molink', src, depend = ['NET_USING_MOLINK'], CPPPATH = path)
 

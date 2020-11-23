@@ -45,17 +45,17 @@
 
 /* bootloader */
 #define MCU_BOOT_ENTRY MCU_ROM_BEGIN
-#define MCU_BOOT_SIZE  (128 * 1024)
+#define MCU_BOOT_SIZE  (64 * 1024)
 #define MCU_BOOT_END   (MCU_BOOT_ENTRY + MCU_BOOT_SIZE)
 
 /* cfg */
 #define MCU_CFG_ENTRY ((uint32_t)MCU_BOOT_END)
-#define MCU_CFG_SIZE  (128 * 1024)
+#define MCU_CFG_SIZE  (64 * 1024)
 #define MCU_CFG_END   (MCU_CFG_ENTRY + MCU_CFG_SIZE)
 
 /* app */
 #define OS_APP_PART_ADDR     ((uint32_t)MCU_CFG_END)
-#define OS_APP_PART_SIZE     (128 * 1024)
+#define OS_APP_PART_SIZE     (2 * 128 * 1024)
 #define OS_APP_PART_END_ADDR (OS_APP_PART_ADDR + OS_APP_PART_SIZE)
 
 #define USER_APP_ENTRY OS_APP_PART_ADDR

@@ -28,6 +28,8 @@
 #include <fal.h>
 #include <oneos_config.h>
 #include <string.h>
+#include <fal_cfg.h>
+#include <os_memory.h>
 
 #ifdef OS_USING_SHELL
 #include <drv_log.h>
@@ -309,6 +311,7 @@ static os_err_t at45dbxx_init(const char *flash_device_name)
 
     struct os_spi_device *os_spi_device;
     struct JEDEC_ID      *JEDEC_ID;
+    struct os_device_ops *at45dbxx_ops;
 
     os_hw_spi_device_attach(spi_device_name, AT45DBXX_BUS_NAME, BSP_AT45DBXX_SPI_CS);
 
@@ -410,28 +413,38 @@ static os_err_t at45dbxx_init(const char *flash_device_name)
         }
     }
 
-    /* register device */
+    /* register device */	
+	at45dbxx_ops = os_calloc(1, sizeof(struct os_device_ops));
+
+	if (at45dbxx_ops == OS_NULL)
+	{
+		LOG_EXT_E("os_calloc failed!\r\n");
+		return OS_ENOMEM;
+	}
+	
     spi_flash_at45dbxx.flash_device.type    = OS_DEVICE_TYPE_SPIDEVICE;
-    spi_flash_at45dbxx.flash_device.init    = at45db_flash_init;
-    spi_flash_at45dbxx.flash_device.open    = at45db_flash_open;
-    spi_flash_at45dbxx.flash_device.close   = at45db_flash_close;
-    spi_flash_at45dbxx.flash_device.control = at45db_flash_control;
+	at45dbxx_ops->init = at45db_flash_init;
+	at45dbxx_ops->open = at45db_flash_open;
+	at45dbxx_ops->close = at45db_flash_close;
+	at45dbxx_ops->control = at45db_flash_control;
 
     if (JEDEC_ID->density_code == DENSITY_CODE_642D)
     {
-        spi_flash_at45dbxx.flash_device.read  = at45db_flash_read_page_1024;
-        spi_flash_at45dbxx.flash_device.write = at45db_flash_write_page_1024;
+		at45dbxx_ops->read = at45db_flash_read_page_1024;
+		at45dbxx_ops->write = at45db_flash_write_page_1024;
     }
     else if (JEDEC_ID->density_code == DENSITY_CODE_161D || JEDEC_ID->density_code == DENSITY_CODE_321D)
     {
-        spi_flash_at45dbxx.flash_device.read  = at45db_flash_read_page_512;
-        spi_flash_at45dbxx.flash_device.write = at45db_flash_write_page_512;
+		at45dbxx_ops->read = at45db_flash_read_page_512;
+		at45dbxx_ops->write = at45db_flash_write_page_512;
     }
     else
     {
-        spi_flash_at45dbxx.flash_device.read  = at45db_flash_read_page_256;
-        spi_flash_at45dbxx.flash_device.write = at45db_flash_write_page_256;
+        at45dbxx_ops->read  = at45db_flash_read_page_256;
+        at45dbxx_ops->write = at45db_flash_write_page_256;		
     }
+
+	spi_flash_at45dbxx.flash_device.ops = at45dbxx_ops;
 
     /* no private */
     spi_flash_at45dbxx.flash_device.user_data = OS_NULL;
@@ -570,5 +583,5 @@ FAL_FLASH_DEFINE sfud_flash0 =
         .write_page  = at45dbxx_write,
         .erase_block = at45dbxx_erase,
     },
-}
+};
 

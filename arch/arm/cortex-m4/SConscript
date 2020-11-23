@@ -4,7 +4,7 @@ from build_tools import *
 pwd  = PresentDir()
 src  = []
 group = []
-path = []
+path = [pwd]
 
 if IsDefined(['ARCH_ARM_CORTEX_M4']) == False:
     Return('group')

@@ -1,3 +1,5 @@
+#ifndef __FFCONF_H__
+#define __FFCONF_H__
 /*---------------------------------------------------------------------------/
 /  FatFs - FAT file system module configuration file
 /---------------------------------------------------------------------------*/
@@ -298,3 +300,5 @@ typedef struct os_mutex *_SYNC_t;	/* O/S dependent type of sync object. e.g. HAN
 
 
 /*--- End of configuration options ---*/
+
+#endif

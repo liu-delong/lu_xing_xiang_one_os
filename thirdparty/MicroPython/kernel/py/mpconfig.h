@@ -1033,68 +1033,10 @@ typedef double mp_float_t;
 #define MICROPY_PY_MICROPYTHON_STACK_USE (MICROPY_PY_MICROPYTHON_MEM_INFO)
 #endif
 
-// Whether to provide "array" module. Note that large chunk of the
-// underlying code is shared with "bytearray" builtin type, so to
-// get real savings, it should be disabled too.
-#ifndef MICROPY_PY_ARRAY
-#define MICROPY_PY_ARRAY (1)
-#endif
-
-// Whether to support slice assignments for array (and bytearray).
-// This is rarely used, but adds ~0.5K of code.
-#ifndef MICROPY_PY_ARRAY_SLICE_ASSIGN
-#define MICROPY_PY_ARRAY_SLICE_ASSIGN (0)
-#endif
-
 // Whether to support attrtuple type (MicroPython extension)
 // It provides space-efficient tuples with attribute access
 #ifndef MICROPY_PY_ATTRTUPLE
 #define MICROPY_PY_ATTRTUPLE (1)
-#endif
-
-// Whether to provide "collections" module
-#ifndef MICROPY_PY_COLLECTIONS
-#define MICROPY_PY_COLLECTIONS (1)
-#endif
-
-// Whether to provide "ucollections.deque" type
-#ifndef MICROPY_PY_COLLECTIONS_DEQUE
-#define MICROPY_PY_COLLECTIONS_DEQUE (0)
-#endif
-
-// Whether to provide "collections.OrderedDict" type
-#ifndef MICROPY_PY_COLLECTIONS_ORDEREDDICT
-#define MICROPY_PY_COLLECTIONS_ORDEREDDICT (0)
-#endif
-
-// Whether to provide the _asdict function for namedtuple
-#ifndef MICROPY_PY_COLLECTIONS_NAMEDTUPLE__ASDICT
-#define MICROPY_PY_COLLECTIONS_NAMEDTUPLE__ASDICT (0)
-#endif
-
-// Whether to provide "math" module
-#ifndef MICROPY_PY_MATH
-#define MICROPY_PY_MATH (1)
-#endif
-
-// Whether to provide special math functions: math.{erf,erfc,gamma,lgamma}
-#ifndef MICROPY_PY_MATH_SPECIAL_FUNCTIONS
-#define MICROPY_PY_MATH_SPECIAL_FUNCTIONS (0)
-#endif
-
-// Whether to provide math.factorial function
-#ifndef MICROPY_PY_MATH_FACTORIAL
-#define MICROPY_PY_MATH_FACTORIAL (0)
-#endif
-
-// Whether to provide math.isclose function
-#ifndef MICROPY_PY_MATH_ISCLOSE
-#define MICROPY_PY_MATH_ISCLOSE (0)
-#endif
-
-// Whether to provide "cmath" module
-#ifndef MICROPY_PY_CMATH
-#define MICROPY_PY_CMATH (0)
 #endif
 
 // Whether to provide "gc" module
@@ -1260,57 +1202,10 @@ typedef double mp_float_t;
 #define MICROPY_PY_UCTYPES_NATIVE_C_TYPES (1)
 #endif
 
-#ifndef MICROPY_PY_UZLIB
-#define MICROPY_PY_UZLIB (0)
-#endif
-
-#ifndef MICROPY_PY_UJSON
-#define MICROPY_PY_UJSON (1)
-#endif
-
-#ifndef MICROPY_PY_URE
-#define MICROPY_PY_URE (1)
-#endif
-
-#ifndef MICROPY_PY_URE_DEBUG
-#define MICROPY_PY_URE_DEBUG (0)
-#endif
-
-#ifndef MICROPY_PY_URE_MATCH_GROUPS
-#define MICROPY_PY_URE_MATCH_GROUPS (0)
-#endif
-
-#ifndef MICROPY_PY_URE_MATCH_SPAN_START_END
-#define MICROPY_PY_URE_MATCH_SPAN_START_END (0)
-#endif
-
-#ifndef MICROPY_PY_URE_SUB
-#define MICROPY_PY_URE_SUB (0)
-#endif
-
-#ifndef MICROPY_PY_UHEAPQ
-#define MICROPY_PY_UHEAPQ (0)
-#endif
 
 // Optimized heap queue for relative timestamps
 #ifndef MICROPY_PY_UTIMEQ
 #define MICROPY_PY_UTIMEQ (0)
-#endif
-
-#ifndef MICROPY_PY_UHASHLIB
-#define MICROPY_PY_UHASHLIB (0)
-#endif
-
-#ifndef MICROPY_PY_UHASHLIB_MD5
-#define MICROPY_PY_UHASHLIB_MD5 (0)
-#endif
-
-#ifndef MICROPY_PY_UHASHLIB_SHA1
-#define MICROPY_PY_UHASHLIB_SHA1  (0)
-#endif
-
-#ifndef MICROPY_PY_UHASHLIB_SHA256
-#define MICROPY_PY_UHASHLIB_SHA256 (1)
 #endif
 
 #ifndef MICROPY_PY_UCRYPTOLIB
@@ -1326,14 +1221,6 @@ typedef double mp_float_t;
 #define MICROPY_PY_UCRYPTOLIB_CONSTS (0)
 #endif
 
-#ifndef MICROPY_PY_UBINASCII
-#define MICROPY_PY_UBINASCII (0)
-#endif
-
-// Depends on MICROPY_PY_UZLIB
-#ifndef MICROPY_PY_UBINASCII_CRC32
-#define MICROPY_PY_UBINASCII_CRC32 (0)
-#endif
 
 #ifndef MICROPY_PY_URANDOM
 #define MICROPY_PY_URANDOM (0)
@@ -1344,22 +1231,12 @@ typedef double mp_float_t;
 #define MICROPY_PY_URANDOM_EXTRA_FUNCS (0)
 #endif
 
-#ifndef MICROPY_PY_MACHINE
-#define MICROPY_PY_MACHINE (1)
-#endif
 
 // Whether to include: time_pulse_us
 #ifndef MICROPY_PY_MACHINE_PULSE
 #define MICROPY_PY_MACHINE_PULSE (0)
 #endif
 
-#ifndef MICROPY_PY_MACHINE_I2C
-#define MICROPY_PY_MACHINE_I2C (1)
-#endif
-
-#ifndef MICROPY_PY_MACHINE_SPI
-#define MICROPY_PY_MACHINE_SPI (1)
-#endif
 
 #ifndef MICROPY_PY_USSL
 #define MICROPY_PY_USSL (0)

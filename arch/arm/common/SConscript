@@ -1,0 +1,14 @@
+Import('osconfig')
+from build_tools import *
+
+pwd  = PresentDir()
+src  = []
+group = []
+path = [pwd]
+
+# The set of source files associated with this SConscript file.
+src += Glob('*.c')
+
+group = AddCodeGroup('cpu', src, depend = [''], CPPPATH = path)
+
+Return('group')

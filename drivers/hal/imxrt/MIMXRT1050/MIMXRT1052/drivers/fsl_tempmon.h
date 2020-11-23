@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, NXP Semiconductors, Inc.
+ * Copyright  2018-2019 NXP
  * All rights reserved.
  *
  *
@@ -23,7 +23,7 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_TEMPMON_DRIVER_VERSION (MAKE_VERSION(2, 0, 0)) /*!< Version 2.0.0 */
+#define FSL_TEMPMON_DRIVER_VERSION (MAKE_VERSION(2, 0, 2)) /*!< Version 2.0.2 */
 /*@}*/
 
 /*! @brief TEMPMON temperature structure. */
@@ -38,9 +38,9 @@ typedef struct _tempmon_config
 /*! @brief TEMPMON alarm mode. */
 typedef enum _tempmon_alarm_mode
 {
-    kTEMPMON_HighAlarmMode = 0U,  /*!< The high alarm temperature interrupt mode.*/
+    kTEMPMON_HighAlarmMode  = 0U, /*!< The high alarm temperature interrupt mode.*/
     kTEMPMON_PanicAlarmMode = 1U, /*!< The panic alarm temperature interrupt mode.*/
-    kTEMPMON_LowAlarmMode = 2U,   /*!< The low alarm temperature interrupt mode.*/
+    kTEMPMON_LowAlarmMode   = 2U, /*!< The low alarm temperature interrupt mode.*/
 } tempmon_alarm_mode;
 
 /*******************************************************************************

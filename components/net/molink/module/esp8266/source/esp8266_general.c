@@ -22,6 +22,8 @@
  */
 
 #include "esp8266_general.h"
+#include <stdlib.h>
+#include <string.h>
 
 #define DBG_EXT_TAG "esp8266.general"
 #define DBG_EXT_LVL DBG_EXT_INFO
@@ -29,41 +31,63 @@
 
 #ifdef ESP8266_USING_GENERAL_OPS
 
-os_err_t esp8266_soft_reset(mo_object_t *self)
-{
-    at_parser_t *parser = &self->parser;
-
-    char resp_buff[128] = {0};
-
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
-
-    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+RST");
-
-    os_task_mdelay(1000);
-
-    return result;
-}
-
 os_err_t esp8266_at_test(mo_object_t *self)
 {
     at_parser_t *parser = &self->parser;
 
     char resp_buff[32] = {0};
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+    at_resp_t resp = {.buff = resp_buff, 
+                      .buff_size = sizeof(resp_buff),
+                      .timeout = AT_RESP_TIMEOUT_DEF};
 
     return at_parser_exec_cmd(parser, &resp, "AT");
 }
 
-os_err_t esp8266_set_echo(mo_object_t *self, os_bool_t is_echo)
+os_err_t esp8266_get_firmware_version(mo_object_t *self, mo_firmware_version_t *version)
 {
     at_parser_t *parser = &self->parser;
 
-    char resp_buff[32] = {0};
+    char resp_buff[256] = {0};
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+    at_resp_t resp = {.buff = resp_buff, 
+                      .buff_size = sizeof(resp_buff), 
+                      .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "ATE%d", is_echo ? OS_TRUE : OS_FALSE);
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+GMR");
+    if (result != OS_EOK)
+    {
+        return result;
+    }
+
+    version->ver_info = calloc(resp.line_counts - 1, sizeof(char *));
+    if (OS_NULL == version->ver_info)
+    {
+        return OS_ENOMEM;
+    }
+
+    version->line_counts = 0;
+
+    for (int i = 1; i <= resp.line_counts - 1; i++)
+    {
+        const char *source_line = at_resp_get_line(&resp, i);
+        os_size_t   line_length = strlen(source_line);
+
+        char **dest_line = &version->ver_info[version->line_counts];
+
+        *dest_line = calloc(1, line_length + 1);
+        if (OS_NULL == dest_line)
+        {
+            mo_get_firmware_version_free(version);
+
+            return OS_ENOMEM;
+        }
+        
+        strncpy(*dest_line, source_line, line_length);
+        version->line_counts ++;
+    }
+
+    return OS_EOK;
 }
 
 #endif /* ESP8266_USING_GENERAL_OPS */

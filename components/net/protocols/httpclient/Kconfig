@@ -1,0 +1,24 @@
+menu "Httpclient"
+
+config NET_USING_HTTPCLIENT
+	bool "Enable Httpclient"
+	select NET_USING_BSD
+	default n
+    
+    if NET_USING_HTTPCLIENT
+		
+		config CONFIG_HTTP_SECURE
+            bool "Enable Httpclient TLS encrypt"
+			select SECURITY_USING_MBEDTLS
+            default n
+			
+		config HTTPCLIENT_USING_SAMPLE
+            bool "Enable HTTPCLIENT sample"
+            default n 
+		
+		config CONFIG_HTTP_RECV_TIMEOUT_MS
+			int "HTTP SET RECV TIMEOUT MS"
+			default 5000
+    endif
+	
+endmenu

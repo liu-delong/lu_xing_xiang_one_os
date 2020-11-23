@@ -22,6 +22,7 @@
  */
 
 #include "mo_general.h"
+#include <stdlib.h>
 
 #define DBG_EXT_TAG "molink.general"
 #define DBG_EXT_LVL LOG_LVL_INFO
@@ -247,70 +248,6 @@ os_err_t mo_set_cfun(mo_object_t *self, os_uint8_t fun_lvl)
 
 /**
  ***********************************************************************************************************************
- * @brief           Execute the AT command to soft reset module
- *
- * @param[in]       self            The descriptor of molink module instance
- *
- * @return          On success, return OS_EOK; on error, return a error code. 
- * @retval          OS_EOK          Soft reset successfully
- * @retval          OS_ERROR        Soft reset error
- * @retval          OS_ETIMEOUT     Soft reset timeout
- ***********************************************************************************************************************
- */
-os_err_t mo_soft_reset(mo_object_t *self)
-{
-    OS_ASSERT(OS_NULL != self);
-
-    mo_general_ops_t *ops = get_general_ops(self);
-
-    if (OS_NULL == ops)
-    {
-        return OS_ERROR;
-    }
-
-    if (OS_NULL == ops->soft_reset)
-    {
-        LOG_EXT_E("Module %s does not support set echo mode operate", self->name);
-        return OS_ERROR;
-    }
-
-    return ops->soft_reset(self);
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Execute the AT command to clear stored earfcn
- *
- * @param[in]       self            The descriptor of molink module instance
- *
- * @return          On success, return OS_EOK; on error, return a error code. 
- * @retval          OS_EOK          clear stored earfcn successfully
- * @retval          OS_ERROR        clear stored earfcn error
- * @retval          OS_ETIMEOUT     clear stored earfcn timeout
- ***********************************************************************************************************************
- */
-os_err_t mo_clear_stored_earfcn(mo_object_t *self)
-{
-    OS_ASSERT(OS_NULL != self);
-
-    mo_general_ops_t *ops = get_general_ops(self);
-
-    if (OS_NULL == ops)
-    {
-        return OS_ERROR;
-    }
-
-    if (OS_NULL == ops->clear_stored_earfcn)
-    {
-        LOG_EXT_E("Module %s does not support clear stored earfcn operate", self->name);
-        return OS_ERROR;
-    }
-
-    return ops->soft_reset(self);
-}
-
-/**
- ***********************************************************************************************************************
  * @brief           Execute the AT command to get module firmware app version
  *
  * @param[in]       self            The descriptor of molink module instance
@@ -323,7 +260,7 @@ os_err_t mo_clear_stored_earfcn(mo_object_t *self)
  * @retval          OS_ETIMEOUT     Get module firmware app version timeout
  ***********************************************************************************************************************
  */
-os_err_t mo_get_app_version(mo_object_t *self, char *value, os_size_t len)
+os_err_t mo_get_firmware_version(mo_object_t *self, mo_firmware_version_t *version)
 {
     OS_ASSERT(OS_NULL != self);
 
@@ -334,13 +271,67 @@ os_err_t mo_get_app_version(mo_object_t *self, char *value, os_size_t len)
         return OS_ERROR;
     }
 
-    if (OS_NULL == ops->get_app_version)
+    if (OS_NULL == ops->get_firmware_version)
     {
-        LOG_EXT_E("Module %s does not support get application version operate", self->name);
+        LOG_EXT_E("Module %s does not support get firmware version operate", self->name);
         return OS_ERROR;
     }
 
-    return ops->get_app_version(self, value, len);
+    return ops->get_firmware_version(self, version);
+}
+
+void mo_get_firmware_version_free(mo_firmware_version_t *version)
+{
+    OS_ASSERT(OS_NULL != version);
+
+    for (int i = 0; i < version->line_counts; i++)
+    {
+        if (version->ver_info[i] != OS_NULL)
+        {
+            free(version->ver_info[i]);
+        }
+    }
+
+    if (version->ver_info != OS_NULL)
+    {
+        free(version->ver_info);
+    }
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to get module eID
+ *                  Without spec for eID len, current api design for all typical cases
+ * 
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       eid             The buffer to store eID
+ * @param[in]       len             The buffer length
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Get module eID successfully
+ * @retval          OS_ERROR        Get module eID error
+ * @retval          OS_ETIMEOUT     Get module eID timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_get_eid(mo_object_t *self, char *eid, os_size_t len)
+{
+    OS_ASSERT(OS_NULL != self);
+    OS_ASSERT(OS_NULL != eid);
+
+    mo_general_ops_t *ops = get_general_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->get_eid)
+    {
+        LOG_EXT_E("Module %s does not support get SIM eID operate", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->get_eid(self, eid, len);
 }
 
 #endif /* MOLINK_USING_GENERAL_OPS */

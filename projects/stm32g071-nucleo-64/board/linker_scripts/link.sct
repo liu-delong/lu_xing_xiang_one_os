@@ -12,6 +12,7 @@ LR_IROM1 0x08000000 0x00020000  {    ; load region size_region
    * (at_cmd_tab)
    * (driver_table)
    * (device_table)
+   * (MSymTab)
    * (fal_flash_table)
    .ANY (+RO)
   }

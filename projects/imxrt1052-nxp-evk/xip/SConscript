@@ -1,0 +1,15 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+if IsDefined('BSP_USING_HYPERFLASH'):
+    pwd = PresentDir()
+    src = Glob('*.c')
+    CPPPATH = [pwd]
+
+    group = AddCodeGroup('xip', src, depend = [''], CPPPATH = CPPPATH) 
+    Return('group') 
+
+if IsDefined('BSP_USING_QSPIFLASH'): 
+    group = []
+    Return('group') 

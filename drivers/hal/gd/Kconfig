@@ -2,7 +2,18 @@ config SOC_FAMILY_GD32
     bool
     default n
 
+config SOC_FAMILY_GD32F4XX
+    bool
+    default n
+	
 source "$OS_ROOT/drivers/hal/gd/GD32F30x_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/gd/GD32F4xx_HAL/Kconfig"
 
+if SOC_FAMILY_GD32
 source "$OS_ROOT/drivers/hal/gd/drivers/Kconfig"
-comment "Configure base hal in GD32"
+endif
+
+if SOC_FAMILY_GD32F4XX
+source "$OS_ROOT/drivers/hal/gd/drivers_4xx/Kconfig"
+endif
+

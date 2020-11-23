@@ -26,11 +26,20 @@
 #include <os_memory.h>
 #include <bus/bus.h>
 
+typedef struct stm32_hardecc
+{
+    os_uint8_t bit_length;
+    os_uint8_t byte_length;
+    os_uint32_t addr_offset;
+}stm32_hardecc_t;
+
 struct stm32_nand
 {
     os_nand_device_t    nand;
 
     NAND_HandleTypeDef *hnand;
+    
+    stm32_hardecc_t    hardecc;
     
     os_list_node_t      list;
 };
@@ -100,6 +109,7 @@ static os_err_t stm32_nand_erase_block(os_nand_device_t *nand, os_uint32_t page_
     return 0;
 }
 
+#if 0 
 static os_err_t stm32_nand_enable_ecc(os_nand_device_t *nand)
 {
     struct stm32_nand *st_nand = (struct stm32_nand *)nand;
@@ -127,6 +137,26 @@ static os_err_t stm32_nand_get_ecc(os_nand_device_t *nand, os_uint32_t *ecc_valu
     return 0;
 }
 
+static os_err_t stm32_nand_config_hardecc(os_nand_device_t *nand)
+{
+    struct stm32_nand *st_nand = (struct stm32_nand *)nand;
+    
+    st_nand->hardecc.byte_length = 0;
+    nand->cfg.info.hardecc_info.length = st_nand->hardecc.byte_length;
+    st_nand->hardecc.addr_offset = nand->cfg.info.hardecc_info.addr_offset;
+    
+    for (int i = 0; i < 32;i++)
+    {
+        if (nand->cfg.info.page_size >> i)
+        {
+            st_nand->hardecc.bit_length = 6 + i * 2;
+        }
+    }
+    
+    return 0;
+}
+#endif
+
 static os_uint32_t stm32_nand_get_status(os_nand_device_t *nand)
 {
     struct stm32_nand *st_nand = (struct stm32_nand *)nand;
@@ -143,9 +173,7 @@ static const struct os_nand_ops stm32_nand_ops =
     .read_spare     = stm32_nand_read_spare,
     .write_spare    = stm32_nand_write_spare,
     .erase_block    = stm32_nand_erase_block,
-    .enable_ecc     = stm32_nand_enable_ecc,
-    .disable_ecc    = stm32_nand_disable_ecc,
-    .get_ecc        = stm32_nand_get_ecc,
+    .config_hardecc = OS_NULL,
     .get_status     = stm32_nand_get_status,
 };
 
@@ -171,7 +199,7 @@ static int stm32_nand_probe(const os_driver_info_t *drv, const os_device_info_t 
     st_nand->nand.cfg.info.id = (id.Maker_Id << 24) | (id.Device_Id << 16) | (id.Third_Id << 8) | id.Fourth_Id;
 
     os_kprintf("nand id: 0x%08x\r\n", st_nand->nand.cfg.info.id);
-
+    
     result = os_nand_device_register(&st_nand->nand, dev->name);
     
     OS_ASSERT(result == OS_EOK);

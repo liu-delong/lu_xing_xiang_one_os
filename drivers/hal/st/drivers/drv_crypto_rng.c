@@ -114,7 +114,7 @@ static int stm32_rng_probe(const os_driver_info_t *drv, const os_device_info_t *
 
     if (os_hwcrypto_rng_register(hwcrypto, dev->name) != OS_EOK)
     {
-        os_kprintf("stm32 crc probe failed %s.\r\n", dev->name);
+        os_kprintf("stm32 rng probe failed %s.\r\n", dev->name);
         os_free(st_hwcrypto);
         return -1;
     }

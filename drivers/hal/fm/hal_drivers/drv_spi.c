@@ -343,7 +343,7 @@ static int os_hw_spi_bus_init(void)
 /**
   * Attach the spi device to SPI bus, this function must be used after initialization.
   */
-os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_uint16_t pin_num)
+os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t pin_num)
 {
     os_err_t result;
     struct os_spi_device *spi_device;

@@ -23,6 +23,8 @@
 
 #include "drv_usart.h"
 
+//extern struct gd32_uart guart[1];
+#if 1
 static struct gd32_uart guart[] = {
 	{
 		.buffer = OS_NULL,
@@ -33,7 +35,7 @@ static struct gd32_uart guart[] = {
 		.state = SET
 	}
 };
-
+#endif
 static rcu_periph_enum COM_CLK[COMn] = {EVAL_COM0_CLK, EVAL_COM1_CLK};
 static uint32_t COM_TX_PIN[COMn] = {EVAL_COM0_TX_PIN, EVAL_COM1_TX_PIN};
 static uint32_t COM_RX_PIN[COMn] = {EVAL_COM0_RX_PIN, EVAL_COM1_RX_PIN};
@@ -141,12 +143,10 @@ static int gd32_uart_poll_send(struct os_serial_device *serial, const os_uint8_t
 	}
 
 	return size;
-
 }
 
 static int gd32_uart_poll_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
 {
-
 	return OS_EOK;
 }
 
@@ -227,7 +227,6 @@ static void __os_hw_usart_init(os_uint32_t com)
 	return;
 }
 
-
 int os_hw_usart_init(void)
 {	
 	os_uint32_t i;	
@@ -237,7 +236,6 @@ int os_hw_usart_init(void)
 
 	for (i = 0; i < sizeof(guart) / sizeof(guart[0]); i++)
 	{
-
 		if(i >= COMn){
 			os_kprintf("usart number error!\n");
 			break;
@@ -257,6 +255,5 @@ int os_hw_usart_init(void)
 	return OS_EOK;
 }
 
-
-
+//OS_DRIVER_DEFINE(gd32_usart_driver, "0.end.0");
 

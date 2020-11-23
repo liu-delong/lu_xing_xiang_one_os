@@ -34,6 +34,14 @@
 #include "m5311_netserv.h"
 #endif
 
+#ifdef M5311_USING_PING_OPS
+#include "m5311_ping.h"
+#endif
+
+#ifdef M5311_USING_IFCONFIG_OPS
+#include "m5311_ifconfig.h"
+#endif
+
 #ifdef M5311_USING_NETCONN_OPS
 #include "m5311_netconn.h"
 #endif
@@ -72,7 +80,7 @@ typedef struct mo_m5311 {
 #endif /* M5311_USING_NETCONN_OPS */
 } mo_m5311_t;
 
-mo_object_t *module_m5311_create(const char *name, os_device_t *device, os_size_t recv_len);
+mo_object_t *module_m5311_create(const char *name, void *parser_config);
 os_err_t     module_m5311_destroy(mo_object_t *self);
 
 #endif /* MOLINK_USING_M5311 */

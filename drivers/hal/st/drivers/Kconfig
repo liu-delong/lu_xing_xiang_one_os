@@ -29,3 +29,7 @@
             endchoice
         endif
 
+    config DEFAULT_SYSTEM_CLOCK_CONFIG
+        bool "default system clock config"
+        default n
+        

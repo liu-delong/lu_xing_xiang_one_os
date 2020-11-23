@@ -13,7 +13,7 @@
  *
  * @file        drv_usart.c
  *
- * @brief       This file implements usart driver for stm32
+ * @brief       This file implements usart driver for nxp
  *
  * @revision
  * Date         Author          Notes
@@ -26,3 +26,4 @@
 #include "drv_common.h"
 
 #include "devices.c"
+

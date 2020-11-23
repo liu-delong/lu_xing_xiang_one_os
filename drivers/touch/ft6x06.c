@@ -57,6 +57,8 @@ struct ft6x06_touch {
 
     uint16_t x_range;
     uint16_t y_range;
+
+    os_uint16_t id;
 };
 
 static void TS_IO_Write(struct ft6x06_touch *ft6x06, uint8_t reg, uint8_t value)
@@ -450,6 +452,9 @@ static struct os_touch_ops ft6x06_touch_ops =
     .touch_control   = ft6x06_control,
 };
 
+#define TS_I2C_ADDRESS                   ((uint16_t)0x2a)
+#define TS_I2C_ADDRESS_A02               ((uint16_t)0x38)
+
 static int os_hw_ft6x06_init(void)
 {
     struct ft6x06_touch *ft6x06 = os_calloc(1, sizeof(struct ft6x06_touch));
@@ -457,9 +462,21 @@ static int os_hw_ft6x06_init(void)
 
     ft6x06->x_range  = 480;
     ft6x06->y_range  = 800;
-    ft6x06->i2c_addr = OS_FT6X06_I2C_ADDR;
+    //ft6x06->i2c_addr = OS_FT6X06_I2C_ADDR;
     ft6x06->i2c_bus  = os_i2c_bus_device_find(OS_FT6X060_I2C_BUS_NAME);
     OS_ASSERT(ft6x06->i2c_bus);
+
+    ft6x06->i2c_addr = TS_I2C_ADDRESS;
+    ft6x06->id = ft6x06_ReadID(ft6x06);
+    if (ft6x06->id != FT6206_ID_VALUE)
+    {
+        ft6x06->i2c_addr = TS_I2C_ADDRESS_A02;
+        ft6x06->id = ft6x06_ReadID(ft6x06);
+        if (ft6x06->id != FT6206_ID_VALUE)
+        {
+            os_kprintf("invalid ft6x06\r\n");
+        }
+    }
 
     ft6x06_Reset(ft6x06);
     ft6x06_TS_Start(ft6x06);
@@ -479,4 +496,4 @@ static int os_hw_ft6x06_init(void)
     return 0;
 }
 
-OS_DEVICE_INIT(os_hw_ft6x06_init);
+OS_CMPOENT_INIT(os_hw_ft6x06_init);

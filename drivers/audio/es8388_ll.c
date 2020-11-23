@@ -122,15 +122,11 @@ void es8388_set_voice_mute(os_bool_t enable)
     reg_write(ES8388_DACCONTROL3, reg | (((int)enable) << 2));
 }
 
-os_err_t es8388_init(const char *i2c_name, os_uint16_t pin)
+os_err_t es8388_init(os_device_t *dev, os_uint16_t pin)
 {
-    es_dev.i2c = os_i2c_bus_device_find(i2c_name);
-    if (es_dev.i2c == OS_NULL)
-    {
-        os_kprintf("%s bus not found\n", i2c_name);
-        return OS_ERROR;
-    }
-
+    os_device_open(dev, OS_DEVICE_OFLAG_RDWR);
+    
+    es_dev.i2c = (struct os_i2c_bus_device *)dev;
     es_dev.pin = pin;
 
     reg_write(ES8388_DACCONTROL3, 0x04);  

@@ -11,7 +11,7 @@ src = Split("""
 if IsDefined(['OS_USING_PIN', 'HAL_GPIO_MODULE_ENABLED']):
     src += ['drv_gpio.c']
     
-if IsDefined(['OS_USING_SERIAL', 'HAL_UART_MODULE_ENABLED']):
+if IsDefined(['HAL_UART_MODULE_ENABLED']):
     src += ['drv_usart.c']
 
 if IsDefined(['OS_USING_TIMER_DRIVER', 'HAL_TIM_MODULE_ENABLED']):

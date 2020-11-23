@@ -74,7 +74,6 @@ static os_err_t soft_rtc_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops soft_rtc_ops = {
     OS_NULL,
     OS_NULL,
@@ -83,7 +82,6 @@ const static struct os_device_ops soft_rtc_ops = {
     OS_NULL,
     soft_rtc_control
 };
-#endif
 
 int os_soft_rtc_init(void)
 {
@@ -103,16 +101,7 @@ int os_soft_rtc_init(void)
     soft_rtc_dev.type    = OS_DEVICE_TYPE_RTC;
 
     /* register rtc device */
-#ifdef OS_USING_DEVICE_OPS
     soft_rtc_dev.ops     = &soft_rtc_ops;
-#else
-    soft_rtc_dev.init    = OS_NULL;
-    soft_rtc_dev.open    = OS_NULL;
-    soft_rtc_dev.close   = OS_NULL;
-    soft_rtc_dev.read    = OS_NULL;
-    soft_rtc_dev.write   = OS_NULL;
-    soft_rtc_dev.control = soft_rtc_control;
-#endif
 
     /* no private */
     soft_rtc_dev.user_data = OS_NULL;

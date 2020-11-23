@@ -88,7 +88,7 @@ static nmea_t         global_nmea_data = {
  * @return          run succ or fail
  ***********************************************************************************************************************
  */
-static os_err_t uart_rx_ind(os_device_t *dev, os_size_t size)
+static os_err_t uart_rx_ind(os_device_t *dev, struct os_device_cb_info *info)
 {
     static char         tmp_rec_buff[NMEA_SENTENCE_CHARS_MAX_LEN];
     static unsigned int tmp_rec_len = 0;
@@ -98,7 +98,7 @@ static os_err_t uart_rx_ind(os_device_t *dev, os_size_t size)
         /* Read from the serial port and store the data in the ring buffer*/
         if (nmea_ring_buff.buff_size != rb_ring_buff_data_len(&nmea_ring_buff))
         {
-            tmp_rec_len = size;
+            tmp_rec_len = info->size;
             memset(tmp_rec_buff, 0, sizeof(tmp_rec_buff));
 
             /* Save the data to the ring buffer and release the semaphore */
@@ -1447,8 +1447,16 @@ os_int32_t gnss_loca_start(void)
     os_device_control(serial, OS_DEVICE_CTRL_CONFIG, &config);
     /* open device */
     os_device_open(serial, OS_DEVICE_FLAG_INT_RX);
+
     /* set calllback function */
-    os_device_set_rx_indicate(serial, uart_rx_ind);
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .cb   = uart_rx_ind,
+    };
+
+    os_device_control(serial, IOC_SET_CB, &cb_info);
+    
     /* creat NMEA paraser task */
     os_task_t *thread =
         os_task_create("gnss_pos", (void (*)(void *parameter))data_parsing, OS_NULL, NMEA_THREAD_STACK_SIZE, 15, 20);

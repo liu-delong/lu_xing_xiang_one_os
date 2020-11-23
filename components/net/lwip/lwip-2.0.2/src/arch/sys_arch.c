@@ -686,13 +686,12 @@ void sio_read_abort(sio_fd_t fd)
 void ppp_trace(int level, const char *format, ...)
 {
     va_list args;
-    os_size_t length;
-    static char os_log_buf[OS_CONSOLEBUF_SIZE];
-
+ 
     va_start(args, format);
-    length = vsprintf(os_log_buf, format, args);
-    os_device_write((os_device_t*)os_console_get_device(), 0, os_log_buf, length);
+    os_kprintf(format, args);
     va_end(args);
+
+    return;
 }
 #endif
 

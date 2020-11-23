@@ -1,29 +1,70 @@
 menu "Modules"
 
-menu "4G Modules Support" 
+menu "4G CAT1 Modules Support" 
 
     config MOLINK_USING_EC200X
         bool "EC200X"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_EC200X
             source "$OS_ROOT/components/net/molink/module/ec200x/Kconfig"
         endif
-		
+
     config MOLINK_USING_ML302
         bool "ML302"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_ML302
             source "$OS_ROOT/components/net/molink/module/ml302/Kconfig"
         endif
 
+    config MOLINK_USING_GM190
+        bool "GM190"
+        select MOLINK_PLATFORM_MCU
+        default n
+        
+        if MOLINK_USING_GM190
+            source "$OS_ROOT/components/net/molink/module/gm190/Kconfig"
+        endif
+
+    config MOLINK_USING_A7600X
+        bool "A7600X"
+        select MOLINK_PLATFORM_MCU
+        default n
+
+        if MOLINK_USING_A7600X
+            source "$OS_ROOT/components/net/molink/module/a7600x/Kconfig"
+        endif
+
+    config MOLINK_USING_L610
+        bool "L610"
+        select MOLINK_PLATFORM_MCU
+        default n
+        
+        if MOLINK_USING_L610
+            source "$OS_ROOT/components/net/molink/module/l610/Kconfig"
+        endif
+endmenu
+
+menu "4G CAT4 Modules Support" 
+
+    config MOLINK_USING_GM510
+        bool "GM510"
+        select MOLINK_PLATFORM_MCU
+        default n
+        
+        if MOLINK_USING_GM510
+            source "$OS_ROOT/components/net/molink/module/gm510/Kconfig"
+        endif
 endmenu
 
 menu "NB-IOT Modules Support" 
 
     config MOLINK_USING_M5310A
         bool "M5310A"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_M5310A
@@ -32,6 +73,7 @@ menu "NB-IOT Modules Support"
 
     config MOLINK_USING_M5311
         bool "M5311"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_M5311
@@ -40,6 +82,7 @@ menu "NB-IOT Modules Support"
 
     config MOLINK_USING_BC95
         bool "BC95"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_BC95
@@ -48,12 +91,21 @@ menu "NB-IOT Modules Support"
 
     config MOLINK_USING_BC28
         bool "BC28"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_BC28
             source "$OS_ROOT/components/net/molink/module/bc28/Kconfig"
         endif
 
+    config MOLINK_USING_SIM7020
+        bool "SIM7020"
+        select MOLINK_PLATFORM_MCU
+        default n
+        
+        if MOLINK_USING_SIM7020
+            source "$OS_ROOT/components/net/molink/module/sim7020/Kconfig"
+        endif
 
 endmenu
 
@@ -61,10 +113,20 @@ menu "WiFi Modules Support"
 
     config MOLINK_USING_ESP8266
         bool "ESP8266"
+        select MOLINK_PLATFORM_MCU
         default n
         
         if MOLINK_USING_ESP8266
             source "$OS_ROOT/components/net/molink/module/esp8266/Kconfig"
+        endif
+
+    config MOLINK_USING_ESP32
+        bool "ESP32"
+        select MOLINK_PLATFORM_MCU
+        default n
+        
+        if MOLINK_USING_ESP32
+            source "$OS_ROOT/components/net/molink/module/esp32/Kconfig"
         endif
 
 endmenu

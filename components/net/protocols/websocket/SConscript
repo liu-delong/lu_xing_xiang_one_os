@@ -1,0 +1,19 @@
+from build_tools import *
+
+pwd = PresentDir()
+
+path = []
+src = []
+
+if IsDefined(['NET_USING_WEBSOCKET_CLIENT']):
+    path += [pwd]
+    path += [pwd + '/api/client/include']
+    src += ['thirdpart/polarssl/src/sha1.c']
+    src += ['core/source/ws_common.c']
+    src += ['core/source/ws_client_core.c']
+    src += ['api/client/source/ws_client.c']
+    src += ['app/source/ws_client_app.c']
+
+group = AddCodeGroup('websocket', src, depend = ['NET_USING_WEBSOCKET_CLIENT'], CPPPATH = path)
+
+Return('group')

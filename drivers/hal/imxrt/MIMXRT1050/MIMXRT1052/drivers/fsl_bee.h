@@ -1,8 +1,8 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017, 2019 NXP
  * All rights reserved.
  *
- * 
+ *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
@@ -22,41 +22,63 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief BEE driver version. Version 2.0.1.
+/*! @brief BEE driver version. Version 2.0.2.
  *
- * Current version: 2.0.1
+ * Current version: 2.0.2
  *
  * Change log:
- * - Version 2.0.1
+ *
+ * - 2.0.2
+ *   - Bug Fixes
+ *     - Fixed MISRA issue.
+ *
+ * - 2.0.1
+ *   - Bug Fixes
+ *    - Fixed bug in key user key loading sequence. BEE must be enabled during loading of user key.
+ *    - Fixed typos in comments.
+ *   - New Features
+ *    - Added configuration setting for endian swap, access permission and region security level.
+ *	 - Improvements
+ *	  - Setting of AES nonce was moved from BEE_SetRegionKey() into separate BEE_SetRegionNonce() function.
+ *     - Changed handling of region settings. Both regions are configured simultaneously by BEE_SetConfig() function.
+ *      Configuration of FAC start and end address using IOMUXC_GPRs was moved to application.
+ *    - Default value for region address offset was changed to 0.
+ *
+ * - 2.0.0
  *   - Initial version
  */
-#define FSL_BEE_DRIVER_VERSION (MAKE_VERSION(2, 0, 1))
+#define FSL_BEE_DRIVER_VERSION (MAKE_VERSION(2, 0, 2))
 /*@}*/
 
+/*! @brief BEE aes mode. */
 typedef enum _bee_aes_mode
 {
     kBEE_AesEcbMode = 0U, /*!< AES ECB Mode */
     kBEE_AesCtrMode = 1U  /*!< AES CTR Mode */
 } bee_aes_mode_t;
 
+/*! @brief BEE region. */
 typedef enum _bee_region
 {
     kBEE_Region0 = 0U, /*!< BEE region 0 */
     kBEE_Region1 = 1U  /*!< BEE region 1 */
 } bee_region_t;
 
+/*! @brief BEE ac prot enable. */
 typedef enum _bee_ac_prot_enable
 {
     kBEE_AccessProtDisabled = 0U, /*!< BEE access permission control disabled */
-    kBEE_AccessProtEnabled = 1U   /*!< BEE access permission control enabled */
+    kBEE_AccessProtEnabled  = 1U  /*!< BEE access permission control enabled */
 } bee_ac_prot_enable;
 
+/*! @brief BEE endian swap enable. */
 typedef enum _bee_endian_swap_enable
 {
     kBEE_EndianSwapDisabled = 1U, /*!< BEE endian swap disabled */
-    kBEE_EndianSwapEnabled = 0U   /*!< BEE endian swap enabled */
+    kBEE_EndianSwapEnabled  = 0U  /*!< BEE endian swap enabled */
 } bee_endian_swap_enable;
 
+/*! @brief BEE security level. */
 typedef enum _bee_security_level
 {
     kBEE_SecurityLevel0 = 0U, /*!< BEE security level 0 */
@@ -65,15 +87,16 @@ typedef enum _bee_security_level
     kBEE_SecurityLevel3 = 3U  /*!< BEE security level 3 */
 } bee_security_level;
 
+/*! @brief BEE status flags. */
 typedef enum _bee_status_flags
 {
-    kBEE_DisableAbortFlag = 1U,              /*!< Disable abort flag. */
-    kBEE_Reg0ReadSecViolation = 2U,          /*!< Region-0 read channel security violation */
-    kBEE_ReadIllegalAccess = 4U,             /*!< Read channel illegal access detected */
-    kBEE_Reg1ReadSecViolation = 8U,          /*!< Region-1 read channel security violation */
-    kBEE_Reg0AccessViolation = 16U,          /*!< Protected region-0 access violation */
-    kBEE_Reg1AccessViolation = 32U,          /*!< Protected region-1 access violation */
-    kBEE_IdleFlag = BEE_STATUS_BEE_IDLE_MASK /*!< Idle flag */
+    kBEE_DisableAbortFlag     = 1U,                      /*!< Disable abort flag. */
+    kBEE_Reg0ReadSecViolation = 2U,                      /*!< Region-0 read channel security violation */
+    kBEE_ReadIllegalAccess    = 4U,                      /*!< Read channel illegal access detected */
+    kBEE_Reg1ReadSecViolation = 8U,                      /*!< Region-1 read channel security violation */
+    kBEE_Reg0AccessViolation  = 16U,                     /*!< Protected region-0 access violation */
+    kBEE_Reg1AccessViolation  = 32U,                     /*!< Protected region-1 access violation */
+    kBEE_IdleFlag             = BEE_STATUS_BEE_IDLE_MASK /*!< Idle flag */
 } bee_status_flags_t;
 
 /*! @brief BEE region configuration structure. */
@@ -186,8 +209,7 @@ void BEE_SetConfig(BEE_Type *base, const bee_region_config_t *config);
  * @param key AES key (in little-endian format).
  * @param keySize Size of AES key.
  */
-status_t BEE_SetRegionKey(
-    BEE_Type *base, bee_region_t region, const uint8_t *key, size_t keySize);
+status_t BEE_SetRegionKey(BEE_Type *base, bee_region_t region, const uint8_t *key, size_t keySize);
 
 /*!
  * @brief Loads the nonce for selected region into BEE nonce registers.
@@ -200,8 +222,7 @@ status_t BEE_SetRegionKey(
  * @param nonce AES nonce (in little-endian format).
  * @param nonceSize Size of AES nonce.
  */
-status_t BEE_SetRegionNonce(
-    BEE_Type *base, bee_region_t region, const uint8_t *nonce, size_t nonceSize);
+status_t BEE_SetRegionNonce(BEE_Type *base, bee_region_t region, const uint8_t *nonce, size_t nonceSize);
 
 /*!
  * @brief Gets the BEE status flags.
@@ -227,5 +248,7 @@ void BEE_ClearStatusFlags(BEE_Type *base, uint32_t mask);
 #if defined(__cplusplus)
 }
 #endif
+
+/*@}*/
 
 #endif /* _FSL_BEE_H_ */

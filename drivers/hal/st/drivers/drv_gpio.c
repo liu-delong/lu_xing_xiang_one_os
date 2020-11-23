@@ -443,7 +443,11 @@ static os_err_t stm32_pin_irq_enable(struct os_device *device, os_base_t pin, os
 
         level = os_hw_interrupt_disable();
 
-        HAL_GPIO_DeInit(index->gpio, index->pin);
+        GPIO_InitStruct.Pin   = index->pin;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+        GPIO_InitStruct.Pull = pin_pulls[index->index].pull_state;
+        HAL_GPIO_Init(index->gpio, &GPIO_InitStruct);
 
         pin_irq_enable_mask &= ~irqmap->pinbit;
 #if defined(SOC_SERIES_STM32F0) || defined(SOC_SERIES_STM32G0)

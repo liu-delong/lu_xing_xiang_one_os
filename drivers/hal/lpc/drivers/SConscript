@@ -8,13 +8,17 @@ pwd = PresentDir()
 src = Split("""
 """)
 
-if IsDefined(['OS_USING_PIN', 'HAL_GPIO_MODULE_ENABLED']):
+if IsDefined(['OS_USING_PIN', 'BSP_USING_GPIO']):
     src += ['drv_gpio.c']
     
-if IsDefined(['OS_USING_SERIAL', 'HAL_USART_MODULE_ENABLED']):
+if IsDefined(['OS_USING_SERIAL', 'BSP_USING_USART']):
     src += ['drv_usart.c']
 
-if IsDefined(['OS_USING_TIMER_DRIVER', 'HAL_TIM_MODULE_ENABLED']):
+if IsDefined(['BSP_USING_UTICK']):
+#if IsDefined(['OS_USING_UTICK', 'BSP_USING_UTICK']):
+    src += ['drv_utick.c']
+
+if IsDefined(['OS_USING_TIMER_DRIVER', 'BSP_USING_CTIMER']):
     src += ['drv_hwtimer.c']
     
 if IsDefined(['OS_USING_PWM']):
@@ -23,29 +27,29 @@ if IsDefined(['OS_USING_PWM']):
 if IsDefined(['OS_USING_PULSE_ENCODER']):    
     src += ['drv_pulse_encoder.c']
 
-if IsDefined(['OS_USING_SPI', 'HAL_SPI_MODULE_ENABLED']):
+if IsDefined(['OS_USING_SPI', 'BSP_USING_SPI']):
     src += ['drv_spi.c']
     
-if IsDefined(['OS_USING_I2C', 'HAL_I2C_MODULE_ENABLED']):
+if IsDefined(['OS_USING_I2C', 'BSP_USING_I2C']):
     src += ['drv_i2c.c']
 
-if IsDefined(['OS_USING_QSPI', 'HAL_QSPI_MODULE_ENABLED']):
+if IsDefined(['OS_USING_QSPI', 'BSP_USING_QSPI']):
     src += ['drv_qspi.c']
 
-if IsDefined(['NET_USING_LWIP', 'HAL_ETH_MODULE_ENABLED']):
+if IsDefined(['NET_USING_LWIP', 'BSP_USING_ETH']):
     src += ['drv_eth.c']
 
-if IsDefined(['OS_USING_ADC', 'HAL_ADC_MODULE_ENABLED']):
+if IsDefined(['OS_USING_ADC', 'BSP_USING_ADC']):
     src += Glob('drv_adc.c')
     
-if IsDefined(['OS_USING_DAC', 'HAL_DAC_MODULE_ENABLED']):
+if IsDefined(['OS_USING_DAC', 'BSP_USING_DAC']):
     src += Glob('drv_dac.c')
 
-if IsDefined(['OS_USING_CAN', 'HAL_CAN_MODULE_ENABLED']):
+if IsDefined(['OS_USING_CAN', 'BSP_USING_CAN']):
     src += ['drv_can.c']
 
-if IsDefined(['OS_USING_CLOCKEVENT', 'HAL_LPTIM_MODULE_ENABLED']):
-    src += ['drv_lptim.c']
+if IsDefined(['OS_USING_CLOCKEVENT', 'BSP_USING_TIM']):
+    src += ['drv_tim.c']
     
 if IsDefined(['OS_USING_LPMGR']):
     src += ['drv_lpmgr.c']
@@ -53,25 +57,28 @@ if IsDefined(['OS_USING_LPMGR']):
 if IsDefined(['HAL_SDRAM_MODULE_ENABLED']):
     src += ['drv_sdram.c']
 	
-if IsDefined(['OS_USING_RTC', 'HAL_RTC_MODULE_ENABLED']):
+if IsDefined(['OS_USING_RTC', 'BSP_USING_RTC']):
     src += ['drv_rtc.c']
 
-if IsDefined(['OS_HWCRYPTO_USING_RNG', 'HAL_RNG_MODULE_ENABLED']):
+if IsDefined(['OS_USING_I2S', 'BSP_USING_I2S']):
+    src += ['drv_i2s.c']
+    
+if IsDefined(['OS_HWCRYPTO_USING_RNG', 'BSP_USING_RNG']):
     src += ['drv_crypto_rng.c']
 
-if IsDefined(['OS_HWCRYPTO_USING_CRC', 'HAL_CRC_MODULE_ENABLED']):
+if IsDefined(['OS_HWCRYPTO_USING_CRC', 'BSP_USING_CRC_ENGINE']):
     src += ['drv_crypto_crc.c']
     
-if IsDefined(['OS_USING_WDG', 'HAL_IWDG_MODULE_ENABLED']):
+if IsDefined(['OS_USING_WDG', 'BSP_USING_IWDG']):
     src += ['drv_iwdg.c']
 
-if IsDefined(['OS_USING_WDG', 'HAL_WWDG_MODULE_ENABLED']):
-    src += ['drv_wwdg.c']
+if IsDefined(['OS_USING_WDG', 'BSP_USING_WWDT']):
+    src += ['drv_wwdt.c']
     
 if IsDefined(['OS_USING_SDIO', 'HAL_SD_MODULE_ENABLED']) or IsDefined(['OS_USING_SDIO', 'HAL_MMC_MODULE_ENABLED']):
     src += ['drv_sdio.c']
 
-if IsDefined(['OS_USING_USB_DEVICE', 'HAL_PCD_MODULE_ENABLED']):
+if IsDefined(['OS_USING_USB_DEVICE', 'BSP_USING_USB']):
     src += ['drv_usbd.c']
 
 if IsDefined(['HAL_SRAM_MODULE_ENABLED']):
@@ -83,15 +90,15 @@ if IsDefined(['OS_USING_DSI', 'HAL_DSI_MODULE_ENABLED']):
 if IsDefined(['OS_USING_GRAPHIC', 'HAL_LTDC_MODULE_ENABLED']):
     src += ['drv_lcd.c']
 
-if IsDefined(['OS_USING_SAI', 'HAL_SAI_MODULE_ENABLED']):
-    src += ['drv_sai.c']
-
+if IsDefined(['OS_USING_FAL', 'SOC_LPC55S69']):
+    src += ['drv_flash/drv_flash_lpc55s69.c']
+    
 src += ['drv_common.c']
 
 path =  [pwd]
 path += [pwd + '/config']
 
-if IsDefined('HAL_FLASH_MODULE_ENABLED'):
+if IsDefined('SOC_LPC55S69'):
     path += [pwd + '/drv_flash']
 
 group = AddCodeGroup('hal/drivers', src, depend = ['SOC_FAMILY_NXP_LPC'], CPPPATH = path)

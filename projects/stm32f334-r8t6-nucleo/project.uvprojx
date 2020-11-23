@@ -332,9 +332,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls />
-              <Define>STM32F334x8, USE_HAL_DRIVER, OS_USING_ARM_LIBC</Define>
+              <Define>STM32F334x8, OS_USING_ARM_LIBC, USE_HAL_DRIVER</Define>
               <Undefine />
-              <IncludePath>.;application;board;board\CubeMX_Config\Inc;board\ports;..\..\common\include;..\..\components\diagnose\include;..\..\components\dlog\include;..\..\drivers;..\..\drivers\bus;..\..\drivers\fal;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\rtc;..\..\drivers\serial;..\..\drivers\timer;..\..\drivers\watchdog;..\..\drivers\pin;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Device\ST\STM32F3xx\Include;..\..\drivers\hal\st\STM32F3xx_HAL\STM32F3xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Include;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\shell\include</IncludePath>
+              <IncludePath>.;application;board;board\CubeMX_Config\Inc;board\ports;..\..\common\include;..\..\arch\arm\common;..\..\arch\arm\cortex-m4;..\..\components\diagnose\include;..\..\components\dlog\include;..\..\drivers;..\..\drivers\bus;..\..\drivers\dma;..\..\drivers\fal;..\..\drivers\misc;..\..\drivers\pin;..\..\drivers\serial;..\..\drivers\timer;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Device\ST\STM32F3xx\Include;..\..\drivers\hal\st\STM32F3xx_HAL\STM32F3xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Include;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\shell\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -458,9 +458,23 @@
           <GroupName>cpu</GroupName>
           <Files>
             <File>
+              <FileName>cortexm_common.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\arch\arm\common\cortexm_common.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>cpuport.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\arch\arm\cortex-m4\cpuport.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>exc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\arch\arm\cortex-m4\exc.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -499,9 +513,16 @@
           <GroupName>drivers</GroupName>
           <Files>
             <File>
-              <FileName>drivers.c</FileName>
+              <FileName>os_drivers.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\drivers\drivers.c</FilePath>
+              <FilePath>..\..\drivers\os_drivers.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>os_device.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\os_device.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -509,6 +530,13 @@
               <FileName>bus.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\bus\bus.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>os_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\dma\os_dma.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -527,13 +555,6 @@
           </Files>
           <Files>
             <File>
-              <FileName>i2c.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\i2c\i2c.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
               <FileName>push_button.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\misc\push_button.c</FilePath>
@@ -548,9 +569,9 @@
           </Files>
           <Files>
             <File>
-              <FileName>rtc.c</FileName>
+              <FileName>pin.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\drivers\rtc\rtc.c</FilePath>
+              <FilePath>..\..\drivers\pin\pin.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -593,23 +614,6 @@
               <FileName>hrtimer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\timer\hrtimer.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>watchdog.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\watchdog\watchdog.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>drivers/pin</GroupName>
-          <Files>
-            <File>
-              <FileName>pin.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\pin\pin.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -655,23 +659,9 @@
           </Files>
           <Files>
             <File>
-              <FileName>drv_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\hal\st\drivers\drv_rtc.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
               <FileName>drv_flash_f3.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\hal\st\drivers\drv_flash\drv_flash_f3.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>drv_iwdg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\hal\st\drivers\drv_iwdg.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -923,13 +913,6 @@
               <FileName>os_clock.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\kernel\source\os_clock.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>os_device.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\kernel\source\os_device.c</FilePath>
             </File>
           </Files>
           <Files>

@@ -435,10 +435,13 @@ static os_err_t _ep_in_handler(ufunction_t func, os_size_t size)
     OS_ASSERT(func->device != OS_NULL);
 
     data = (struct hid_s *)func->user_data;
-    if (data->parent.tx_complete != OS_NULL)
+    struct os_device_cb_info *info = &data->parent.cb_table[OS_DEVICE_CB_TYPE_TX];
+    if (info->cb != OS_NULL)
     {
-        data->parent.tx_complete(&data->parent, OS_NULL);
+        info->data = OS_NULL;
+        info->cb(&data->parent, info);
     }
+
     return OS_EOK;
 }
 
@@ -618,10 +621,10 @@ OS_WEAK void HID_Report_Received(hid_report_t report)
     dump_report(report);
 }
 OS_ALIGN(OS_ALIGN_SIZE)
-static os_uint8_t     hid_thread_stack[512];
-static struct os_task hid_thread;
+static os_uint8_t     hid_task_stack[512];
+static struct os_task hid_task;
 
-static void hid_thread_entry(void *parameter)
+static void hid_task_entry(void *parameter)
 {
     struct hid_report report;
     struct hid_s     *hiddev;
@@ -635,7 +638,6 @@ static void hid_thread_entry(void *parameter)
     }
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops hid_device_ops =
 {
     OS_NULL,
@@ -645,7 +647,6 @@ const static struct os_device_ops hid_device_ops =
     _hid_write,
     OS_NULL,
 };
-#endif
 
 static os_uint8_t hid_mq_pool[(sizeof(struct hid_report) + sizeof(void *)) * 8];
 static void       os_usb_hid_init(struct ufunction *func)
@@ -654,11 +655,7 @@ static void       os_usb_hid_init(struct ufunction *func)
     hiddev = (struct hid_s *)func->user_data;
     memset(&hiddev->parent, 0, sizeof(hiddev->parent));
 
-#ifdef OS_USING_DEVICE_OPS
     hiddev->parent.ops = &hid_device_ops;
-#else
-    hiddev->parent.write = _hid_write;
-#endif
     hiddev->func = func;
 
     os_device_register(&hiddev->parent, "hidd", OS_DEVICE_FLAG_RDWR);
@@ -669,15 +666,15 @@ static void       os_usb_hid_init(struct ufunction *func)
                sizeof(struct hid_report),
                OS_IPC_FLAG_FIFO);
 
-    os_task_init(&hid_thread,
+    os_task_init(&hid_task,
                  "hidd",
-                 hid_thread_entry,
+                 hid_task_entry,
                  hiddev,
-                 hid_thread_stack,
-                 sizeof(hid_thread_stack),
-                 OS_USBD_THREAD_PRIO,
+                 hid_task_stack,
+                 sizeof(hid_task_stack),
+                 OS_USBD_TASK_PRIO,
                  20);
-    os_task_startup(&hid_thread);
+    os_task_startup(&hid_task);
 }
 
 ufunction_t os_usbd_function_hid_create(udevice_t device)

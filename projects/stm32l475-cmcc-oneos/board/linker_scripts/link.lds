@@ -67,6 +67,12 @@ SECTIONS
         KEEP(*(device_table))
         __device_table_end = .;
         
+        /* section information for modules */
+        . = ALIGN(4);
+        __osmsymtab_start = .;
+        KEEP(*(MSymTab))
+        __osmsymtab_end = .;
+        
         /* section information for fal flash devices */
         . = ALIGN(4);
         __fal_flash_table_start = .;

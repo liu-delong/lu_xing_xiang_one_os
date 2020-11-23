@@ -30,7 +30,7 @@
 #include <shell.h>
 #include <string.h>
 #include <stdlib.h>
-#include <drivers.h>
+#include <os_drivers.h>
 #include <fal/fal.h>
 
 #ifdef OS_USING_VFS

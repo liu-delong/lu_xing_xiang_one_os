@@ -48,12 +48,11 @@
 #define OS_MEM_STATS
 /* end of Memory management */
 
-/* Kernel device object */
+/* Kernel console */
 
-#define OS_USING_DEVICE
 #define OS_USING_CONSOLE
 #define OS_CONSOLE_DEVICE_NAME "uart3"
-/* end of Kernel device object */
+/* end of Kernel console */
 
 /* Enable assert */
 
@@ -95,6 +94,8 @@
 /* end of Osal */
 
 /* Drivers */
+
+#define OS_USING_DEVICE
 
 /* HAL */
 
@@ -211,7 +212,7 @@
 /* USB */
 
 #define OS_USING_USB_DEVICE
-#define OS_USBD_THREAD_STACK_SZ 4096
+#define OS_USBD_TASK_STACK_SZ 4096
 #define USB_VENDOR_ID 0x0FFE
 #define USB_PRODUCT_ID 0x0001
 #define _OS_USB_DEVICE_HID
@@ -245,6 +246,10 @@
 #define ATEST_TASK_STACK_SIZE 4096
 #define ATEST_TASK_PRIORITY 20
 /* end of Atest */
+
+/* BLE */
+
+/* end of BLE */
 
 /* Cloud */
 
@@ -312,6 +317,14 @@
 /* MQTT */
 
 /* end of MQTT */
+
+/* Websocket */
+
+/* end of Websocket */
+
+/* Httpclient */
+
+/* end of Httpclient */
 /* end of Protocols */
 
 /* Socket */
@@ -340,7 +353,7 @@
 #define SHELL_ARG_MAX 10
 /* end of Shell */
 
-/* Virtual file system */
+/* FileSystem */
 
 #define OS_USING_VFS
 #define VFS_USING_WORKDIR
@@ -348,7 +361,7 @@
 #define VFS_FILESYSTEM_TYPES_MAX 2
 #define VFS_FD_MAX 16
 #define OS_USING_VFS_DEVFS
-/* end of Virtual file system */
+/* end of FileSystem */
 
 /* GUI */
 
@@ -392,6 +405,10 @@
 /* MicroPython */
 
 /* end of MicroPython */
+
+/* Amazon-iot */
+
+/* end of Amazon-iot */
 /* end of Thirdparty */
 
 /* Boot Config */

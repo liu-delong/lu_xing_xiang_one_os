@@ -45,20 +45,17 @@ extern "C" {
 
 #if defined(__CC_ARM) || defined(__CLANG_ARM)
 extern int Image$$RW_IRAM1$$ZI$$Limit;
-#define HEAP1_BEGIN (&Image$$RW_IRAM1$$ZI$$Limit)
+#define HEAP_BEGIN (&Image$$RW_IRAM1$$ZI$$Limit)
 #elif __ICCARM__
 #pragma section = "HEAP"
-#define HEAP1_BEGIN (__segment_end("HEAP"))
+#define HEAP_BEGIN (__segment_end("HEAP"))
 #else
 extern int __bss_end;
-#define HEAP1_BEGIN (&__bss_end)
+#define HEAP_BEGIN (&__bss_end)
 #endif
 
-#define HEAP1_END 	STM32_SRAM1_END
+#define HEAP_END 	STM32_SRAM1_END
 
-#define HEAP2_BEGIN STM32_SRAM2_START
-#define HEAP2_SIZE	(32)
-#define HEAP2_END	(HEAP2_BEGIN + HEAP2_SIZE*1024)
 
 
 
@@ -84,26 +81,9 @@ extern const int   led_table_size;
 extern const buzzer_t buzzer_table[];
 extern const int      buzzer_table_size;
 
-#define SYS_HEAP_SRAM	1
 
 
 
-
-#if (SYS_HEAP_SRAM == 1)
-
-#define HEAP_BEGIN				HEAP1_BEGIN
-#define HEAP_END				HEAP1_END
-
-
-#define MICROPYTHON_RAM_SIZE	(32)
-#define MICROPYTHON_RAM_START 	STM32_SRAM2_START
-#else
-
-#define HEAP_BEGIN				HEAP2_BEGIN
-#define HEAP_END				HEAP2_END
-#define MICROPYTHON_RAM_SIZE	(STM32_SRAM1_SIZE - (int)((HEAP1_END - (int)HEAP1_BEGIN)/1024))
-#define MICROPYTHON_RAM_START 	HEAP1_BEGIN
-#endif
 
 #ifdef __cplusplus
 }

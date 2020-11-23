@@ -56,7 +56,6 @@
 #include "hc32l17x.h"
 #include "system_hc32l17x.h"
 #include "hc_sysctrl.h"
-#include "meter.h"
 
 /**
  ******************************************************************************
@@ -176,8 +175,6 @@ void SystemInit(void)
     M0P_SYSCTRL->RCH_CR_f.TRIM = (*((volatile uint16_t*) (0x00100C08ul)));
     SystemCoreClockUpdate();
     _InitHidePin();
-
-//    sysctrl_ini();
 }
 
 

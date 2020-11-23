@@ -547,7 +547,7 @@ int audio_mic_init(void)
     os_task_t *mic_tid;
     mic.event = os_event_create("mic_event", OS_IPC_FLAG_FIFO);
 
-    mic_tid = os_task_create("mic_thread", mic_entry, OS_NULL, 1024, 5, 10);
+    mic_tid = os_task_create("mic_task", mic_entry, OS_NULL, 1024, 5, 10);
 
     if (mic_tid != OS_NULL)
         os_task_startup(mic_tid);

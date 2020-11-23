@@ -34,6 +34,8 @@
 #include "lib/utils/pyexec.h"
 #include "middle/include/portmodules.h"
 //#include "modmachine.h"
+
+#if (MICROPY_PY_MACHINE)
 #include "vfs.h"
 #include "utime_mphal.h"
 #include "usr_pin.h"
@@ -134,7 +136,6 @@ STATIC const mp_rom_map_elem_t pyb_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_udelay), MP_ROM_PTR(&mp_utime_sleep_us_obj) },
     { MP_ROM_QSTR(MP_QSTR_mount), MP_ROM_PTR(&mp_os_mount_obj) },
 */
-    { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
 
 //#if MICROPY_HW_ENABLE_RNG
 //    { MP_ROM_QSTR(MP_QSTR_rng), MP_ROM_PTR(&pyb_rng_get_obj) },
@@ -146,7 +147,7 @@ STATIC const mp_rom_map_elem_t pyb_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_Pin), MP_ROM_PTR(&machine_pin_type) },
 #endif
 
-#if MICROPY_PY_MACHINE_SPI
+#if (MICROPY_PY_MACHINE_SPI && MICROPY_PY_MACHINE_PIN)
 	{ MP_ROM_QSTR(MP_QSTR_SPI), MP_ROM_PTR(&mp_machine_soft_spi_type) },
 #endif
 
@@ -169,7 +170,11 @@ STATIC const mp_rom_map_elem_t pyb_module_globals_table[] = {
 #if MICROPY_PY_MACHINE_RTC
 	  { MP_ROM_QSTR(MP_QSTR_RTC), MP_ROM_PTR(&machine_hard_rtc_type) },
 #endif
-	
+
+#if MICROPY_PY_MACHINE_TIMER
+    { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
+#endif
+
 { MP_ROM_QSTR(MP_QSTR_getall), MP_ROM_PTR(&machine_getall_obj) },
 
 //    { MP_ROM_QSTR(MP_QSTR_ExtInt), MP_ROM_PTR(&extint_type) },
@@ -210,7 +215,6 @@ STATIC const mp_rom_map_elem_t pyb_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_CAN), MP_ROM_PTR(&mp_machine_can_type) },
 #endif
 //
-//    { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&pyb_adc_type) },
 //    { MP_ROM_QSTR(MP_QSTR_ADCAll), MP_ROM_PTR(&pyb_adc_all_type) },
 //
 #if MICROPY_PY_MACHINE_DAC
@@ -232,3 +236,4 @@ const mp_obj_module_t pyb_module = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t*)&pyb_module_globals,
 };
+#endif

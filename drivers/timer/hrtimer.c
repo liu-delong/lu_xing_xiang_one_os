@@ -52,6 +52,8 @@ static void os_hrtimer_enqueue(os_hrtimer_t *hrtimer)
 
     os_list_for_each_entry(tmp, &gs_hrtimer_list, os_hrtimer_t, list)
     {
+        OS_ASSERT(tmp != hrtimer);
+    
         if (tmp->next_nsec > hrtimer->next_nsec)
             break;
         entry = &tmp->list;
@@ -157,12 +159,13 @@ void os_hrtimer_stop(os_hrtimer_t *hrtimer)
 }
 
 #ifdef OS_USING_HRTIMER_FOR_SYSTICK
-/* hrtimer for systick */
-static void os_tick_handler(void)
+OS_WEAK void os_tick_handler(void)
 {
     os_interrupt_enter();
     os_tick_increase();
+#ifdef OS_USING_CLOCKSOURCE
     os_clocksource_update();
+#endif
     os_interrupt_leave();
 }
 

@@ -1,85 +1,190 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
- * Change Logs:
- * Date           Author       Notes
- * 2019-07-15     Magicoe      The first version for LPC55S6x
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_usart.h
+ *
+ * @brief       This file implements usart driver for imxrt.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-09-01   OneOS Team      First Version
+ ***********************************************************************************************************************
  */
 
-#ifndef __DRV_UART_H__
-#define __DRV_UART_H__
 
-#include "fsl_usart.h"
-#include "fsl_usart_dma.h"
-#include "fsl_dma.h"
+#ifndef __DRV_USART_H__
+#define __DRV_USART_H__
 
-/****** USART Event *****/
-#define ARM_USART_EVENT_SEND_COMPLETE       (1UL << 0)  ///< Send completed; however USART may still transmit data
-#define ARM_USART_EVENT_RECEIVE_COMPLETE    (1UL << 1)  ///< Receive completed
-#define ARM_USART_EVENT_TRANSFER_COMPLETE   (1UL << 2)  ///< Transfer completed
-#define ARM_USART_EVENT_TX_COMPLETE         (1UL << 3)  ///< Transmit completed (optional)
-#define ARM_USART_EVENT_TX_UNDERFLOW        (1UL << 4)  ///< Transmit data not available (Synchronous Slave)
-#define ARM_USART_EVENT_RX_OVERFLOW         (1UL << 5)  ///< Receive data overflow
-#define ARM_USART_EVENT_RX_TIMEOUT          (1UL << 6)  ///< Receive character timeout (optional)
-#define ARM_USART_EVENT_RX_BREAK            (1UL << 7)  ///< Break detected on receive
-#define ARM_USART_EVENT_RX_FRAMING_ERROR    (1UL << 8)  ///< Framing error detected on receive
-#define ARM_USART_EVENT_RX_PARITY_ERROR     (1UL << 9)  ///< Parity error detected on receive
-#define ARM_USART_EVENT_CTS                 (1UL << 10) ///< CTS state changed (optional)
-#define ARM_USART_EVENT_DSR                 (1UL << 11) ///< DSR state changed (optional)
-#define ARM_USART_EVENT_DCD                 (1UL << 12) ///< DCD state changed (optional)
-#define ARM_USART_EVENT_RI                  (1UL << 13) ///< RI  state changed (optional)
+#include <drv_common.h>
 
-#define USART_RX_DMA_CHANNEL      4
-#define USART_TX_DMA_CHANNEL      5
-#define USART_DMA_BASEADDR DMA0
+#define USART_IRQHandler_DEFINE(__index)                                                        \
+void USART##__index##_FLEXCOMM_IRQHANDLER(void)                                                 \
+{                                                                                               \
+    struct nxp_usart *nxp_usart;                                                                \
+    os_list_for_each_entry(nxp_usart, &nxp_usart_list, struct nxp_usart, list)                  \
+    {                                                                                           \
+        if (nxp_usart->usart_info->usart_base == (USART_Type *)FLEXCOMM##__index)               \
+        {                                                                                       \
+            break;                                                                              \
+        }                                                                                       \
+    }                                                                                           \
+    if (nxp_usart->usart_info->usart_base != (USART_Type *)FLEXCOMM##__index)                   \
+        return;                                                                                 \
+    nxp_usart_irq_callback(nxp_usart);                                                          \
+    SDK_ISR_EXIT_BARRIER;                                                                       \
+}
 
-typedef struct _hal_usart_handle
-{
-    USART_Type *uart_base;
-    const usart_config_t *uart_config;
-    usart_dma_handle_t *uartDmaHandle;
-} hal_usart_handle_t;
+#define USART_IRQ_INIT(_NXP_USART_, __index)                                                    \
+    _NXP_USART_->clk_src = USART##__index##_CLOCK_SOURCE;                                       \
+    _NXP_USART_->irqn = USART##__index##_FLEXCOMM_IRQN;
 
-typedef struct _hal_uart_receive_state
-{
-    volatile uint8_t *buffer;
-    volatile uint32_t bufferLength;
-    volatile uint32_t bufferSofar;
-} hal_uart_receive_state_t;
+#define USART_NBK_INIT(_NXP_USART_, __index)                                                    \
+    _NXP_USART_->clk_src = USART##__index##_CLOCK_SOURCE;                                       \
+    _NXP_USART_->usart_handle = &USART##__index##_handle;                                       \
+    _NXP_USART_->usart_handle->callback = nxp_usart_transfer_callback;                          \
+    _NXP_USART_->usart_handle->userData = _NXP_USART_;                                          \
 
-/*! @brief uart TX state structure. */
-typedef struct _hal_uart_send_state
-{
-    volatile uint8_t *buffer;
-    volatile uint32_t bufferLength;
-    volatile uint32_t bufferSofar;
-} hal_uart_send_state_t;
+#define USART_DMA_INIT(_NXP_USART_, __index)                                                    \
+    _NXP_USART_->clk_src = USART##__index##_CLOCK_SOURCE;                                       \
+    _NXP_USART_->usart_DmaHandle = &USART##__index##_USART_DMA_Handle;                           \
+    _NXP_USART_->usart_DmaHandle->callback = nxp_usart_dma_callback;                             \
+    _NXP_USART_->usart_DmaHandle->userData = _NXP_USART_;                                        \
 
-typedef void (*hal_uart_transfer_callback_t)(USART_Type *base, usart_handle_t *handle, status_t status, void *userData);
+#define USART_POL_INIT(_NXP_USART_, __index) _NXP_USART_->clk_src = USART##__index##_CLOCK_SOURCE;
 
-typedef struct _hal_uart_transfer
-{
-    uint8_t *data;   /*!< The buffer of data to be transfer.*/
-    size_t dataSize; /*!< The byte count to be transfer. */
-} hal_uart_transfer_t;
-
-typedef struct _hal_uart_state
-{
-    hal_uart_transfer_callback_t callback;
-    void *callbackParam;
+#define USART_NULL_INIT(_NXP_USART_, __index) return;
     
-    usart_handle_t hardwareHandle;
-    hal_uart_receive_state_t rx;
-    hal_uart_send_state_t tx;
-    
-    uint8_t instance;
-} hal_uart_state_t;
+#if defined(USART0_FLEXCOMM_IRQN)
+#define USART0_CFG_INIT USART_IRQ_INIT
+#elif defined(USART0_RX_BUFFER_SIZE) && defined(USART0_TX_BUFFER_SIZE)
+#define USART0_CFG_INIT USART_NBK_INIT
+#elif defined(USART0_RX_DMA_CHANNEL) && defined(USART0_TX_DMA_CHANNEL)
+#define USART0_CFG_INIT USART_DMA_INIT
+#elif defined(USART0_FLEXCOMM)
+#define USART0_CFG_INIT USART_POL_INIT
+#else
+#define USART0_CFG_INIT USART_NULL_INIT
+#endif
 
+#if defined(USART1_FLEXCOMM_IRQN)
+#define USART1_CFG_INIT USART_IRQ_INIT
+#elif defined(USART1_RX_BUFFER_SIZE) && defined(USART1_TX_BUFFER_SIZE)
+#define USART1_CFG_INIT USART_NBK_INIT
+#elif defined(USART1_RX_DMA_CHANNEL) && defined(USART1_TX_DMA_CHANNEL)
+#define USART1_CFG_INIT USART_DMA_INIT
+#elif defined(USART1_FLEXCOMM)
+#define USART1_CFG_INIT USART_POL_INIT
+#else
+#define USART1_CFG_INIT USART_NULL_INIT
+#endif
 
-int os_hw_uart_init(void);
+#if defined(USART2_FLEXCOMM_IRQN)
+#define USART2_CFG_INIT USART_IRQ_INIT
+#elif defined(USART2_RX_BUFFER_SIZE) && defined(USART2_TX_BUFFER_SIZE)
+#define USART2_CFG_INIT USART_NBK_INIT
+#elif defined(USART2_RX_DMA_CHANNEL) && defined(USART2_TX_DMA_CHANNEL)
+#define USART2_CFG_INIT USART_DMA_INIT
+#elif defined(USART2_FLEXCOMM)
+#define USART2_CFG_INIT USART_POL_INIT
+#else
+#define USART2_CFG_INIT USART_NULL_INIT
+#endif
 
-#define USART0_GetFreq(void) CLOCK_GetFlexCommClkFreq(0U);
+#if defined(USART3_FLEXCOMM_IRQN)
+#define USART3_CFG_INIT USART_IRQ_INIT
+#elif defined(USART3_RX_BUFFER_SIZE) && defined(USART3_TX_BUFFER_SIZE)
+#define USART3_CFG_INIT USART_NBK_INIT
+#elif defined(USART3_RX_DMA_CHANNEL) && defined(USART3_TX_DMA_CHANNEL)
+#define USART3_CFG_INIT USART_DMA_INIT
+#elif defined(USART3_FLEXCOMM)
+#define USART3_CFG_INIT USART_POL_INIT
+#else
+#define USART3_CFG_INIT USART_NULL_INIT
+#endif
 
-#endif /* __DRV_UART_H__ */
+#if defined(USART4_FLEXCOMM_IRQN)
+#define USART4_CFG_INIT USART_IRQ_INIT
+#elif defined(USART4_RX_BUFFER_SIZE) && defined(USART4_TX_BUFFER_SIZE)
+#define USART4_CFG_INIT USART_NBK_INIT
+#elif defined(USART4_RX_DMA_CHANNEL) && defined(USART4_TX_DMA_CHANNEL)
+#define USART4_CFG_INIT USART_DMA_INIT
+#elif defined(USART4_FLEXCOMM)
+#define USART4_CFG_INIT USART_POL_INIT
+#else
+#define USART4_CFG_INIT USART_NULL_INIT
+#endif
+
+#if defined(USART5_FLEXCOMM_IRQN)
+#define USART5_CFG_INIT USART_IRQ_INIT
+#elif defined(USART5_RX_BUFFER_SIZE) && defined(USART5_TX_BUFFER_SIZE)
+#define USART5_CFG_INIT USART_NBK_INIT
+#elif defined(USART5_RX_DMA_CHANNEL) && defined(USART5_TX_DMA_CHANNEL)
+#define USART5_CFG_INIT USART_DMA_INIT
+#elif defined(USART5_FLEXCOMM)
+#define USART5_CFG_INIT USART_POL_INIT
+#else
+#define USART5_CFG_INIT USART_NULL_INIT
+#endif
+
+#if defined(USART6_FLEXCOMM_IRQN)
+#define USART6_CFG_INIT USART_IRQ_INIT
+#elif defined(USART6_RX_BUFFER_SIZE) && defined(USART6_TX_BUFFER_SIZE)
+#define USART6_CFG_INIT USART_NBK_INIT
+#elif defined(USART6_RX_DMA_CHANNEL) && defined(USART6_TX_DMA_CHANNEL)
+#define USART6_CFG_INIT USART_DMA_INIT
+#elif defined(USART6_FLEXCOMM)
+#define USART6_CFG_INIT USART_POL_INIT
+#else
+#define USART6_CFG_INIT USART_NULL_INIT
+#endif
+
+#if defined(USART7_FLEXCOMM_IRQN)
+#define USART7_CFG_INIT USART_IRQ_INIT
+#elif defined(USART7_RX_BUFFER_SIZE) && defined(USART7_TX_BUFFER_SIZE)
+#define USART7_CFG_INIT USART_NBK_INIT
+#elif defined(USART7_RX_DMA_CHANNEL) && defined(USART7_TX_DMA_CHANNEL)
+#define USART7_CFG_INIT USART_DMA_INIT
+#elif defined(USART7_FLEXCOMM)
+#define USART7_CFG_INIT USART_POL_INIT
+#else
+#define USART7_CFG_INIT USART_NULL_INIT
+#endif
+
+#if defined(USART8_FLEXCOMM_IRQN)
+#define USART8_CFG_INIT USART_IRQ_INIT
+#elif defined(USART8_RX_BUFFER_SIZE) && defined(USART8_TX_BUFFER_SIZE)
+#define USART8_CFG_INIT USART_NBK_INIT
+#elif defined(USART8_RX_DMA_CHANNEL) && defined(USART8_TX_DMA_CHANNEL)
+#define USART8_CFG_INIT USART_DMA_INIT
+#elif defined(USART8_FLEXCOMM)
+#define USART8_CFG_INIT USART_POL_INIT
+#else
+#define USART8_CFG_INIT USART_NULL_INIT
+#endif
+
+struct nxp_usart_info
+{
+    USART_Type *usart_base;
+    const usart_config_t *usart_config;
+};
+
+typedef struct _hal_usart_transfer
+{
+    usart_transfer_t transfer;
+    os_uint32_t count_cur;
+} hal_usart_transfer_t;
+
+int os_hw_usart_init(void);
+typedef void (*hal_usart_transfer_callback_t)(USART_Type *base, usart_handle_t *handle, status_t status, void *userData);
+
+#endif

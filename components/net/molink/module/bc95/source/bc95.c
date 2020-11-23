@@ -32,6 +32,8 @@
 
 #ifdef MOLINK_USING_BC95
 
+#define BC95_RETRY_TIMES (5)
+
 #ifdef BC95_USING_GENERAL_OPS
 static const struct mo_general_ops gs_general_ops = {
     .at_test               = bc95_at_test,
@@ -44,6 +46,8 @@ static const struct mo_general_ops gs_general_ops = {
 #endif /* BC95_USING_GENERAL_OPS */
 
 #ifdef BC95_USING_NETSERV_OPS
+extern void bc95_netserv_init(mo_bc95_t *module);
+
 static const struct mo_netserv_ops gs_netserv_ops = {
     .set_attach            = bc95_set_attach,
     .get_attach            = bc95_get_attach,
@@ -53,12 +57,28 @@ static const struct mo_netserv_ops gs_netserv_ops = {
     .get_cgact             = bc95_get_cgact,
     .get_csq               = bc95_get_csq,
     .get_radio             = bc95_get_radio,
+    .set_psm               = bc95_set_psm,
+    .get_psm               = bc95_get_psm,
+    .set_edrx_cfg          = bc95_set_edrx_cfg,
+    .get_edrx_cfg          = bc95_get_edrx_cfg,
+    .get_edrx_dynamic      = bc95_get_edrx_dynamic,
+};
+#endif /* BC95_USING_NETSERV_OPS */
+
+#ifdef BC95_USING_PING_OPS
+static const struct mo_ping_ops gs_ping_ops = {
+    .ping                  = bc95_ping,
+};
+#endif /* BC95_USING_PING_OPS */
+
+#ifdef BC95_USING_IFCONFIG_OPS
+static const struct mo_ifconfig_ops gs_ifconfig_ops = {
+    .ifconfig              = bc95_ifconfig,
     .get_ipaddr            = bc95_get_ipaddr,
     .set_dnsserver         = bc95_set_dnsserver,
     .get_dnsserver         = bc95_get_dnsserver,
-    .ping                  = bc95_ping,
 };
-#endif /* BC95_USING_NETSERV_OPS */
+#endif /* BC95_USING_IFCONFIG_OPS */
 
 #ifdef BC95_USING_NETCONN_OPS
 extern void bc95_netconn_init(mo_bc95_t *module);
@@ -98,7 +118,26 @@ static const mo_onenet_ops_t gs_onenet_ops = {
 };
 #endif /* BC95_USING_ONENET_OPS */
 
-mo_object_t *module_bc95_create(const char *name, os_device_t *device, os_size_t recv_len)
+static os_err_t bc95_at_init(mo_object_t *self)
+{
+    at_parser_t *parser = &self->parser;
+
+    os_err_t result = at_parser_connect(parser, BC95_RETRY_TIMES);
+    if (result != OS_EOK)
+    {
+        LOG_EXT_E("Connect to %s module failed, please check whether the module connection is correct", self->name);
+    }
+
+#ifdef BC95_USING_IFCONFIG_OPS
+    dns_server_t dns = {"8.8.8.8", "114.114.114.114"};
+
+    bc95_set_dnsserver(self, dns);
+#endif /* BC95_USING_IFCONFIG_OPS */
+
+    return result;
+}
+
+mo_object_t *module_bc95_create(const char *name, void *parser_config)
 {
     os_err_t result = OS_ERROR;
     
@@ -106,10 +145,17 @@ mo_object_t *module_bc95_create(const char *name, os_device_t *device, os_size_t
     if (OS_NULL == module)
     {
         LOG_EXT_E("Create BC95 failed, no enough memory.");
-        result = OS_ENOMEM;
-        goto __exit;
+        return OS_NULL;
     }
-    result = mo_object_init(&(module->parent), name, device, recv_len);
+
+    result = mo_object_init(&(module->parent), name, parser_config);
+    if (result != OS_EOK)
+    {
+        free(module);
+        return OS_NULL;
+    }
+
+    result = bc95_at_init(&module->parent);
     if (result != OS_EOK)
     {
         goto __exit;
@@ -121,7 +167,16 @@ mo_object_t *module_bc95_create(const char *name, os_device_t *device, os_size_t
 
 #ifdef BC95_USING_NETSERV_OPS
     module->parent.ops_table[MODULE_OPS_NETSERV] = &gs_netserv_ops;
+    bc95_netserv_init(module);
 #endif /* BC95_USING_NETSERV_OPS */
+
+#ifdef BC95_USING_PING_OPS
+    module->parent.ops_table[MODULE_OPS_PING] = &gs_ping_ops;
+#endif /* BC95_USING_PING_OPS */
+
+#ifdef BC95_USING_IFCONFIG_OPS
+    module->parent.ops_table[MODULE_OPS_IFCONFIG] = &gs_ifconfig_ops;
+#endif /* BC95_USING_IFCONFIG_OPS */
 
 #ifdef BC95_USING_NETCONN_OPS
     module->parent.ops_table[MODULE_OPS_NETCONN] = &gs_netconn_ops;
@@ -139,11 +194,11 @@ mo_object_t *module_bc95_create(const char *name, os_device_t *device, os_size_t
 #endif /* BC95_USING_ONENET_NB_OPS */
 	
 __exit:
-    if (result != OS_EOK)
+    if (OS_EOK != result)
     {
 #ifdef BC95_USING_NETCONN_OPS
-        /* 0xFF means module netconn_lock has been init */
-        if (0xFF    == module->netconn_lock.original_priority)
+        /* 0x00 means module netconn_lock has not been init */
+        if (0x00 != module->netconn_lock.original_priority)
         {
             os_mutex_deinit(&module->netconn_lock);
         }
@@ -155,6 +210,11 @@ __exit:
             bc95_onenetnb_deinit(module);
         }
 #endif /* BC95_USING_ONENET_NB_OPS */
+
+        if (mo_object_get_by_name(name) != OS_NULL)
+        {
+            mo_object_deinit(&module->parent);
+        }
 
         free(module);
         
@@ -202,7 +262,11 @@ int bc95_auto_create(void)
 
     os_device_control(device, OS_DEVICE_CTRL_CONFIG, &uart_config);
 
-    mo_object_t *module = module_bc95_create(BC95_NAME, device, BC95_RECV_BUFF_LEN);
+    mo_parser_config_t parser_config = {.parser_name   = BC95_NAME,
+                                        .parser_device = device,
+                                        .recv_buff_len = BC95_RECV_BUFF_LEN};
+
+    mo_object_t *module = module_bc95_create(BC95_NAME, &parser_config);
 
     if (OS_NULL == module)
     {

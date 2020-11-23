@@ -32,7 +32,7 @@
 #include "spi.h"
 #include "mphalport.h"
 
-#if MICROPY_PY_MACHINE_SPI
+#if (MICROPY_PY_MACHINE_SPI && MICROPY_PY_MACHINE_PIN)
 
 #define MICROPY_PY_MACHINE_SPI_MAKE_NEW machine_hard_spi_make_new
 
@@ -195,7 +195,7 @@ MP_DEFINE_CONST_DICT(mp_machine_spi_locals_dict, machine_spi_locals_dict_table);
 
 /******************************************************************************/
 // Implementation of soft SPI
-
+#ifdef mp_hal_pin_name
 STATIC uint32_t baudrate_from_delay_half(uint32_t delay_half) {
     #ifdef MICROPY_HW_SOFTSPI_MIN_DELAY
     if (delay_half == MICROPY_HW_SOFTSPI_MIN_DELAY) {
@@ -206,6 +206,7 @@ STATIC uint32_t baudrate_from_delay_half(uint32_t delay_half) {
         return 500000 / delay_half;
     }
 }
+#endif
 
 STATIC uint32_t baudrate_to_delay_half(uint32_t baudrate) {
     #ifdef MICROPY_HW_SOFTSPI_MIN_DELAY
@@ -224,12 +225,13 @@ STATIC uint32_t baudrate_to_delay_half(uint32_t baudrate) {
 }
 
 STATIC void mp_machine_soft_spi_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+	#ifdef mp_hal_pin_name
     mp_machine_soft_spi_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_printf(print, "SoftSPI(baudrate=%u, polarity=%u, phase=%u,"
         " sck=%s"  ", mosi=%s"", miso=%s"")",
         baudrate_from_delay_half(self->spi.delay_half), self->spi.polarity, self->spi.phase,
         mp_hal_pin_name(self->spi.sck), mp_hal_pin_name(self->spi.mosi), mp_hal_pin_name(self->spi.miso));
-
+	#endif
 }
 
 STATIC mp_obj_t mp_machine_soft_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {

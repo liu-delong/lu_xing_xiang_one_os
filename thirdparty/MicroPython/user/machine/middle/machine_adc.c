@@ -5,7 +5,7 @@
 #include "usr_adc.h"
 #include "stdio.h"
 
-
+#if MICROPY_PY_MACHINE_ADC
 
 typedef struct _machine_hard_adc_obj_t {
     mp_obj_base_t base;
@@ -156,7 +156,6 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_adc_close_obj, 1, 2, machine_
 
 
 STATIC const mp_rom_map_elem_t mp_module_adc_globals_table[] = {
-	//{ MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ADC) },
 	{ MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&machine_adc_init_obj) },
 	{ MP_ROM_QSTR(MP_QSTR_open), MP_ROM_PTR(&machine_adc_open_obj) },
 	{ MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&machine_adc_close_obj) },
@@ -172,4 +171,5 @@ const mp_obj_type_t mp_module_adc = {
 	  .make_new = machine_hard_adc_make_new,
     .locals_dict = (mp_obj_dict_t*)&mp_module_adc_globals,
 };
+#endif
 

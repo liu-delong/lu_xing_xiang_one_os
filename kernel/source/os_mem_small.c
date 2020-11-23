@@ -20,7 +20,7 @@
  * 2020-03-09   OneOS team      First Version
  ***********************************************************************************************************************
  */
-
+#include <oneos_config.h>
 #include <os_dbg.h>
 #include <os_sem.h>
 #include <os_errno.h>
@@ -29,8 +29,6 @@
 
 #include "os_util_internal.h"
 #include "os_kernel_internal.h"
-
-#define OS_MEM_STATS
 
 #if defined (OS_USING_HEAP) && defined (OS_USING_MEM_SMALL)
 
@@ -670,7 +668,7 @@ os_err_t sh_list_mem(os_int32_t argc, char **argv)
 
     return OS_EOK;
 }
-SH_CMD_EXPORT(list_mem, sh_list_mem, "list memory usage information");
+SH_CMD_EXPORT(mem, sh_list_mem, "show memory usage information");
 
 #ifdef OS_USING_MEMTRACE
 static os_err_t sh_memcheck(os_int32_t argc, char **argv)

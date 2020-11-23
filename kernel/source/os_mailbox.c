@@ -758,7 +758,7 @@ os_err_t sh_list_mailbox(os_int32_t argc, char **argv)
     return list_mailbox_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_mailbox, sh_list_mailbox, "list mail box in system");
+SH_CMD_EXPORT(mb, sh_list_mailbox, "show mailbox information");
 
 
 #endif /* end of OS_USING_SHELL */

@@ -138,6 +138,15 @@ static os_size_t blk_dev_write(os_device_t *dev, os_off_t pos, const void* buffe
     return ret;
 }
 
+const static struct os_device_ops blk_ops = {
+    OS_NULL,
+    OS_NULL,
+    OS_NULL,
+    blk_dev_read,
+    blk_dev_write,
+    blk_dev_control,
+};
+
 /**
  * create block device by specified partition
  *
@@ -168,12 +177,7 @@ struct os_device *fal_blk_device_create(const char *parition_name)
 
         /* register device */
         blk_dev->parent.type = OS_DEVICE_TYPE_BLOCK;
-        blk_dev->parent.init = NULL;
-        blk_dev->parent.open = NULL;
-        blk_dev->parent.close = NULL;
-        blk_dev->parent.read = blk_dev_read;
-        blk_dev->parent.write = blk_dev_write;
-        blk_dev->parent.control = blk_dev_control;
+        blk_dev->parent.ops  = &blk_ops;
         /* no private */
         blk_dev->parent.user_data = OS_NULL;
 

@@ -1,11 +1,10 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include "os_device.h"
 #include "usr_rtc.h"
-
-
+#include <string.h>
+#include <stdlib.h>
+#if (MICROPY_PY_MACHINE_RTC)
 #include <rtc.h>
+
 
 int rtc_ctrl(void *device, int cmd, void* arg)
 {
@@ -78,4 +77,4 @@ int mpycall_rtc_register(void)
 }
 
 OS_DEVICE_INIT(mpycall_rtc_register);
-
+#endif //MICROPY_PY_MACHINE_RTC

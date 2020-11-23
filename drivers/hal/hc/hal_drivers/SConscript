@@ -22,15 +22,42 @@ if IsDefined(['BSP_USING_ON_CHIP_FLASH', 'SOC_SERIES_HC32L19']):
 
 if IsDefined(['BSP_USING_GPIO']):
     src += ['drv_gpio.c']
+
+if IsDefined(['OS_USING_I2C']):
+    src += ['drv_i2c.c']
 	
+if IsDefined(['OS_USING_DAC']):
+    src += ['drv_dac.c']
+
+if IsDefined(['OS_USING_ADC']):
+    src += ['drv_adc.c']
+
+if IsDefined(['OS_USING_SPI', 'BSP_USING_SPI0']) or IsDefined(['OS_USING_SPI', 'BSP_USING_SPI1']):
+    src += ['drv_spi.c']
+
+if IsDefined(['OS_USING_HRTIMER']):
+    src += ['drv_hwtimer.c']
+
+if IsDefined(['OS_USING_CLOCKEVENT', 'OS_USING_HRTIMER']):
+    src += ['drv_lptim.c']
+
+if IsDefined(['OS_USING_LPMGR']):
+    src += ['drv_lpmgr.c']
+
 if IsDefined(['BSP_USING_UART', 'SOC_SERIES_HC32L13']):
-    src += ['drv_uart_l13x.c']
+    src += ['drv_usart_l13x.c']
 	
 if IsDefined(['BSP_USING_UART', 'SOC_SERIES_HC32L17']):
-    src += ['drv_uart_l1xx.c']
+    src += ['drv_usart_l1xx.c']
 	
 if IsDefined(['BSP_USING_UART', 'SOC_SERIES_HC32L19']):
-    src += ['drv_uart_l1xx.c']
+    src += ['drv_usart_l1xx.c']
+
+if IsDefined(['OS_USING_WDG']):
+    src += ['drv_wdg.c']
+
+if IsDefined(['OS_USING_RTC']):
+    src += ['drv_rtc.c']
 
 path = [pwd]
 

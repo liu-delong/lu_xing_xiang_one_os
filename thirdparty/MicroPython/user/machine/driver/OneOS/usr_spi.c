@@ -29,7 +29,7 @@
 #include <os_device.h>
 #include <os_stddef.h>
 
-#if (MICROPY_PY_SPI)
+#if (MICROPY_PY_MACHINE_SPI)
 #include "usr_misc.h"
 #include "spi.h"
 #include "usr_spi.h"
@@ -168,7 +168,7 @@ STATIC struct operate spi_ops = {
 
 int mpycall_spi_register(void)
 {
-	device_info_t  *pos, *spi = mp_misc_find_similar_device("spi");
+	device_info_t  *pos, *spi = mp_misc_find_similar_device(MICROPYTHON_MACHINE_SPI_PRENAME);
 	if (!spi){
 		return -1;
 	}

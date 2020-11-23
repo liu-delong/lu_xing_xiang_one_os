@@ -1,0 +1,18 @@
+import os
+import osconfig
+from build_tools import *
+
+pwd = PresentDir()
+
+# add general drivers
+src = Split('''
+board.c
+''')
+
+# path   include path in project
+path =  [pwd]
+path += [pwd + '/ports']
+
+group = AddCodeGroup('bsp', src, depend = [''], CPPPATH = path)
+
+Return('group')

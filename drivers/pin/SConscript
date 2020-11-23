@@ -10,6 +10,6 @@ if IsDefined(['OS_USING_PIN']):
 if IsDefined(['BSP_USING_PIN_PCF8574']):
     src += ['pcf8574.c']
     
-group = AddCodeGroup('drivers/pin', src, depend = ['OS_USING_PIN'], CPPPATH = [pwd])
+group = AddCodeGroup('drivers', src, depend = ['OS_USING_PIN'], CPPPATH = [pwd])
 
 Return('group')

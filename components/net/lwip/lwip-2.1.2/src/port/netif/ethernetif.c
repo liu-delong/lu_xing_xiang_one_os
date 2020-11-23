@@ -305,20 +305,22 @@ void eth_device_deinit(struct eth_device *dev)
     free(netif);
 }
 
-#ifndef LWIP_NO_RX_TASK
 os_err_t eth_device_ready(struct eth_device *dev)
 {
+#ifndef LWIP_NO_RX_TASK
     if (dev->netif)
     {
         /* post message to Ethernet task */
         return os_mb_send(&eth_rx_task_mb, (os_uint32_t)dev, OS_IPC_WAITING_NO);
     }
     else
+#endif        
     {
         return ERR_OK; /* netif is not initialized yet, just return. */
     }
 }
 
+#ifndef LWIP_NO_RX_TASK
 os_err_t eth_device_linkchange(struct eth_device *dev, os_bool_t up)
 {
     os_uint32_t level;

@@ -1,0 +1,67 @@
+menuconfig  OS_USING_DRIVERS_SAMPLES
+    bool "Drivers samples"
+    default n
+
+    if OS_USING_DRIVERS_SAMPLES
+        config OS_KEY_DEMO
+            bool "Enable key sample"
+            default n
+            
+        config OS_UART_DEMO
+            bool "Enable uart sample"
+            default n
+
+
+        config OS_RTC_DEMO
+            bool "Enable rtc sample"
+            default n
+
+        config OS_WDG_DEMO
+            bool "Enable watchdog driver sample"
+            default n
+            
+        config OS_WWDG_DEMO
+            bool "Enable window watchdog driver sample"
+            default n
+        
+        config OS_ADC_DEMO
+            bool "Enable adc driver sample"
+            default n
+
+        config OS_DAC_DEMO
+            bool "Enable dac driver sample"
+            default n
+            
+        config OS_CLOCK_DEMO
+            bool "Enable clockevent/clocksource/hrtimer sample"
+            default n
+            
+        config OS_PWM_DEMO
+            bool "Enable pwm driver sample"
+            default n
+
+        config OS_PULSE_ENCODER_DEMO
+            bool "Enable pulse encoder driver sample"
+            default n
+            
+        config OS_SENSORS_DEMO
+            bool "Enable sensors driver sample"
+            default n
+                        
+        config OS_INFRARED_DEMO
+            bool "Enable infrared sample"
+            default n
+            
+        config OS_FAL_TEST_DEMO
+            bool "Enable fal sample"
+            default n
+
+        config OS_REQUSR_LPMGR_DEMO
+            bool "Enable request lpmgr sample"
+            default n
+            
+        config OS_GUI_DEMO
+            bool "Enable gui sample"
+            default n
+            
+    endif

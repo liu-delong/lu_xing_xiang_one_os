@@ -530,4 +530,4 @@ static int os_hw_gt9147_port(void)
 
     return 0;
 }
-OS_DEVICE_INIT(os_hw_gt9147_port);
+OS_CMPOENT_INIT(os_hw_gt9147_port);

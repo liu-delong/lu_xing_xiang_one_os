@@ -11,7 +11,7 @@
 #include "os_clock.h"
 #include "usr_timer.h"
 
-#if 1
+#if (1)
 mp_uint_t mp_hal_ticks_us(void) {
 /* 	const portTickType xDelay = pdMS_TO_TICKS(1);
 

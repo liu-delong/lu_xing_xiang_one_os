@@ -1,0 +1,13 @@
+mainmenu "OneOS Configuration"
+
+#Define the relative path to root directory of os code
+OS_ROOT = ../..
+SRC_HAL = ESP32
+
+config BOARD_ESP32
+    bool
+    select SOC_FAMILY_ESP32
+    select ARCH_XTENSA_LX6
+    default y
+    
+source "$OS_ROOT/Kconfig"

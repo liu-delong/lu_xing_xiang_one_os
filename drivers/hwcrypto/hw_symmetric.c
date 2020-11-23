@@ -358,7 +358,7 @@ os_err_t os_hwcrypto_symmetric_register(struct os_hwcrypto_device *device, const
     if (hwcrypto_symmetric_device != OS_NULL)
     {
         os_kprintf("hwcrypto symmetric dev %s exist, %s register failed.\r\n",
-                   hwcrypto_symmetric_device->parent.parent.name, name);
+                   device_name(&hwcrypto_symmetric_device->parent), name);
         return OS_EFULL;
     }
 

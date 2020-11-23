@@ -82,7 +82,7 @@
 
 即可弹出操作系统配置菜单。用户根据自己的需要配置即可。操作方法与linux传统的menuconfig是一致的。如下图：
 
-![](E:\OS\z-git-sync\OneOS_Basic\docs\images\scons --menuconfig.png)
+![](./images/menuconfig.png)
 
 
 
@@ -94,13 +94,13 @@
 
 即可开始编译流程。生成镜像默认位于源码顶层目录out目录中，也会在编译结束时打印路径，如下图所示：
 
-![result_path](E:\OS\z-git-sync\OneOS_Basic\docs\images\result_path.png)
+![result_path](./images/result_path.png)
 
 
 
 编译产物中，二进制结果默认为“oneos.bin”。可直接用于烧写。
 
-![result_bin](E:\OS\z-git-sync\OneOS_Basic\docs\images\result_bin.png)
+![result_bin](./images/result_bin.png)
 
 
 

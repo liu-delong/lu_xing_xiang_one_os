@@ -1,0 +1,12 @@
+from build_tools import *
+
+cwd  = PresentDir()
+src = Glob('*.c')
+
+CPPPATH = [cwd]
+CPPDEFINES = ['RT_USING_NEWLIB']
+
+group = AddCodeGroup('newlib', src, depend = ['SOC_FAMILY_ESP32'],
+    CPPPATH = CPPPATH, CPPDEFINES = CPPDEFINES)
+
+Return('group')

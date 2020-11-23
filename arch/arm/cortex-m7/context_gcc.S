@@ -26,10 +26,10 @@
 .text
 
 .equ    SCB_VTOR,           0xE000ED08              /* Vector table offset Register. */
-.equ    NVIC_INT_CTRL,      0xE000ED04              /* interrupt control state register. */
-.equ    NVIC_SYSPRI2,       0xE000ED20              /* system priority register (2). */
+.equ    NVIC_INT_CTRL,      0xE000ED04              /* Interrupt control state register. */
+.equ    NVIC_SYSPRI2,       0xE000ED20              /* System priority register (2). */
 .equ    NVIC_PENDSV_PRI,    0x00FF0000              /* PendSV priority value (lowest). */
-.equ    NVIC_PENDSVSET,     0x10000000              /* value to trigger PendSV exception. */
+.equ    NVIC_PENDSVSET,     0x10000000              /* Value to trigger PendSV exception. */
 
 /**
  ***********************************************************************************************************************
@@ -118,7 +118,7 @@ PendSV_Handler:
     /* Get os_task_switch_interrupt_flag. */
     LDR r0, =os_task_switch_interrupt_flag
     LDR r1, [r0]
-    CBZ r1, pendsv_exit          /* Pendsv already handled. */
+    CBZ r1, pendsv_exit         /* Pendsv already handled. */
 
     /* Clear os_task_switch_interrupt_flag to 0. */
     MOV r1, #0x00
@@ -131,16 +131,16 @@ PendSV_Handler:
     MRS r1, psp                 /* Get from task stack pointer. */
     
 #if defined (__VFP_FP__) && !defined(__SOFTFP__)
-    TST     lr, #0x10           /* if(!EXC_RETURN[4]) */
+    TST     lr, #0x10           /* if(!EXC_RETURN[4]). */
     VSTMDBEQ r1!, {d8 - d15}    /* Push FPU register s16~s31. */
 #endif
     
     STMFD   r1!, {r4 - r11}     /* Push r4 - r11 register. */
 
 #if defined (__VFP_FP__) && !defined(__SOFTFP__)
-    MOV     r4, #0x00           /* flag = 0 */
+    MOV     r4, #0x00           /* Flag = 0. */
 
-    TST     lr, #0x10           /* if(!EXC_RETURN[4]) */
+    TST     lr, #0x10           /* if(!EXC_RETURN[4]). */
     MOVEQ   r4, #0x01           /* Flag = 1. */
 
     STMFD   r1!, {r4}           /* Push flag. */
@@ -169,12 +169,12 @@ switch_to_task:
 
 #if defined (__VFP_FP__) && !defined(__SOFTFP__)
     ORR     lr, lr, #0x10       /* lr |=  (1 << 4), clean FPCA. */
-    CMP     r3,  #0             /* if(flag_r3 != 0) */
+    CMP     r3,  #0             /* if(flag_r3 != 0). */
     BICNE   lr, lr, #0x10       /* lr &= ~(1 << 4), set FPCA. */
 #endif
 
 pendsv_exit:
-    /* restore interrupt */
+    /* Restore interrupt. */
     MSR PRIMASK, r2
 
     ORR lr, lr, #0x04
@@ -250,7 +250,7 @@ os_hw_context_switch_to:
 HardFault_Handler:
     /* Get current context. */
     MRS     r0, msp                 /* Get fault context from handler. */
-    TST     lr, #0x04               /* if(!EXC_RETURN[2]) */
+    TST     lr, #0x04               /* if(!EXC_RETURN[2]). */
     BEQ     _get_sp_done
     MRS     r0, psp                 /* Get fault context from task. */
 _get_sp_done:

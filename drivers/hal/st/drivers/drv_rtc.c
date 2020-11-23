@@ -129,11 +129,9 @@ static os_err_t os_rtc_control(os_device_t *dev, int cmd, void *args)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops rtc_ops = {
     .control = os_rtc_control,
 };
-#endif
 
 static int stm32_rtc_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
 {
@@ -149,11 +147,7 @@ static int stm32_rtc_probe(const os_driver_info_t *drv, const os_device_info_t *
 
     os_device_default(&st_rtc->rtc, OS_DEVICE_TYPE_RTC);
     
-#ifdef OS_USING_DEVICE_OPS
     st_rtc->rtc.ops     = &rtc_ops;
-#else
-    st_rtc->rtc.control = os_rtc_control;
-#endif
 
     return os_device_register(&st_rtc->rtc, dev->name, OS_DEVICE_FLAG_RDWR);
 }

@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-#include <drivers.h>
+#include <os_drivers.h>
 
 #ifdef OS_USING_RTC
 #include "rtc/rtc.h"
@@ -53,7 +53,9 @@ extern "C" {
 #endif
 
 #ifdef OS_USING_USB_DEVICE
+#ifndef SOC_LPC55S69
 #include "usb/usb_device.h"
+#endif
 #endif /* OS_USING_USB_DEVICE */
 
 #ifdef OS_USING_USB_HOST

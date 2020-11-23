@@ -24,7 +24,7 @@
 #ifndef CLOCKEVENT_H__
 #define CLOCKEVENT_H__
 
-#include <drivers.h>
+#include <os_drivers.h>
 #include <os_types.h>
 #include <os_hw.h>
 #include <os_irq.h>

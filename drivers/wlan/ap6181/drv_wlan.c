@@ -36,17 +36,11 @@
 #define DRV_EXT_TAG "WLAN"
 #include <drv_log.h>
 
-#ifdef OS_USING_WIFI
-
-#define WIFI_IMAGE_PARTITION_NAME   "wifi_image"
-#define WIFI_INIT_THREAD_STACK_SIZE (1024 * 4)
-#define WIFI_INIT_THREAD_PRIORITY   (OS_THREAD_PRIORITY_MAX / 2)
 #define WIFI_INIT_WAIT_TIME         (os_tick_from_ms(100))
 
 extern int  wifi_hw_init(void);
 extern void wwd_thread_notify_irq(void);
 
-// static const struct fal_partition *partition = OS_NULL;
 static os_uint32_t init_flag = 0;
 
 struct os_wlan_device *bcm_hw_wlan_dev_alloc(void)
@@ -58,15 +52,15 @@ struct os_wlan_device *bcm_hw_wlan_dev_alloc(void)
     return wlan;
 }
 
-#ifdef OS_USING_PM
+#ifdef OS_USING_LPMGR
 void wiced_platform_keep_awake(void)
 {
-    os_pm_request(PM_SLEEP_MODE_NONE);
+    os_lpmgr_request(SYS_SLEEP_MODE_NONE);
 }
 
 void wiced_platform_let_sleep(void)
 {
-    os_pm_release(PM_SLEEP_MODE_NONE);
+    os_lpmgr_release(SYS_SLEEP_MODE_NONE);
 }
 #endif
 
@@ -103,19 +97,26 @@ static void _wiced_irq_handler(void *param)
     wwd_thread_notify_irq();
 }
 
-static void wifi_init_thread_entry(void *parameter)
+static int ap6181_early_init(void)
 {
     /* WIFI_REG_ON */
     os_pin_mode(BSP_AP6181_REG_ON_PIN, PIN_MODE_OUTPUT);
     os_pin_write(BSP_AP6181_REG_ON_PIN, PIN_LOW);
-    os_task_msleep(2);
+    os_hw_us_delay(2000);
     os_pin_write(BSP_AP6181_REG_ON_PIN, PIN_HIGH);
 
+    return 0;
+}
+
+OS_BOARD_INIT(ap6181_early_init);
+
+static int ap6181_init(void)
+{
     /* set wifi irq handle, must be initialized first */
     os_pin_mode(BSP_AP6181_IRQ_PIN, PIN_MODE_INPUT_PULLUP);
     os_pin_attach_irq(BSP_AP6181_IRQ_PIN, PIN_IRQ_MODE_RISING_FALLING, _wiced_irq_handler, OS_NULL);
     os_pin_irq_enable(BSP_AP6181_IRQ_PIN, PIN_IRQ_ENABLE);
-
+    
     /* initialize low level wifi(ap6181) library */
     wifi_hw_init();
 
@@ -126,43 +127,9 @@ static void wifi_init_thread_entry(void *parameter)
     os_wlan_set_mode(OS_WLAN_DEVICE_STA_NAME, OS_WLAN_STATION);
 
     init_flag = 1;
+
+    return 0;
 }
 
-int os_hw_wlan_init(void)
-{
-    if (init_flag == 1)
-    {
-        return OS_EOK;
-    }
+OS_APP_INIT(ap6181_init);
 
-#ifdef BSP_AP6181_THREAD_INIT
-    os_thread_t tid = OS_NULL;
-
-    tid = os_thread_create("wifi_init",
-                           wifi_init_thread_entry,
-                           OS_NULL,
-                           WIFI_INIT_THREAD_STACK_SIZE,
-                           WIFI_INIT_THREAD_PRIORITY,
-                           20);
-    if (tid)
-    {
-        os_thread_startup(tid);
-    }
-    else
-    {
-        LOG_E("Create wifi initialization thread fail!");
-        return OS_ERROR;
-    }
-#else
-    wifi_init_thread_entry(OS_NULL);
-    init_flag = 1;
-#endif
-
-    return OS_EOK;
-}
-
-#ifdef BSP_AP6181_AUTO_INIT
-OS_APP_INIT(os_hw_wlan_init);
-#endif
-
-#endif

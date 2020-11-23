@@ -34,10 +34,17 @@
 #include "ml302_netserv.h"
 #endif
 
+#ifdef ML302_USING_PING_OPS
+#include "ml302_ping.h"
+#endif
+
+#ifdef ML302_USING_IFCONFIG_OPS
+#include "ml302_ifconfig.h"
+#endif
+
 #ifdef ML302_USING_NETCONN_OPS
 #include "ml302_netconn.h"
 #endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,14 +74,14 @@ typedef struct mo_ml302
 #ifdef ML302_USING_NETCONN_OPS
     mo_netconn_t netconn[ML302_NETCONN_NUM];
 	
-	  os_int32_t curr_connect;
+	os_int32_t curr_connect;
     os_event_t netconn_evt;
     os_mutex_t netconn_lock;
     void      *netconn_data;
 #endif /* ML302_USING_NETCONN_OPS */
 } mo_ml302_t;
 
-mo_object_t *module_ml302_create(const char *name, os_device_t *device, os_size_t recv_len);
+mo_object_t *module_ml302_create(const char *name, void *parser_config);
 os_err_t     module_ml302_destroy(mo_object_t *self);
 
 #endif /* MOLINK_USING_ML302 */

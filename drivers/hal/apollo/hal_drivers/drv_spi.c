@@ -48,7 +48,7 @@ struct am_spi_bus
     os_uint32_t       u32Module;
 };
 
-os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_uint32_t pin)
+os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t pin)
 {
     os_err_t ret = OS_EOK;
 

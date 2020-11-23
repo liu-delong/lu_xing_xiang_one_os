@@ -118,7 +118,7 @@ os_err_t os_usb_device_init(void)
         os_kprintf("[D/USBD] No class register on usb device\n");
         return OS_ERROR;
     }
-    /* Create and startup usb device thread */
+    /* Create and startup usb device task */
     os_usbd_core_init();
 
     /* Create a device object */

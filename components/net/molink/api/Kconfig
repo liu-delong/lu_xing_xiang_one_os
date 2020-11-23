@@ -4,6 +4,15 @@ config MOLINK_USING_GENERAL_OPS
 
 config MOLINK_USING_NETSERV_OPS
     bool
+    default n
+
+config MOLINK_USING_PING_OPS
+    bool
+    select MOLINK_USING_IP
+    default n
+
+config MOLINK_USING_IFCONFIG_OPS
+    bool
     select MOLINK_USING_IP
     default n
 
@@ -20,6 +29,7 @@ config MOLINK_USING_SOCKETS_OPS
 
 config MOLINK_USING_ONENET_NB_OPS
     bool
+    select MOLINK_USING_IP
     default n
 
 config MOLINK_USING_WIFI_OPS

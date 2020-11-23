@@ -97,6 +97,7 @@ if IsDefined(['COAP_COMM_ENABLED']):
 # device bind
 #
 if IsDefined(['DEV_BIND_ENABLED']):
+    src += Glob(ver_path+"/src/dev_bind/*.c")
     src += Glob(ver_path+"/src/dev_bind/impl/*.c")
     src += Glob(ver_path+"/src/dev_bind/impl/awss_reset/*.c")
     src += Glob(ver_path+"/src/dev_bind/impl/os/*.c")
@@ -134,6 +135,7 @@ if IsDefined(['DEVICE_MODEL_ENABLED']):
     # ALCS(alink local communication service) is a communication between phone and device
     if IsDefined(['ALCS_ENABLED']):
         src += Glob(ver_path+"/src/dev_model/alcs/*.c")
+        src += Glob(ver_path+"/src/dev_model/server/*.c")
         CPPPATH += [pwd + '/'+ver_path+'/src/dev_model/alcs']
 
     if IsDefined(['COAP_COMM_ENABLED']):
@@ -182,10 +184,12 @@ if IsDefined(['HTTP_COMM_ENABLED']):
 if IsDefined(['HTTP2_COMM_ENABLED']):
     src += Glob(ver_path+"/src/http2/http2_api.c")
     src += Glob(ver_path+"/src/http2/iotx_http2.c")
-    
     if IsDefined(['FS_ENABLED']):
         src += Glob(ver_path+"/src/http2/http2_upload_api.c")
     CPPPATH += [pwd + '/'+ver_path+'/src/http2']
+
+    src += Glob(ver_path+"/external_libs/nghttp2/*.c")
+    CPPPATH += [pwd + '/'+ver_path+'/external_libs/nghttp2']
 #### http end ####
 
 #
@@ -207,6 +211,8 @@ if IsDefined(['WIFI_PROVISION_ENABLED']):
     if IsDefined(['AWSS_SUPPORT_SMARTCONFIG']):
         src += Glob(ver_path+"/src/wifi_provision/smartconfig/*.c")
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/smartconfig']
+        src += Glob(ver_path+"/src/wifi_provision/mcast_smartconfig/*.c")
+        CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/mcast_smartconfig']
     if IsDefined(['AWSS_SUPPORT_SMARTCONFIG_WPS']):
         src += Glob(ver_path+"/src/wifi_provision/p2p/*.c")
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/p2p']
@@ -228,13 +234,15 @@ if IsDefined(['WIFI_PROVISION_ENABLED']):
 
     if IsDefined(['AWSS_FRAMEWORKS']):
         src += Glob(ver_path+"/src/wifi_provision/frameworks/*.c")
-        src += Glob(ver_path+"/src/wifi_provision/frameworks/*/*.c")
+        src += Glob(ver_path+"/src/wifi_provision/frameworks/*/*.c")       
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/frameworks']
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/frameworks/aplist']
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/frameworks/ieee80211']
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/frameworks/statics']
         CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/frameworks/utils']
 
+    src += Glob(ver_path+"/src/wifi_provision/connectivity/*.c")
+    CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision/connectivity']
     CPPPATH += [pwd + '/'+ver_path+'/src/wifi_provision']
 #### wifi provision end ####
 

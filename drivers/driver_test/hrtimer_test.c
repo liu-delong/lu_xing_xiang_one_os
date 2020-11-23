@@ -84,21 +84,22 @@ static int hrtimer_test(int argc, char *argv[])
     /* 1.oneshot mode */
     for (i = 0; i < 3; i++)
     {
-        LOG_EXT_I("hrtimer onshot start %d", i);        
+        LOG_EXT_I("hrtimer onshot start %d", i);      
+        
         os_hrtimer_start(&hrtimer1);
         os_hrtimer_start(&hrtimer2);
         os_hrtimer_start(&hrtimer3);
+        
         os_task_msleep(3000);
+
+        os_hrtimer_stop(&hrtimer1);
+        os_hrtimer_stop(&hrtimer2);
+        os_hrtimer_stop(&hrtimer3);
     }
 
-    LOG_EXT_I("hrtimer onshot before stop.");
-    
-    os_hrtimer_stop(&hrtimer1);
-    os_hrtimer_stop(&hrtimer2);
-    os_hrtimer_stop(&hrtimer3);
-    os_task_msleep(2000);
+    LOG_EXT_I("hrtimer onshot stop.");
 
-    LOG_EXT_I("hrtimer onshot after stop.");
+    os_task_msleep(2000);
 
     /* 2.period mode */
     LOG_EXT_I("hrtimer period start...");

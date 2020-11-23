@@ -1,0 +1,11 @@
+# from building import *
+from build_tools import *
+
+pwd = PresentDir()
+src = Glob('*.c') + Glob('*.cpp')
+CPPPATH = [pwd + '/../../include/timer']
+
+group = AddCodeGroup('pthreads', src, 
+    depend = ['OS_USING_PTHREADS', 'ENABLE_POSIX_TIMER'], CPPPATH = CPPPATH)
+
+Return('group')

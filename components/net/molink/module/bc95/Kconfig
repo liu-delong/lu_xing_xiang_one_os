@@ -9,7 +9,7 @@ menu "BC95 Config"
 
         config BC95_DEVICE_NAME
             string "BC95 Interface Device Name"
-            default "uart1"
+            default "uart2"
 
         config BC95_DEVICE_RATE
             int "BC95 Interface Device Rate"
@@ -29,6 +29,19 @@ menu "BC95 Config"
     config BC95_USING_NETSERV_OPS
         bool "Enable BC95 Module Network Service Operates"
         select MOLINK_USING_NETSERV_OPS
+        default y
+
+    config BC95_USING_PING_OPS
+        bool "Enable BC95 Module Ping Operates"
+        select MOLINK_USING_NETSERV_OPS
+        select MOLINK_USING_PING_OPS
+        default y
+
+    config BC95_USING_IFCONFIG_OPS
+        bool "Enable BC95 Module Ifconfig Operates"
+        select MOLINK_USING_IFCONFIG_OPS
+        select BC95_USING_GENERAL_OPS
+        select BC95_USING_NETSERV_OPS
         default y
 
     config BC95_USING_NETCONN_OPS

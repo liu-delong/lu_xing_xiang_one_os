@@ -2,19 +2,36 @@ menu "Diagnose"
 	config OS_USING_CPU_USAGE
 		bool "Calculate CPU usage"
 		default n
-			
+	
 	config OS_USING_TASK_MONITOR
 		bool "Task monitor"
 		default n
+		
+	if OS_USING_TASK_MONITOR
+		config OS_USING_TASK_PERIOD_MONITOR
+			bool "Periodic task monitoring"
+			default n
+			
+		config OS_USING_TASK_SWITCH_MONITOR
+			bool "Task switching monitoring"
+			default n
+	endif
 
 
-	config OS_USING_CMDUMP
-		bool "Cortex-M back trace"
+	config STACK_TRACE_EN
+		bool "Stack back trace enable"
 		default n
 
-	if OS_USING_CMDUMP
-		config CM_DEBUG_BACKTRACE_DUMP_STACK
-			bool "Back trace dump stack"
+	if STACK_TRACE_EN
+		config EXC_DUMP_STACK
+			bool "back trace dump stack"
 			default n
+		config TASK_STACK_OVERFLOW_STACK_SIZE
+			int "The stack overflow back trace size"
+			default 256	
+			
+		config CALL_BACK_TRACE_MAX_DEPTH
+			int "The stack back trace max depth"
+			default 10				
 	endif
 endmenu	

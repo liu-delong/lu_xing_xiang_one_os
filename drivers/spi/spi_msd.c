@@ -441,7 +441,6 @@ static os_err_t _write_block(struct os_spi_device *device, const void *buffer, u
     return _wait_ready(device);
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops msd_ops = 
 {
     os_msd_init,
@@ -461,7 +460,6 @@ const static struct os_device_ops msd_sdhc_ops =
     os_msd_sdhc_write,
     os_msd_control
 };
-#endif
 
 static os_err_t os_msd_init(os_device_t *dev)
 {
@@ -897,21 +895,11 @@ static os_err_t os_msd_init(os_device_t *dev)
 
     if (msd->card_type == MSD_CARD_TYPE_SD_SDHC)
     {
-#ifdef OS_USING_DEVICE_OPS
         dev->ops = &msd_sdhc_ops;
-#else
-        dev->read  = os_msd_sdhc_read;
-        dev->write = os_msd_sdhc_write;
-#endif
     }
     else
     {
-#ifdef OS_USING_DEVICE_OPS
         dev->ops = &msd_ops;
-#else
-        dev->read  = os_msd_read;
-        dev->write = os_msd_write;
-#endif
     }
 
     /* Set CRC */
@@ -1645,22 +1633,12 @@ os_err_t msd_init(const char *sd_device_name, const char *spi_device_name)
     _msd_device.geometry.bytes_per_sector = 0;
     _msd_device.geometry.sector_count     = 0;
     _msd_device.geometry.block_size       = 0;
-
-#ifdef OS_USING_DEVICE_OPS
     _msd_device.parent.ops = &msd_ops;
-#else
-    _msd_device.parent.init = os_msd_init;
-    _msd_device.parent.open = os_msd_open;
-    _msd_device.parent.close = os_msd_close;
-    _msd_device.parent.read = OS_NULL;
-    _msd_device.parent.write = OS_NULL;
-    _msd_device.parent.control = os_msd_control;
-#endif
 
     /* no private, no callback */
     _msd_device.parent.user_data   = OS_NULL;
-    _msd_device.parent.rx_indicate = OS_NULL;
-    _msd_device.parent.tx_complete = OS_NULL;
+    _msd_device.parent.cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    _msd_device.parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
 
     result = os_device_register(&_msd_device.parent,
                                 sd_device_name,

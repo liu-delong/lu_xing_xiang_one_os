@@ -13,7 +13,7 @@
 #define OS_ALIGN_SIZE 4
 #define OS_TASK_PRIORITY_32
 #define OS_TASK_PRIORITY_MAX 32
-#define OS_TICK_PER_SECOND 1000
+#define OS_TICK_PER_SECOND 100
 #define OS_USING_OVERFLOW_CHECK
 #define OS_MAIN_TASK_STACK_SIZE 2048
 #define OS_USING_HOOK
@@ -48,12 +48,11 @@
 #define OS_MEM_STATS
 /* end of Memory management */
 
-/* Kernel device object */
+/* Kernel console */
 
-#define OS_USING_DEVICE
 #define OS_USING_CONSOLE
 #define OS_CONSOLE_DEVICE_NAME "uart3"
-/* end of Kernel device object */
+/* end of Kernel console */
 
 /* Enable assert */
 
@@ -88,6 +87,8 @@
 
 /* Drivers */
 
+#define OS_USING_DEVICE
+
 /* HAL */
 
 #define SOC_FAMILY_STM32
@@ -101,11 +102,18 @@
 /* Audio */
 
 #define OS_USING_AUDIO
+#define OS_AUDIO_DATD_CONFIG
+#define OS_AUDIO_REPLAY_MP_BLOCK_SIZE 2048
+#define OS_AUDIO_REPLAY_MP_BLOCK_COUNT 5
+#define OS_AUDIO_RECORD_PIPE_SIZE 2048
 #define OS_USING_SAI
 #define BSP_SAI_BLOCK "sai_BlockA1"
 #define BSP_USING_ES8388
+#define BSP_USING_ES8388_CONFIG
 #define BSP_ES8388_I2C_BUS "soft_i2c3"
 #define BSP_ES8388_I2C_ADDR 0x10
+#define BSP_USING_ES8388_DATA
+#define BSP_ES8388_DATA_BUS "sai_BlockA1"
 #define BSP_ES8388_POWER_PIN 63
 /* end of Audio */
 
@@ -114,8 +122,6 @@
 #define OS_USING_PUSH_BUTTON
 #define OS_USING_LED
 #define OS_USING_BUZZER
-#define OS_USING_ADC
-#define OS_USING_DAC
 #define OS_USING_PWM
 /* end of MISC */
 
@@ -151,10 +157,8 @@
 
 #define OS_USING_I2C
 #define OS_USING_I2C_BITOPS
+#define SOFT_I2C_BUS_DELAY_US 10
 #define BSP_USING_SOFT_I2C3
-
-/* Notice: PC0 --> 32; PC1 --> 33 */
-
 #define BSP_SOFT_I2C3_SCL_PIN 32
 #define BSP_SOFT_I2C3_SDA_PIN 33
 /* end of I2C */
@@ -223,7 +227,7 @@
 /* Graphic */
 
 #define OS_USING_GRAPHIC
-#define OS_GRAPHIC_WIDTH 320
+#define OS_GRAPHIC_WIDTH 240
 #define OS_GRAPHIC_HEIGHT 240
 #define OS_USING_ST7789VW
 #define OS_ST7789VW_SPI_BUS_NAME "spi1"
@@ -261,7 +265,7 @@
 /* USB */
 
 #define OS_USING_USB_DEVICE
-#define OS_USBD_THREAD_STACK_SZ 4096
+#define OS_USBD_TASK_STACK_SZ 4096
 #define USB_VENDOR_ID 0x0FFE
 #define USB_PRODUCT_ID 0x0001
 #define OS_USB_DEVICE_COMPOSITE
@@ -294,6 +298,10 @@
 
 /* end of Atest */
 
+/* BLE */
+
+/* end of BLE */
+
 /* Cloud */
 
 /* OneNET */
@@ -325,6 +333,7 @@
 /* Molink */
 
 #define NET_USING_MOLINK
+#define MOLINK_PLATFORM_MCU
 
 /* Modules */
 
@@ -351,8 +360,10 @@
 #define ESP8266_CONNECT_PASSWORD "12345678"
 #define ESP8266_USING_GENERAL_OPS
 #define ESP8266_USING_WIFI_OPS
-#define ESP8266_USING_NETSERV_OPS
+#define ESP8266_USING_PING_OPS
+#define ESP8266_USING_IFCONFIG_OPS
 #define ESP8266_USING_NETCONN_OPS
+#define ESP8266_USING_SOCKETS_OPS
 /* end of ESP8266 Config */
 /* end of WiFi Modules Support */
 /* end of Modules */
@@ -364,8 +375,10 @@
 #define AT_CMD_LEN_MAX 128
 /* end of Parser */
 #define MOLINK_USING_GENERAL_OPS
-#define MOLINK_USING_NETSERV_OPS
+#define MOLINK_USING_PING_OPS
+#define MOLINK_USING_IFCONFIG_OPS
 #define MOLINK_USING_NETCONN_OPS
+#define MOLINK_USING_SOCKETS_OPS
 #define MOLINK_USING_WIFI_OPS
 #define MOLINK_USING_IP
 #define MOLINK_USING_IPV4
@@ -387,6 +400,14 @@
 /* MQTT */
 
 /* end of MQTT */
+
+/* Websocket */
+
+/* end of Websocket */
+
+/* Httpclient */
+
+/* end of Httpclient */
 /* end of Protocols */
 
 /* Socket */
@@ -398,6 +419,8 @@
 #define NET_USING_TOOLS
 #define MODULE_USING_IFCONFIG
 #define MODULE_USING_PING
+#define MO_PING_MAX_TIMES_CONFIG 50
+#define MODULE_USING_SOCKETSTAT
 /* end of Tools */
 /* end of Network */
 
@@ -418,7 +441,7 @@
 #define SHELL_ARG_MAX 10
 /* end of Shell */
 
-/* Virtual file system */
+/* FileSystem */
 
 #define OS_USING_VFS
 #define VFS_USING_WORKDIR
@@ -438,7 +461,7 @@
 #define OS_VFS_FAT_REENTRANT
 /* end of Elm-ChaN's FatFs, generic FAT filesystem module */
 #define OS_USING_VFS_DEVFS
-/* end of Virtual file system */
+/* end of FileSystem */
 
 /* GUI */
 
@@ -481,9 +504,11 @@
 
 /* MicroPython */
 
-#define PKG_USING_MICROPYTHON
-#define PKG_MICROPYTHON_DEVICE
 /* end of MicroPython */
+
+/* Amazon-iot */
+
+/* end of Amazon-iot */
 /* end of Thirdparty */
 
 /* Boot Config */

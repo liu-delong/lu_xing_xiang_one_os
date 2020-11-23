@@ -158,8 +158,8 @@ typedef struct mo_wifi_ops
     mo_wifi_mode_t (*get_mode)(mo_object_t *module);
     mo_wifi_stat_t (*get_stat)(mo_object_t *module);
     os_err_t       (*scan_info)(mo_object_t *module, char *ssid, mo_wifi_scan_result_t *scan_result);
-    void           (*scan_info_free)(mo_wifi_scan_result_t *scan_result);
     os_err_t       (*connect_ap)(mo_object_t *module, const char *ssid, const char *password);
+    os_err_t       (*disconnect_ap)(mo_object_t *module);
 } mo_wifi_ops_t;
 
 os_err_t       mo_wifi_set_mode(mo_object_t *module, mo_wifi_mode_t mode);
@@ -168,6 +168,7 @@ mo_wifi_stat_t mo_wifi_get_stat(mo_object_t *module);
 os_err_t       mo_wifi_scan_info(mo_object_t *module, char *ssid, mo_wifi_scan_result_t *scan_result);
 void           mo_wifi_scan_info_free(mo_wifi_scan_result_t *scan_result);
 os_err_t       mo_wifi_connect_ap(mo_object_t *module, const char *ssid, const char *password);
+os_err_t       mo_wifi_disconnect_ap(mo_object_t *module);
 
 #ifdef __cplusplus
 }

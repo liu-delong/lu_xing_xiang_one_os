@@ -108,6 +108,7 @@ mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 
     if (OS_NULL == netconn)
     {
+        m5310a_unlock(&m5310a->netconn_lock);
         return OS_NULL;
     }
 
@@ -131,12 +132,14 @@ mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     if (result != OS_EOK)
     {
         LOG_EXT_E("Module %s create %s netconn failed", module->name, (type == NETCONN_TYPE_TCP) ? "TCP" : "UDP");
+        m5310a_unlock(&m5310a->netconn_lock);
         return OS_NULL;
     }
 
     if (at_resp_get_data_by_line(&resp, 2, "%d", &netconn->connect_id) <= 0)
     {
         LOG_EXT_E("Module %s get %s netconn id failed", module->name, (type == NETCONN_TYPE_TCP) ? "TCP" : "UDP");
+        m5310a_unlock(&m5310a->netconn_lock);
         return OS_NULL;
     }
 
@@ -144,6 +147,7 @@ mo_netconn_t *m5310a_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     if (OS_EOK != result)
     {
         LOG_EXT_E("Module %s set netconn %d data format failed", module->name, netconn->connect_id);
+        m5310a_unlock(&m5310a->netconn_lock);
         return OS_NULL;
     }
 
@@ -186,16 +190,18 @@ os_err_t m5310a_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
         break;
     }
 
-    if (netconn->data_queue.queue != OS_NULL)
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        os_data_queue_deinit(&netconn->data_queue);
+        mo_netconn_data_queue_deinit(&netconn->data_queue);
     }
 
     LOG_EXT_I("Module %s netconnn_id:%d destroyed", module->name, netconn->connect_id);
 
-    netconn->connect_id = -1;
-    netconn->stat       = NETCONN_STAT_NULL;
-    netconn->type       = NETCONN_TYPE_NULL;
+    netconn->connect_id  = -1;
+    netconn->stat        = NETCONN_STAT_NULL;
+    netconn->type        = NETCONN_TYPE_NULL;
+    netconn->remote_port = 0;
+    inet_aton("0.0.0.0", &netconn->remote_ip);
 
     return OS_EOK;
 }
@@ -204,7 +210,7 @@ os_err_t m5310a_netconn_gethostbyname(mo_object_t *self, const char *domain_name
 {
     at_parser_t *parser = &self->parser;
 
-	char recvip[IPADDR_MAX_STR_LEN] = {0};
+	char recvip[IPADDR_MAX_STR_LEN + 1] = {0};
 
     char resp_buff[256] = {0};
 
@@ -264,7 +270,7 @@ static os_err_t m5310a_tcp_connect(at_parser_t *parser, os_int32_t connect_id, c
     at_resp_t resp = {.buff      = resp_buff,
                       .buff_size = sizeof(resp_buff),
                       .line_num  = 4,
-                      .timeout   = 20 * OS_TICK_PER_SECOND};
+                      .timeout   = 40 * OS_TICK_PER_SECOND};
 
     os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+NSOCO=%d,%s,%d", connect_id, ip_addr, port);
     if (result != OS_EOK)
@@ -274,6 +280,13 @@ static os_err_t m5310a_tcp_connect(at_parser_t *parser, os_int32_t connect_id, c
 
     if (at_resp_get_data_by_kw(&resp, "CONNECT", "CONNECT %s", buf) <= 0)
     {
+        result = OS_ERROR;
+        goto __exit;
+    }
+
+    if (strcmp(buf, "OK"))
+    {
+        LOG_EXT_I("Module connect[%d]:%s!", connect_id, buf);
         result = OS_ERROR;
         goto __exit;
     }
@@ -350,7 +363,7 @@ static os_size_t m5310a_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, con
         /* using a special process to execute */
 
         /* Protect the M5310A data sending process, prevent other threads to send AT commands */
-        os_mutex_recursive_lock(&(parser->rx_lock), OS_IPC_WAITING_FOREVER);
+        at_parser_exec_lock(parser);
 
         /* step1: send at command prefix and parameter */
         if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
@@ -373,8 +386,6 @@ static os_size_t m5310a_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, con
             goto __exit;
         }
 
-        os_mutex_recursive_unlock(&(parser->rx_lock));
-
         result = OS_ERROR;
         for (int i = 1; i <= resp.line_counts; i++)
         {
@@ -390,6 +401,7 @@ static os_size_t m5310a_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, con
             goto __exit;
         }
         
+        at_parser_exec_unlock(parser);
         sent_size += cur_pkt_size;
     }
 
@@ -401,6 +413,8 @@ __exit:
                   parser->name,
                   netconn->connect_id,
                   cur_pkt_size / 2);
+
+        at_parser_exec_unlock(parser);
     }
 
     return sent_size / 2;
@@ -436,7 +450,7 @@ static os_size_t m5310a_udp_send(at_parser_t *parser, mo_netconn_t *netconn, con
 
         snprintf(send_cmd,
                  sizeof(send_cmd),
-                 "AT+NSOST=%d,%s,%d,%d,",
+                 "AT+NSOST=%d,%s,%u,%d,",
                  netconn->connect_id,
                  remote_ip,
                  netconn->remote_port,
@@ -446,7 +460,7 @@ static os_size_t m5310a_udp_send(at_parser_t *parser, mo_netconn_t *netconn, con
         /* using a special process to execute */
 
         /* Protect the M5310A data sending process, prevent other threads to send AT commands */
-        os_mutex_recursive_lock(&(parser->rx_lock), OS_IPC_WAITING_FOREVER);
+        at_parser_exec_lock(parser);
 
         /* step1: send at command prefix and parameter */
         if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
@@ -469,8 +483,6 @@ static os_size_t m5310a_udp_send(at_parser_t *parser, mo_netconn_t *netconn, con
             goto __exit;
         }
 
-        os_mutex_recursive_unlock(&(parser->rx_lock));
-
         result = OS_ERROR;
         for (int i = 1; i <= resp.line_counts; i++)
         {
@@ -486,6 +498,8 @@ static os_size_t m5310a_udp_send(at_parser_t *parser, mo_netconn_t *netconn, con
             goto __exit;
         }
 
+        at_parser_exec_unlock(parser);
+        
         sent_size += cur_pkt_size;
     }
 
@@ -496,6 +510,8 @@ __exit:
                   parser->name,
                   netconn->connect_id,
                   cur_pkt_size / 2);
+
+        at_parser_exec_unlock(parser);
     }
 
     return sent_size / 2;
@@ -509,7 +525,7 @@ os_size_t m5310a_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const 
     char *hexstr = calloc(1, size * 2 + 1);
     if (OS_NULL == hexstr)
     {
-        LOG_EXT_E("Moudle &s netconn %d calloc %d bytes memory failed!",
+        LOG_EXT_E("Moudle %s netconn %d calloc %d bytes memory failed!",
                   module->name,
                   netconn->connect_id,
                   size * 2 + 1);

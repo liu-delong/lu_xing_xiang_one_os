@@ -42,9 +42,15 @@ menu "ESP8266 Config"
         select MOLINK_USING_WIFI_OPS
         default y
 
-    config ESP8266_USING_NETSERV_OPS
-        bool "Enable ESP8266 Module Network Service Operates"
-        select MOLINK_USING_NETSERV_OPS
+    config ESP8266_USING_PING_OPS
+        bool "Enable ESP8266 Module Ping Operates"
+        select MOLINK_USING_PING_OPS
+        default y
+
+    config ESP8266_USING_IFCONFIG_OPS
+        bool "Enable ESP8266 Module Ifconfig Operates"
+        select MOLINK_USING_IFCONFIG_OPS
+        select ESP8266_USING_WIFI_OPS
         default y
 
     config ESP8266_USING_NETCONN_OPS
@@ -59,4 +65,17 @@ menu "ESP8266 Config"
         select MOLINK_USING_SOCKETS_OPS
         default n
 
+    config ESP8266_USING_HW_CONTROL
+        bool "Enable ESP8266 Module Hardware Control Operates"
+        select OS_USING_PIN
+        default n
+
+        if ESP8266_USING_HW_CONTROL
+            config ESP8266_RST_PIN_NUM
+                int "The ESP8266 Module Reset Pin Number"
+                help 
+                    This can be calculated using GET_PIN(PORTx, PIN)
+                default -1
+
+        endif
 endmenu

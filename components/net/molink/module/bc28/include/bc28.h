@@ -34,6 +34,14 @@
 #include "bc28_netserv.h"
 #endif
 
+#ifdef BC28_USING_PING_OPS
+#include "bc28_ping.h"
+#endif
+
+#ifdef BC28_USING_IFCONFIG_OPS
+#include "bc28_ifconfig.h"
+#endif
+
 #ifdef BC28_USING_NETCONN_OPS
 #include "bc28_netconn.h"
 #endif
@@ -61,7 +69,7 @@ extern "C" {
 #endif
 
 #ifndef BC28_NETCONN_NUM
-#define BC28_NETCONN_NUM 7
+#define BC28_NETCONN_NUM 6
 #endif
 
 typedef struct mo_bc28
@@ -77,7 +85,7 @@ typedef struct mo_bc28
 
 } mo_bc28_t;
 
-mo_object_t *module_bc28_create(const char *name, os_device_t *device, os_size_t recv_len);
+mo_object_t *module_bc28_create(const char *name, void *parser_config);
 os_err_t     module_bc28_destroy(mo_object_t *self);
 
 #endif /* MOLINK_USING_BC28 */

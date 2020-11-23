@@ -26,6 +26,4 @@
 #ifndef __DRV_RTT_H__
 #define __DRV_RTT_H__
 
-int os_hw_rtt_init(void);
-
 #endif /* __DRV_RTT_H__ */

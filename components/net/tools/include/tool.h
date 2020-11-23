@@ -13,7 +13,7 @@
  *
  * @file        tool.h
  *
- * @brief       The AT modules network debug functions header file
+ * @brief       The modules network debug functions header file
  *
  * @revision
  * Date         Author          Notes
@@ -34,6 +34,21 @@ extern "C" {
 #define MODULE_HWADDR_MAX_LEN 8U
 #endif
 
+#ifdef NET_USING_MOLINK
+
+#ifdef MODULE_USING_IFCONFIG
+void module_show_info(void);
+#endif /* MODULE_USING_IFCONFIG */
+
+#ifdef MODULE_USING_PING
+void module_ping(char *target_name, os_uint32_t times, os_uint16_t size, os_uint32_t timeout);
+#endif /* MODULE_USING_PING */
+
+#ifdef MODULE_USING_SOCKETSTAT
+void module_show_socket_stat(void);
+#endif /* MODULE_USING_SOCKETSTAT */
+
+#endif /* NET_USING_MOLINK */
 
 #ifdef __cplusplus
 }

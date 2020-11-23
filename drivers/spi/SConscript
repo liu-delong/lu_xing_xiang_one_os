@@ -38,10 +38,6 @@ if IsDefined('OS_USING_SFUD'):
     CPPPATH += [pwd + '/sfud/inc']
     if IsDefined('OS_SFUD_USING_SFDP'):
         src_device += ['sfud/src/sfud_sfdp.c']
-    if osconfig.CROSS_TOOL == 'gcc':
-        LOCAL_CCFLAGS += ' -std=c99'
-    elif osconfig.CROSS_TOOL == 'keil':
-        LOCAL_CCFLAGS += ' --c99'
         
 src += src_device
 

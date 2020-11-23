@@ -353,10 +353,15 @@ static os_int32_t mmcsd_set_blksize(struct os_mmcsd_card *card)
     return 0;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops mmcsd_blk_ops =
-    {os_mmcsd_init, os_mmcsd_open, os_mmcsd_close, os_mmcsd_read, os_mmcsd_write, os_mmcsd_control};
-#endif
+{
+    os_mmcsd_init, 
+    os_mmcsd_open, 
+    os_mmcsd_close, 
+    os_mmcsd_read, 
+    os_mmcsd_write, 
+    os_mmcsd_control,
+};
 
 os_int32_t os_mmcsd_blk_probe(struct os_mmcsd_card *card)
 {
@@ -409,18 +414,8 @@ os_int32_t os_mmcsd_blk_probe(struct os_mmcsd_card *card)
 
                 /* register mmcsd device */
                 blk_dev->dev.type = OS_DEVICE_TYPE_BLOCK;
-#ifdef OS_USING_DEVICE_OPS
                 blk_dev->dev.ops = &mmcsd_blk_ops;
-#else
-                blk_dev->dev.init    = os_mmcsd_init;
-                blk_dev->dev.open    = os_mmcsd_open;
-                blk_dev->dev.close   = os_mmcsd_close;
-                blk_dev->dev.read    = os_mmcsd_read;
-                blk_dev->dev.write   = os_mmcsd_write;
-                blk_dev->dev.control = os_mmcsd_control;
-#endif
                 blk_dev->dev.user_data = blk_dev;
-
                 blk_dev->card = card;
 
                 blk_dev->geometry.bytes_per_sector = 1 << 9;
@@ -443,16 +438,7 @@ os_int32_t os_mmcsd_blk_probe(struct os_mmcsd_card *card)
 
                     /* register mmcsd device */
                     blk_dev->dev.type = OS_DEVICE_TYPE_BLOCK;
-#ifdef OS_USING_DEVICE_OPS
                     blk_dev->dev.ops = &mmcsd_blk_ops;
-#else
-                    blk_dev->dev.init    = os_mmcsd_init;
-                    blk_dev->dev.open    = os_mmcsd_open;
-                    blk_dev->dev.close   = os_mmcsd_close;
-                    blk_dev->dev.read    = os_mmcsd_read;
-                    blk_dev->dev.write   = os_mmcsd_write;
-                    blk_dev->dev.control = os_mmcsd_control;
-#endif
                     blk_dev->dev.user_data = blk_dev;
 
                     blk_dev->card = card;
@@ -511,7 +497,7 @@ void os_mmcsd_blk_remove(struct os_mmcsd_card *card)
             if (mounted_path)
             {
                 vfs_unmount(mounted_path);
-                LOG_EXT_D("unmount file system %s for device %s.\r\n", mounted_path, blk_dev->dev.parent.name);
+                LOG_EXT_D("unmount file system %s for device %s.\r\n", mounted_path, device_name(&blk_dev->dev));
             }
             os_sem_destroy(blk_dev->part.lock);
             os_device_unregister(&blk_dev->dev);

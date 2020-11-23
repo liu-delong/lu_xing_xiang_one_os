@@ -23,6 +23,8 @@
 
 #include <os_device.h>
 #include <os_memory.h>
+#include <graphic/graphic.h>
+#include <lcd_port.h>
 #include "st7789vw.h"
 #include "st7789vw_font.h"
 #include "drv_gpio.h"
@@ -40,6 +42,10 @@
 #define LCD_CLEAR_SEND_NUMBER 5760
 
 os_uint16_t BACK_COLOR = WHITE, FORE_COLOR = BLACK;
+
+struct st7789_lcd {
+    os_device_graphic_t graphic;
+};
 
 static struct os_spi_device *spi_dev_lcd;
 
@@ -142,7 +148,7 @@ static int os_hw_lcd_config(void)
     return OS_EOK;
 }
 
-static int os_hw_lcd_init(void)
+static int st7789_init(void)
 {
     lcd_gpio_init();
     os_hw_spi_device_attach(OS_ST7789VW_SPI_BUS_NAME, OS_ST7789VW_SPI_BUS_NAME "_lcd", OS_ST7789VW_SPI_CS_PIN);
@@ -235,6 +241,120 @@ static int os_hw_lcd_init(void)
 
     return OS_EOK;
 }
+
+static void st7789_fill(struct os_device *dev, struct os_device_rect_info *rect)
+{
+    os_uint16_t i = 0, j = 0;
+    os_uint32_t size = 0, size_remain = 0;
+    os_uint8_t *fill_buf = OS_NULL;
+
+    os_int32_t x_start = rect->x;
+    os_int32_t y_start = rect->y;
+    os_int32_t x_end   = rect->x + rect->width - 1;
+    os_int32_t y_end   = rect->y + rect->height - 1;
+    const char *color  = rect->color;
+
+    size = rect->width * rect->height * 2;
+
+    if (size > LCD_CLEAR_SEND_NUMBER)
+    {
+        /* the number of remaining to be filled */
+        size_remain = size - LCD_CLEAR_SEND_NUMBER;
+        size        = LCD_CLEAR_SEND_NUMBER;
+    }
+
+    lcd_address_set(x_start, y_start, x_end, y_end);
+
+    fill_buf = (os_uint8_t *)os_malloc(size);
+    if (fill_buf)
+    {
+        /* fast fill */
+        while (1)
+        {
+            for (i = 0; i < size; i += 2)
+            {
+                fill_buf[i + 1] = *color++;
+                fill_buf[i]     = *color++;
+            }
+            
+            os_pin_write(LCD_DC_PIN, PIN_HIGH);
+            os_spi_send(spi_dev_lcd, fill_buf, size);
+
+            /* Fill completed */
+            if (size_remain == 0)
+                break;
+
+            /* calculate the number of fill next time */
+            if (size_remain > LCD_CLEAR_SEND_NUMBER)
+            {
+                size_remain = size_remain - LCD_CLEAR_SEND_NUMBER;
+            }
+            else
+            {
+                size        = size_remain;
+                size_remain = 0;
+            }
+        }
+        os_free(fill_buf);
+    }
+    else
+    {
+        for (i = y_start; i <= y_end; i++)
+        {
+            for (j = x_start; j <= x_end; j++, color += 2)
+                lcd_write_half_word((*color << 8) | *(color + 1));
+        }
+    }
+
+}
+
+const static struct os_device_graphic_ops ops =
+{
+    .set_pixel  = OS_NULL,
+    .get_pixel  = OS_NULL,
+
+    .draw_hline = OS_NULL,
+    .draw_vline = OS_NULL,
+
+    .blit_line  = OS_NULL,
+
+    .display_on = OS_NULL,
+    .update     = OS_NULL,
+
+    .fill       = st7789_fill,
+};
+
+static int os_hw_lcd_init(void)
+{    
+    struct st7789_lcd *lcd;
+
+    lcd = os_calloc(1, sizeof(struct st7789_lcd));
+
+    OS_ASSERT(lcd);
+
+    st7789_init();
+
+    lcd->graphic.info.width            = LCD_WIDTH;
+    lcd->graphic.info.height           = LCD_HEIGHT;
+    lcd->graphic.info.pixel_format     = LCD_PIXEL_FORMAT;
+    lcd->graphic.info.bits_per_pixel   = LCD_BITS_PER_PIXEL;
+
+#if 0
+    lcd->graphic.info.framebuffer_size = LCD_WIDTH * LCD_HEIGHT * LCD_BITS_PER_PIXEL / 8;
+    lcd->graphic.info.framebuffer      = (void *)os_malloc_align(LCD_WIDTH * LCD_HEIGHT * (LCD_BITS_PER_PIXEL / 8), 32);
+    OS_ASSERT(lcd->graphic.info.framebuffer);
+    memset(lcd->graphic.info.framebuffer, 0, LCD_WIDTH * LCD_HEIGHT * (LCD_BITS_PER_PIXEL / 8));
+#endif
+
+    lcd->graphic.ops = &ops;
+
+    os_graphic_register("lcd", &lcd->graphic);
+
+    os_kprintf("st7789 lcd found.\r\n");
+
+    return OS_EOK;
+}
+
 OS_DEVICE_INIT(os_hw_lcd_init);
 
 /**
@@ -881,216 +1001,3 @@ os_err_t lcd_show_image(os_uint16_t x, os_uint16_t y, os_uint16_t length, os_uin
     return OS_EOK;
 }
 
-#ifdef PKG_USING_QRCODE
-QRCode qrcode;
-
-static os_uint8_t get_enlargement_factor(os_uint16_t x, os_uint16_t y, os_uint8_t size)
-{
-    os_uint8_t enlargement_factor = 1;
-
-    if (x + size * 8 <= LCD_W && y + size * 8 <= LCD_H)
-    {
-        enlargement_factor = 8;
-    }
-    else if (x + size * 4 <= LCD_W && y + size * 4 <= LCD_H)
-    {
-        enlargement_factor = 4;
-    }
-    else if (x + size * 2 <= LCD_W && y + size * 2 <= LCD_H)
-    {
-        enlargement_factor = 2;
-    }
-
-    return enlargement_factor;
-}
-
-static void show_qrcode_by_point(os_uint16_t x, os_uint16_t y, os_uint8_t size, os_uint8_t enlargement_factor)
-{
-    os_uint32_t width = 0, high = 0;
-    for (high = 0; high < size; high++)
-    {
-        for (width = 0; width < size; width++)
-        {
-            if (qrcode_getModule(&qrcode, width, high))
-            {
-                /* magnify pixel */
-                for (os_uint32_t offset_y = 0; offset_y < enlargement_factor; offset_y++)
-                {
-                    for (os_uint32_t offset_x = 0; offset_x < enlargement_factor; offset_x++)
-                    {
-                        lcd_draw_point(x + enlargement_factor * width + offset_x,
-                                       y + enlargement_factor * high + offset_y);
-                    }
-                }
-            }
-        }
-    }
-}
-
-static void show_qrcode_by_line(os_uint16_t x,
-                                os_uint16_t y,
-                                os_uint8_t  size,
-                                os_uint8_t  enlargement_factor,
-                                os_uint8_t *qrcode_buf)
-{
-    os_uint32_t width = 0, high = 0;
-    for (high = 0; high < qrcode.size; high++)
-    {
-        for (width = 0; width < qrcode.size; width++)
-        {
-            if (qrcode_getModule(&qrcode, width, high))
-            {
-                /* magnify pixel */
-                for (os_uint32_t offset_y = 0; offset_y < enlargement_factor; offset_y++)
-                {
-                    for (os_uint32_t offset_x = 0; offset_x < enlargement_factor; offset_x++)
-                    {
-                        /* save the information of modules */
-                        qrcode_buf[2 * (enlargement_factor * width + offset_x +
-                                        offset_y * qrcode.size * enlargement_factor)] = FORE_COLOR >> 8;
-                        qrcode_buf[2 * (enlargement_factor * width + offset_x +
-                                        offset_y * qrcode.size * enlargement_factor) +
-                                   1]                                                 = FORE_COLOR;
-                    }
-                }
-            }
-            else
-            {
-                /* magnify pixel */
-                for (os_uint32_t offset_y = 0; offset_y < enlargement_factor; offset_y++)
-                {
-                    for (os_uint32_t offset_x = 0; offset_x < enlargement_factor; offset_x++)
-                    {
-                        /* save the information of blank */
-                        qrcode_buf[2 * (enlargement_factor * width + offset_x +
-                                        offset_y * qrcode.size * enlargement_factor)] = BACK_COLOR >> 8;
-                        qrcode_buf[2 * (enlargement_factor * width + offset_x +
-                                        offset_y * qrcode.size * enlargement_factor) +
-                                   1]                                                 = BACK_COLOR;
-                    }
-                }
-            }
-        }
-        /* display a line of qrcode */
-        lcd_show_image(x,
-                       y + high * enlargement_factor,
-                       qrcode.size * enlargement_factor,
-                       enlargement_factor,
-                       qrcode_buf);
-    }
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           display the qrcode on the lcd.
- *
- * @param[in]       x             x position
- * @param[in]       y             y position
- * @param[in]       version       version of qrcode
- * @param[in]       ecc           x position
- * @param[in]       data          y position
- * @param[in]       enlargement   enlargement_factor
- *
- * @return          os_err_t
- * @retval          OS_EOK        run successfully
- * @retval          OS_ERROR      failed
- * @retval          OS_ENOMEM     no memory
- ***********************************************************************************************************************
- */
-os_err_t lcd_show_qrcode(os_uint16_t x,
-                         os_uint16_t y,
-                         os_uint8_t  version,
-                         os_uint8_t  ecc,
-                         const char *data,
-                         os_uint8_t  enlargement)
-{
-    os_ASSERT(data);
-
-    os_int8_t   result             = 0;
-    os_uint8_t  enlargement_factor = 1;
-    os_uint8_t *qrcode_buf         = os_NULL;
-
-    if (x + version * 4 + 17 > LCD_W || y + version * 4 + 17 > LCD_H)
-    {
-        LOG_E("The qrcode is too big!");
-        return OS_ERROR;
-    }
-
-    os_uint8_t *qrcodeBytes = (os_uint8_t *)os_calloc(1, qrcode_getBufferSize(version));
-    if (qrcodeBytes == os_NULL)
-    {
-        LOG_E("no memory for qrcode!");
-        return OS_ENOMEM;
-    }
-
-    /* generate qrcode */
-    result = qrcode_initText(&qrcode, qrcodeBytes, version, ecc, data);
-    if (result >= 0)
-    {
-        /* set enlargement factor */
-        if (enlargement == 0)
-        {
-            enlargement_factor = get_enlargement_factor(x, y, qrcode.size);
-        }
-        else
-        {
-            enlargement_factor = enlargement;
-        }
-
-        /* malloc memory for quick display of qrcode */
-        qrcode_buf = os_malloc(qrcode.size * 2 * enlargement_factor * enlargement_factor);
-        if (qrcode_buf == os_NULL)
-        {
-            /* clear lcd */
-            lcd_fill(x, y, x + qrcode.size, y + qrcode.size, BACK_COLOR);
-
-            /* draw point to display qrcode */
-            show_qrcode_by_point(x, y, qrcode.size, enlargement_factor);
-        }
-        else
-        {
-            /* quick display of qrcode */
-            show_qrcode_by_line(x, y, qrcode.size, enlargement_factor, qrcode_buf);
-        }
-        result = OS_EOK;
-    }
-    else
-    {
-        LOG_E("QRCODE(%s) generate falied(%d)\n", qrstr, result);
-        result = OS_ENOMEM;
-        goto __exit;
-    }
-
-__exit:
-    if (qrcodeBytes)
-    {
-        os_free(qrcodeBytes);
-    }
-
-    if (qrcode_buf)
-    {
-        os_free(qrcode_buf);
-    }
-
-    return result;
-}
-#endif
-
-#include <shell.h>
-static int lcd_test(int argc, char **argv)
-{
-    lcd_clear(RED);
-    os_task_msleep(500);
-    lcd_clear(GREEN);
-    os_task_msleep(500);
-    lcd_clear(BLUE);
-    os_task_msleep(500);
-    lcd_clear(BLACK);
-    os_task_msleep(500);
-    lcd_clear(WHITE);
-    os_task_msleep(500);
-
-    return 0;
-}
-
-SH_CMD_EXPORT(lcd_test, lcd_test, "lcd_test!");

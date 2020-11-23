@@ -909,4 +909,4 @@ static int os_hw_stmpe811_init(void)
     return 0;
 }
 
-OS_DEVICE_INIT(os_hw_stmpe811_init);
+OS_CMPOENT_INIT(os_hw_stmpe811_init);

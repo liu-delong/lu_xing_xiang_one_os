@@ -26,6 +26,8 @@
 
 #include "middle/include/qspi.h"
 
+#if (MICROPY_PY_MACHINE_SPI && MICROPY_PY_MACHINE_PIN)
+
 #define CS_LOW(self) mp_hal_pin_write(self->cs, 0)
 #define CS_HIGH(self) mp_hal_pin_write(self->cs, 1)
 
@@ -201,3 +203,4 @@ const mp_qspi_proto_t mp_soft_qspi_proto = {
     .read_cmd = mp_soft_qspi_read_cmd,
     .read_cmd_qaddr_qdata = mp_soft_qspi_read_cmd_qaddr_qdata,
 };
+#endif

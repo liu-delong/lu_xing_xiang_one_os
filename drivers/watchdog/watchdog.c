@@ -80,7 +80,6 @@ static os_err_t os_watchdog_control(struct os_device *dev, int cmd, void *args)
     return (wtd->ops->control(wtd, cmd, args));
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops wdt_ops = {
     os_watchdog_init,
     os_watchdog_open,
@@ -89,7 +88,6 @@ const static struct os_device_ops wdt_ops = {
     OS_NULL,
     os_watchdog_control,
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -113,19 +111,10 @@ os_err_t os_hw_watchdog_register(struct os_watchdog_device *wtd, const char *nam
     device = &(wtd->parent);
 
     device->type        = OS_DEVICE_TYPE_MISCELLANEOUS;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &wdt_ops;
-#else
-    device->init    = os_watchdog_init;
-    device->open    = os_watchdog_open;
-    device->close   = os_watchdog_close;
-    device->read    = OS_NULL;
-    device->write   = OS_NULL;
-    device->control = os_watchdog_control;
-#endif
     device->user_data = data;
 
     /* register a character device */

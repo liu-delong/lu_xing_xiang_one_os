@@ -31,42 +31,23 @@
 #include "drv_common.h"
 #include "board.h"
 #include <drv_cfg.h>
-#include <drv_gpio.h>
-#include <drv_usart.h>
-#include "peripherals.h"
-//#include "drv_sdram.h"
-//#include <timer/clocksource.h>
-//#include <timer/clocksource_cortexm.h>
-//#include <timer/hrtimer.h>
+#include <timer/hrtimer.h>
+#include <drv_flash.h>
 
-uint32_t uwTick;
+#ifdef OS_USING_CLOCKSOURCE
+#include <timer/clocksource.h>
+#include <timer/clocksource_cortexm.h>
+#endif
 
-uint32_t HAL_GetTick(void)
+void SysTick_Handler(void)
 {
-//    if (hardware_init_done)
-//    {
-//        return os_clocksource_gettime() / NSEC_PER_MSEC;
-//    }
-//    else
-//    {
-//        return uwTick;
-//    }
-	return uwTick;
+    os_interrupt_enter();
+    os_tick_increase();
+#ifdef OS_USING_CLOCKSOURCE
+    os_clocksource_update();
+#endif
+    os_interrupt_leave();
 }
-
-void HAL_IncTick(void)
-{
-    uwTick++;
-//    cortexm_systick_isr();
-}
-
-void _Error_Handler(char *s, int num)
-{
-    volatile int loop = 1;
-    while (loop);
-}
-
-int hardware_init(void);
 
 /**
  ***********************************************************************************************************************
@@ -79,6 +60,11 @@ int hardware_init(void);
  */
 void os_hw_board_init()
 {
+#ifdef OS_USE_BOOTLOADER
+    SCB->VTOR = USER_APP_ENTRY;
+#endif
+    
+    BOARD_InitBootClocks();
     BOARD_InitBootPins();
     BOARD_InitBootPeripherals();
     CLOCK_EnableClock(kCLOCK_InputMux);
@@ -88,50 +74,31 @@ void os_hw_board_init()
     
     GPIO_PortInit(GPIO, 0);
     GPIO_PortInit(GPIO, 1);
-	
-    /* NVIC Configuration */
-#define NVIC_VTOR_MASK              0x3FFFFF80
-#ifdef  VECT_TAB_RAM
-    /* Set the Vector Table base location at 0x10000000 */
-    SCB->VTOR  = (0x10000000 & NVIC_VTOR_MASK);
-#else  /* VECT_TAB_FLASH  */
 
-#ifdef PKG_USING_TFM
-    /* Set the Vector Table base location at 0x00020000 when RTT with TF-M*/
-    SCB->VTOR  = (0x00020000 & NVIC_VTOR_MASK);
-#else
-    /* Set the Vector Table base location at 0x00000000 */
-    SCB->VTOR  = (0x00000000 & NVIC_VTOR_MASK);
-#endif
-#endif
+//    /* NVIC Configuration */
+//#define NVIC_VTOR_MASK              0x3FFFFF80
+//#ifdef  VECT_TAB_RAM
+//    /* Set the Vector Table base location at 0x10000000 */
+//    SCB->VTOR  = (0x10000000 & NVIC_VTOR_MASK);
+//#else  /* VECT_TAB_FLASH  */
 
-//#ifndef PKG_USING_TFM
-//    /* This init has finished in secure side of TF-M  */
-//    BOARD_BootClockPLL150M();
+//#ifdef PKG_USING_TFM
+//    /* Set the Vector Table base location at 0x00020000 when RTT with TF-M*/
+//    SCB->VTOR  = (0x00020000 & NVIC_VTOR_MASK);
+//#else
+//    /* Set the Vector Table base location at 0x00000000 */
+//    SCB->VTOR  = (0x00000000 & NVIC_VTOR_MASK);
 //#endif
-
-    /* hardware init start, enable irq for systick */
-    /* some hardware may init timeout */
-
-//    hardware_init_done = OS_FALSE;
+//#endif
 
     os_hw_interrupt_enable(0);
     
-    BOARD_InitBootClocks();
     /* init systick  1 systick = 1/(100M / 100) 100¸ösystick = 1s*/
     SysTick_Config(SystemCoreClock / OS_TICK_PER_SECOND);
     /* set pend exception priority */
     NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
     
     os_hw_interrupt_disable();
-    
-//#ifdef OS_USING_CONSOLE
-//    os_console_set_device(OS_CONSOLE_DEVICE_NAME);
-//#endif
-
-//    hardware_init_done = OS_TRUE;
-
-    /* hardware init end, disable irq */
 
 #ifdef OS_USING_PIN
     os_hw_pin_init();
@@ -145,6 +112,10 @@ void os_hw_board_init()
 #if defined(OS_USING_HEAP)
     os_kprintf("sram heap, begin: 0x%p, end: 0x%p\n", HEAP_BEGIN, HEAP_END);
     os_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
+#endif
+
+#if defined(OS_USING_CLOCKSOURCE_CORTEXM) && defined(DWT)
+    cortexm_dwt_init();
 #endif
 
     os_board_auto_init();

@@ -150,8 +150,7 @@ os_err_t mo_set_reg(mo_object_t *self, os_uint8_t reg_n)
  *                  the network registration status
  *
  * @param[in]       self            The descriptor of molink module instance
- * @param[out]      reg_n           The buffer to store the presentation of an network registration urc data
- * @param[out]      reg_stat        The buffer to store the network registration status
+ * @param[out]      info            The struct to store the presentation of an network registration info
  * 
  * @return          On success, return OS_EOK; on error, return a error code. 
  * @retval          OS_EOK          Get successfully
@@ -159,11 +158,10 @@ os_err_t mo_set_reg(mo_object_t *self, os_uint8_t reg_n)
  * @retval          OS_ETIMEOUT     Get timeout
  ***********************************************************************************************************************
  */
-os_err_t mo_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_stat)
+os_err_t mo_get_reg(mo_object_t *self, eps_reg_info_t *info)
 {
     OS_ASSERT(OS_NULL != self);
-    OS_ASSERT(OS_NULL != reg_n);
-    OS_ASSERT(OS_NULL != reg_stat);
+    OS_ASSERT(OS_NULL != info);
 
     mo_netserv_ops_t *ops = get_netserv_ops(self);
 
@@ -178,7 +176,7 @@ os_err_t mo_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_stat)
         return OS_ERROR;
     }
 
-    return ops->get_reg(self, reg_n, reg_stat);
+    return ops->get_reg(self, info);
 }
 
 /**
@@ -324,144 +322,6 @@ os_err_t mo_get_radio(mo_object_t *self, radio_info_t *radio_info)
 
 /**
  ***********************************************************************************************************************
- * @brief           Execute AT command to get ip address
- *
- * @param[in]       self            The descriptor of molink module instance
- * @param[out]      ip              The buffer to store the ip address
- * 
- * @return          On success, return OS_EOK; on error, return a error code. 
- * @retval          OS_EOK          Get the ip address successfully
- * @retval          OS_ERROR        Get the ip address error
- * @retval          OS_ETIMEOUT     Get the ip address timeout
- ***********************************************************************************************************************
- */
-os_err_t mo_get_ipaddr(mo_object_t *self, char ip[])
-{
-    OS_ASSERT(OS_NULL != self);
-    OS_ASSERT(OS_NULL != ip);
-
-    mo_netserv_ops_t *ops = get_netserv_ops(self);
-
-    if (OS_NULL == ops)
-    {
-        return OS_ERROR;
-    }
-
-    if (OS_NULL == ops->get_ipaddr)
-    {
-        LOG_EXT_E("Module %s does not support get ipaddr operate", self->name);
-        return OS_ERROR;
-    }
-
-    return ops->get_ipaddr(self, ip);
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Execute AT command to set molink module dns server address
- *
- * @param[in]       self            The descriptor of molink module instance
- * @param[in]       dns             The dns server address. @see dns_server_t
- * 
- * @return          On success, return OS_EOK; on error, return a error code. 
- * @retval          OS_EOK          Set dns address successfully
- * @retval          OS_ETIMEOUT     Set dns address timeout
- * @retval          OS_ERROR        Set dns address error
- ***********************************************************************************************************************
- */
-os_err_t mo_set_dnsserver(mo_object_t *self, dns_server_t dns)
-{
-    OS_ASSERT(OS_NULL != self);
-
-    mo_netserv_ops_t *ops = get_netserv_ops(self);
-
-    if (OS_NULL == ops)
-    {
-        return OS_ERROR;
-    }
-
-    if (OS_NULL == ops->set_dnsserver)
-    {
-        LOG_EXT_E("Module %s does not support set dnsserver operate", self->name);
-        return OS_ERROR;
-    }
-
-    return ops->set_dnsserver(self, dns);
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Execute AT command to get molink module dns server address
- *
- * @param[in]       self            The descriptor of molink module instance
- * @param[in]       dns             The buffer to store dns server address. @see dns_server_t
- * 
- * @return          On success, return OS_EOK; on error, return a error code. 
- * @retval          OS_EOK          Get dns address successfully
- * @retval          OS_ETIMEOUT     Get dns address timeout
- * @retval          OS_ERROR        Get dns address error
- ***********************************************************************************************************************
- */
-os_err_t mo_get_dnsserver(mo_object_t *self, dns_server_t *dns)
-{
-    OS_ASSERT(OS_NULL != self);
-
-    mo_netserv_ops_t *ops = get_netserv_ops(self);
-
-    if (OS_NULL == ops)
-    {
-        return OS_ERROR;
-    }
-
-    if (OS_NULL == ops->get_dnsserver)
-    {
-        LOG_EXT_E("Module %s does not support set dnsserver operate", self->name);
-        return OS_ERROR;
-    }
-
-    return ops->get_dnsserver(self, dns);
-}
-
-/**
- ***********************************************************************************************************************
- * @brief           Execute AT command to ping remote host
- *
- * @param[in]       self            The descriptor of molink module instance
- * @param[in]       host            The remote host name
- * @param[in]       len             The ping bytes  
- * @param[in]       timeout         The ping timeout
- * @param[out]      resp            The buffer to store ping response infomation
- * 
- * @return          On success, return OS_EOK; on error, return a error code. 
- * @retval          OS_EOK          Ping successfully
- * @retval          OS_ETIMEOUT     Ping timeout
- * @retval          OS_ERROR        Ping error
- ***********************************************************************************************************************
- */
-os_err_t mo_ping(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp)
-{
-    OS_ASSERT(OS_NULL != self);
-    OS_ASSERT(OS_NULL != host);
-    OS_ASSERT(OS_NULL != resp);  
-
-    mo_netserv_ops_t *ops = get_netserv_ops(self);
-
-    if (OS_NULL == ops)
-    {
-        return OS_ERROR;
-    }
-
-    if (OS_NULL == ops->ping)
-    {
-        LOG_EXT_E("Module %s does not support ping operate", self->name);
-        return OS_ERROR;
-    }
-
-    return ops->ping(self, host, len, timeout, resp);
-}
-
-/**
- ***********************************************************************************************************************
  * @brief           Execute AT command to get cell infomation
  *
  * @param[in]       self              The descriptor of molink module instance
@@ -485,13 +345,347 @@ os_err_t mo_get_cell_info(mo_object_t *self, onepos_cell_info_t* onepos_cell_inf
         return OS_ERROR;
     }
 
-    if (OS_NULL == ops->ping)
+    if (OS_NULL == ops->get_cell_info)
     {
-        LOG_EXT_E("Module %s does not support ping operate", self->name);
+        LOG_EXT_E("Module %s does not support get_cell_info operate", self->name);
         return OS_ERROR;
     }
 
     return ops->get_cell_info(self, onepos_cell_info);	
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to set module PSM(power saving mode) configuration
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       info            The PSM setting info
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Set module PSM(power saving mode) configuration successfully
+ * @retval          OS_ERROR        Set module PSM(power saving mode) configuration error
+ * @retval          OS_ETIMEOUT     Set module PSM(power saving mode) configuration timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_set_psm(mo_object_t *self, mo_psm_info_t info)
+{
+    OS_ASSERT(OS_NULL != self);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->set_psm)
+    {
+        LOG_EXT_E("Module %s does not support set PSM function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->set_psm(self, info);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to get module PSM(power saving mode) info
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       info            The pointer of mo_psm_info_t to store PSM info
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Get module PSM(power saving mode) info successfully
+ * @retval          OS_ERROR        Get module PSM(power saving mode) info error
+ * @retval          OS_ETIMEOUT     Get module PSM(power saving mode) info timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_get_psm(mo_object_t *self, mo_psm_info_t *info)
+{
+    OS_ASSERT(OS_NULL != self);
+    OS_ASSERT(OS_NULL != info);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->get_psm)
+    {
+        LOG_EXT_E("Module %s does not support getting PSM info.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->get_psm(self, info);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to set module eDRX's configuration
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       cfg             The eDRX setting info
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Set module eDRX's configuration successfully
+ * @retval          OS_ERROR        Set module eDRX's configuration error
+ * @retval          OS_ETIMEOUT     Set module eDRX's configuration timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_set_edrx_cfg(mo_object_t *self, mo_edrx_cfg_t cfg)
+{
+    OS_ASSERT(OS_NULL != self);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->set_edrx_cfg)
+    {
+        LOG_EXT_E("Module %s does not support set eDRX configuration function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->set_edrx_cfg(self, cfg);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to get module eDRX's configuration
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       edrx_local      Witch struct that holds eDRX setting info
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Get module eDRX's configuration successfully
+ * @retval          OS_ERROR        Get module eDRX's configuration error
+ * @retval          OS_ETIMEOUT     Get module eDRX's configuration timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_get_edrx_cfg(mo_object_t *self, mo_edrx_t *edrx_local)
+{
+    OS_ASSERT(OS_NULL != self);
+    OS_ASSERT(OS_NULL != edrx_local);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->get_edrx_cfg)
+    {
+        LOG_EXT_E("Module %s does not support get eDRX configuration function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->get_edrx_cfg(self, edrx_local);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to get module eDRX's dynamic parameters (Effective parameters)
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       edrx_dynamic    Witch struct that holds Effective parameters
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Get module eDRX's dynamic parameters successfully
+ * @retval          OS_ERROR        Get module eDRX's dynamic parameters error
+ * @retval          OS_ETIMEOUT     Get module eDRX's dynamic parameters timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_get_edrx_dynamic(mo_object_t *self, mo_edrx_t *edrx_dynamic)
+{
+    OS_ASSERT(OS_NULL != self);
+    OS_ASSERT(OS_NULL != edrx_dynamic);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->get_edrx_dynamic)
+    {
+        LOG_EXT_E("Module %s does not support get dynamic eDRX function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->get_edrx_dynamic(self, edrx_dynamic);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to set module using bands
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       band_list       String that hold chosen using bands
+ * @param[in]       num             band number in band_list
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Set module using bands successfully
+ * @retval          OS_ERROR        Set module using bands error
+ * @retval          OS_ETIMEOUT     Set module using bands timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_set_band(mo_object_t *self, char band_list[], os_uint8_t num)
+{
+    OS_ASSERT(OS_NULL != self);
+    OS_ASSERT(OS_NULL != band_list);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->set_band)
+    {
+        LOG_EXT_E("Module %s does not support set band function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->set_band(self, band_list, num);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to set module locking to specific earfcn (specific frequency lock)
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       earfcn          Struct that hold earfcn configurations
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Set module locking to specific earfcn successfully
+ * @retval          OS_ERROR        Set module locking to specific earfcn error
+ * @retval          OS_ETIMEOUT     Set module locking to specific earfcn timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_set_earfcn(mo_object_t *self, mo_earfcn_t earfcn)
+{
+    OS_ASSERT(OS_NULL != self);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->set_earfcn)
+    {
+        LOG_EXT_E("Module %s does not support set earfcn function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->set_earfcn(self, earfcn);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to get module earfcn
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ * @param[in]       earfcn          Struct that hold returning earfcn configurations
+ * 
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Get module earfcn successfully
+ * @retval          OS_ERROR        Get module earfcn error
+ * @retval          OS_ETIMEOUT     Get module earfcn timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_get_earfcn(mo_object_t *self, mo_earfcn_t *earfcn)
+{
+    OS_ASSERT(OS_NULL != self);
+    OS_ASSERT(OS_NULL != earfcn);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->get_earfcn)
+    {
+        LOG_EXT_E("Module %s does not support get earfcn function.", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->get_earfcn(self, earfcn);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to clear stored earfcn
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ *
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Clear stored earfcn successfully
+ * @retval          OS_ERROR        Clear stored earfcn error
+ * @retval          OS_ETIMEOUT     Clear stored earfcn timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_clear_stored_earfcn(mo_object_t *self)
+{
+    OS_ASSERT(OS_NULL != self);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->clear_stored_earfcn)
+    {
+        LOG_EXT_E("Module %s does not support clear stored earfcn operate", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->clear_stored_earfcn(self);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Execute the AT command to clear PLMN, EARFCN, PCI attachment record
+ *
+ * @param[in]       self            The descriptor of molink module instance
+ *
+ * @return          On success, return OS_EOK; on error, return a error code. 
+ * @retval          OS_EOK          Clear PLMN successfully
+ * @retval          OS_ERROR        Clear PLMN error
+ * @retval          OS_ETIMEOUT     Clear PLMN timeout
+ ***********************************************************************************************************************
+ */
+os_err_t mo_clear_plmn(mo_object_t *self)
+{
+    OS_ASSERT(OS_NULL != self);
+
+    mo_netserv_ops_t *ops = get_netserv_ops(self);
+
+    if (OS_NULL == ops)
+    {
+        return OS_ERROR;
+    }
+
+    if (OS_NULL == ops->clear_plmn)
+    {
+        LOG_EXT_E("Module %s does not support clear plmn operate", self->name);
+        return OS_ERROR;
+    }
+
+    return ops->clear_plmn(self);
 }
 
 #ifdef OS_USING_SHELL
@@ -503,15 +697,25 @@ os_err_t mo_get_cell_info(mo_object_t *self, onepos_cell_info_t* onepos_cell_inf
 
 os_err_t module_get_reg_sh(int argc, char* argv[])
 {    
-    os_uint8_t reg_n = 0, reg_status = 0;
-    if (mo_get_reg(mo_get_default(), &reg_n, &reg_status) == OS_EOK)
+    eps_reg_info_t info;
+    
+    mo_object_t *mo_def_obj = OS_NULL;
+    
+    mo_def_obj = mo_get_default();
+    if (OS_NULL == mo_def_obj)
     {
-        printf("Get reg reg_n:%d, reg_status:%d!\n", reg_n, reg_status);
+        printf("module_get_reg_sh: get def mo obj fail!\n");
+        return OS_ERROR;
+    }
+
+    if (mo_get_reg(mo_def_obj, &info) == OS_EOK)
+    {
+        LOG_EXT_I("Get reg reg_n:%d, reg_status:%d!\n", info.reg_n, info.reg_stat);
     }
     
     return OS_EOK;
 }
-SH_CMD_EXPORT(mo_get_reg, module_get_reg_sh, "Get reg");
+SH_CMD_EXPORT(mo_get_reg, module_get_reg_sh, "Get module network reg status");
 
 #endif /* OS_USING_SHELL */
 

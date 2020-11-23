@@ -1,0 +1,6 @@
+config ARCH_XTENSA
+    bool
+
+config ARCH_XTENSA_LX6
+    bool
+    select ARCH_XTENSA

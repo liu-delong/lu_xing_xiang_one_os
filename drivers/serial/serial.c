@@ -42,6 +42,10 @@
 #include <posix_termios.h>
 #endif
 
+#ifdef OS_USING_LPMGR
+#include <lpmgr.h>
+#endif
+
 /* It's possible the 'getc/putc' is defined by stdio.h in gcc/newlib. */
 #ifdef getc
 #undef getc
@@ -51,14 +55,15 @@
 #undef putc
 #endif
 
-static os_err_t serial_fops_rx_ind(struct os_device *dev, os_size_t size)
+
+static os_err_t serial_fops_rx_ind(struct os_device *dev, struct os_device_cb_info *info)
 {
     os_waitqueue_wakeup(&(dev->wait_queue), (void *)POLLIN);
 
     return OS_EOK;
 }
 
-static os_err_t serial_fops_tx_complete(struct os_device *dev, void *buffer)
+static os_err_t serial_fops_tx_complete(struct os_device *dev, struct os_device_cb_info *info)
 {
     os_waitqueue_wakeup(&(dev->wait_queue), (void *)POLLOUT);
 
@@ -95,9 +100,23 @@ static int serial_fops_open(struct vfs_fd *fd)
     }
 
     if (flags & OS_DEVICE_FLAG_WRONLY)
-        os_device_set_tx_complete(device, serial_fops_tx_complete);
+    {
+        struct os_device_cb_info cb_info = 
+        {
+            .type = OS_DEVICE_CB_TYPE_TX,
+            .cb   = serial_fops_tx_complete,
+        };
+        os_device_control(device, IOC_SET_CB, &cb_info);
+    }
     if (flags & OS_DEVICE_FLAG_RDONLY)
-        os_device_set_rx_indicate(device, serial_fops_rx_ind);
+    {
+        struct os_device_cb_info cb_info = 
+        {
+            .type = OS_DEVICE_CB_TYPE_RX,
+            .cb   = serial_fops_rx_ind,
+        };
+        os_device_control(device, IOC_SET_CB, &cb_info);
+    }
     ret = os_device_open(device, flags | OS_SERIAL_FLAG_TX_NOPOLL | OS_SERIAL_FLAG_RX_NOPOLL);
     if (ret == OS_EOK)
         return 0;
@@ -234,6 +253,8 @@ const static struct vfs_file_ops _serial_fops =
 #define OS_SERIAL_RX_TIMER_STATUS_NONE   0
 #define OS_SERIAL_RX_TIMER_STATUS_ON     1
 #define OS_SERIAL_RX_TIMER_STATUS_OFF    2
+
+static os_err_t os_serial_control(struct os_device *dev, int cmd, void *args);
 
 static void _serial_start_recv(struct os_serial_device *serial)
 {
@@ -421,6 +442,31 @@ static int _serial_poll_tx(struct os_serial_device *serial, const os_uint8_t *da
     return send_index;
 }
 
+#ifdef OS_USING_LPMGR
+static int serial_suspend(struct os_device *device, os_uint8_t mode)
+{
+    return os_serial_control(device, OS_DEVICE_CTRL_SUSPEND, NULL);
+}
+
+static void serial_resume(struct os_device *device, os_uint8_t mode)
+{
+    os_serial_control(device, OS_DEVICE_CTRL_RESUME, NULL);
+}
+
+static int serial_frequency_change(const struct os_device *device, os_uint8_t mode)
+{
+    return 0;
+}
+
+static struct os_lpmgr_device_ops serial_lpmgr_ops =
+{
+    serial_suspend,
+    serial_resume,
+    serial_frequency_change,
+};
+
+#endif
+
 /* OneOS Device Interface */
 
 static os_err_t os_serial_init(struct os_device *dev)
@@ -475,7 +521,7 @@ static os_err_t os_serial_open(struct os_device *dev, os_uint16_t oflag)
         {
             serial->rx_timer_status = OS_SERIAL_RX_TIMER_STATUS_OFF;
             os_timer_init(&serial->rx_timer, 
-                      serial->parent.parent.name, 
+                      device_name(&serial->parent),
                       _serial_rx_timer, 
                       serial, 
                       ((OS_TICK_PER_SECOND / 100) != 0) ? (OS_TICK_PER_SECOND / 100) : 1,
@@ -511,6 +557,11 @@ static os_err_t os_serial_open(struct os_device *dev, os_uint16_t oflag)
     /* Set stream flag */
     dev->open_flag |= stream_flag;
 
+#ifdef OS_USING_LPMGR
+    os_lpmgr_device_register(dev, &serial_lpmgr_ops);
+#endif
+
+
     return OS_EOK;
 }
 
@@ -533,8 +584,15 @@ static os_err_t os_serial_close(struct os_device *dev)
     if (serial->ops->stop_recv)
         serial->ops->stop_recv(serial);
 
-    os_device_set_rx_indicate(dev, OS_NULL);
-    os_device_set_tx_complete(dev, OS_NULL);
+    struct os_device_cb_info cb_info;
+    
+    cb_info.type = OS_DEVICE_CB_TYPE_TX;
+    cb_info.cb   = OS_NULL;
+    os_device_control(dev, IOC_SET_CB, &cb_info);
+
+    cb_info.type = OS_DEVICE_CB_TYPE_RX;
+    cb_info.cb   = OS_NULL;
+    os_device_control(dev, IOC_SET_CB, &cb_info);
 
     if (serial->rx_timer_status != OS_SERIAL_RX_TIMER_STATUS_NONE)
     {
@@ -656,6 +714,7 @@ static int _get_baudrate(speed_t speed)
 static void _tc_flush(struct os_serial_device *serial, int queue)
 {
     os_base_t level;
+    os_uint8_t c;
     int ch = -1;
 
     struct os_device *        device  = OS_NULL;
@@ -675,15 +734,15 @@ static void _tc_flush(struct os_serial_device *serial, int queue)
         {
             OS_ASSERT(serial->rx_fifo != OS_NULL);
             level = os_hw_interrupt_disable();
-            rb_ring_buff_reset(serial->rx_fifo->rbuff);
+            rb_ring_buff_reset(&serial->rx_fifo->rbuff);
             os_hw_interrupt_enable(level);
         }
         else
         {
             while (1)
             {
-                ch = serial->ops->getc(serial);
-                if (ch == -1)
+                ch = serial->ops->poll_recv(serial, &c, 1);
+                if (ch != 1)
                     break;
             }
         }
@@ -708,11 +767,13 @@ static os_err_t os_serial_control(struct os_device *dev, int cmd, void *args)
     switch (cmd)
     {
     case OS_DEVICE_CTRL_SUSPEND:
+        os_timer_stop(&serial->rx_timer);
         /* Suspend device */
         dev->flag |= OS_DEVICE_FLAG_SUSPENDED;
         break;
 
     case OS_DEVICE_CTRL_RESUME:
+        os_timer_start(&serial->rx_timer);
         /* Resume device */
         dev->flag &= ~OS_DEVICE_FLAG_SUSPENDED;
         break;
@@ -859,7 +920,6 @@ static os_err_t os_serial_control(struct os_device *dev, int cmd, void *args)
     return ret;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops serial_ops = 
 {
     os_serial_init,
@@ -869,17 +929,6 @@ const static struct os_device_ops serial_ops =
     os_serial_write,
     os_serial_control
 };
-#endif
-int serial_suspend(const struct os_device *device, os_uint8_t mode)
-{
-    return os_serial_control((struct os_device *)device,OS_DEVICE_CTRL_SUSPEND,NULL);
-}
-
-void serial_resume(const struct os_device *device, os_uint8_t mode)
-{
-     os_serial_control((struct os_device *)device,OS_DEVICE_CTRL_RESUME,NULL);
-}
-
 
 os_err_t os_hw_serial_register(struct os_serial_device *serial, const char *name, os_uint32_t flag, void *data)
 {
@@ -890,19 +939,10 @@ os_err_t os_hw_serial_register(struct os_serial_device *serial, const char *name
     device = &(serial->parent);
 
     device->type        = OS_DEVICE_TYPE_CHAR;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &serial_ops;
-#else
-    device->init    = os_serial_init;
-    device->open    = os_serial_open;
-    device->close   = os_serial_close;
-    device->read    = os_serial_read;
-    device->write   = os_serial_write;
-    device->control = os_serial_control;
-#endif
     device->user_data = data;
 
     /* Register a character device */
@@ -918,7 +958,7 @@ os_err_t os_hw_serial_register(struct os_serial_device *serial, const char *name
 
 void os_hw_serial_isr_rxdone(struct os_serial_device *serial, int count)
 {
-    os_size_t rx_length;
+    int count_put;
 
     OS_ASSERT(serial);
     OS_ASSERT(serial->rx_fifo != OS_NULL);
@@ -927,18 +967,22 @@ void os_hw_serial_isr_rxdone(struct os_serial_device *serial, int count)
 
     serial->rx_timer_status = OS_SERIAL_RX_TIMER_STATUS_OFF;
 
-    rb_ring_buff_put(&serial->rx_fifo->rbuff, serial->rx_fifo->line_buff, count);
+    count_put = rb_ring_buff_put(&serial->rx_fifo->rbuff, serial->rx_fifo->line_buff, count);
 
-    if (serial->parent.rx_indicate != OS_NULL)
+    struct os_device_cb_info *info = &serial->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+    if (info->cb != OS_NULL)
     {
-        rx_length = rb_ring_buff_data_len(&serial->rx_fifo->rbuff);
-        OS_ASSERT(rx_length != 0);
-        serial->parent.rx_indicate(&serial->parent, rx_length);
+        info->size = rb_ring_buff_data_len(&serial->rx_fifo->rbuff);
+        info->cb(&serial->parent, info);
     }
 
-    if (rb_ring_buff_space_len(&serial->rx_fifo->rbuff) != 0)
+    if (count_put == count)
     {
         _serial_start_recv(serial);
+    }
+    else
+    {
+        /* drop some data */
     }
 }
 
@@ -956,10 +1000,12 @@ void os_hw_serial_isr_txdone(struct os_serial_device *serial)
     count = rb_ring_buff_get(&tx_fifo->rbuff, tx_fifo->line_buff, serial->config.tx_bufsz);
 
     if (count == 0)
-    {        
-        if (serial->parent.tx_complete != OS_NULL)
+    {
+        struct os_device_cb_info *info = &serial->parent.cb_table[OS_DEVICE_CB_TYPE_TX];
+        if (info->cb != OS_NULL)
         {
-            serial->parent.tx_complete(&serial->parent, OS_NULL);
+            info->data = OS_NULL;
+            info->cb(&serial->parent, info);
         }
     }
     else

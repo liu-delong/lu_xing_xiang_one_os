@@ -24,6 +24,4 @@
 #ifndef __DRV_SPI_H_
 #define __DRV_SPI_H_
 
-os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t cs_pin);
-
 #endif /*__DRV_SPI_H_ */

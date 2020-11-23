@@ -36,7 +36,7 @@
 
 static os_err_t os_rtc_open(os_device_t *dev, os_uint16_t oflag)
 {
-    if (dev->rx_indicate != OS_NULL)
+    if (dev->cb_table[OS_DEVICE_CB_TYPE_RX].cb != OS_NULL)
     {
         /* Open Interrupt */
     }

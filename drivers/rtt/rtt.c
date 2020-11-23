@@ -144,5 +144,5 @@ static int os_hw_rtt_init(void)
     return 0;
 }
 
-OS_BOARD_INIT(os_hw_rtt_init);
+OS_INIT_EXPORT(os_hw_rtt_init, "0.end.0");
 

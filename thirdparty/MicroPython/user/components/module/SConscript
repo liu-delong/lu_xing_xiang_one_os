@@ -16,8 +16,10 @@ src    += Glob('mpthreadport.c')
 src    += Glob('utime_mphal.c')
 if IsDefined(['MICROPY_PY_ONENET']): 
 	src    += Glob('modonenet.c')
-
-
+if IsDefined(['MICROPY_USING_UBINASCII_CRC32']):
+    src += Glob('uzlib/*.c')
+if IsDefined(['MICROPY_USING_UZLIB']):
+	src += Glob('moduzlib.c')
 
 path    = [cwd + '/']
 

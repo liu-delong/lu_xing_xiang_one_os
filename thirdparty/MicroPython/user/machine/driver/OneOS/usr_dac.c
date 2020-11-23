@@ -1,20 +1,10 @@
-#include <stdio.h>
-#include <string.h>
 #include "py/runtime.h"
-#include "py/mphal.h"
-#include "py/mperrno.h"
 
+#if (MICROPY_PY_MACHINE_DAC)
 #include <os_device.h>
-#include <drv_cfg.h>
-#include <drv_gpio.h>
-
-
-
-#if (MICROPY_PY_DAC)
-
 #include "usr_dac.h"
 #include "usr_misc.h"
-
+#include "dac.h"
 /**
  ********************************************************************************************************
  *                                      dac ³õÊ¼»¯
@@ -43,7 +33,8 @@ static int dac_init(void *device, uint16_t channel)
 		mp_raise_ValueError("Couldn't find dac! \n");
 		return -1;
 	}
-	os_kprintf("name = %s, channel=%d\n", dac_device->parent.name, channel);
+	os_kprintf("name = %s, channel=%d\n", dac_device->name, channel);
+	
 	os_dac_enable((os_dac_device_t *)dac_device, channel);
 	((device_info_t *)device)->open_flag = MP_DAC_INIT_FLAG;
 	return 0;
@@ -96,18 +87,15 @@ STATIC struct operate dac_ops = {
 
 int mpycall_dac_register(void)
 {
-	device_info_t  *pos, *dac = mp_misc_find_similar_device("dac");
+	device_info_t  *pos, *dac = mp_misc_find_similar_device(MICROPYTHON_MACHINE_DAC_PRENAME);
 	if (!dac){
 		return -1;
 	}
-
-	//mpycall_device_add_list(dac);
 	
 	DEV_LIST_LOOP(pos, dac, get_list_head())
 	{
 		pos->owner.type = DEV_BUS;
 		pos->ops = &dac_ops;
-		
 	}
 	return 0;
 }

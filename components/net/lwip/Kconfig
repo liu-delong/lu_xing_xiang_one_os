@@ -242,6 +242,12 @@ config NET_USING_LWIP
         select LWIP_USING_ICMP
         select LWIP_USING_RAW
 
+    if NET_USING_LWIP212
+        config LWIP_USING_IPREF_TCP_SERVER
+            bool "Enable ipref for tcp server"
+            default n
+    endif
+
     menuconfig LWIP_ENABLE_DEBUG
         bool "Enable lwIP Debugging Options"
         default n

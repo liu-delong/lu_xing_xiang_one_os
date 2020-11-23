@@ -31,7 +31,6 @@ extern "C" {
 
 #define AT_RESP_OK    "OK"
 #define AT_RESP_ERROR "ERROR"
-#define AT_RESP_FAIL  "FAIL"
 
 #define AT_RESP_BUFF_SIZE_DEF 64                   /* AT response default buffer size */
 #define AT_RESP_LINE_NUM_DEF  0                    /* The expected response data linenum */

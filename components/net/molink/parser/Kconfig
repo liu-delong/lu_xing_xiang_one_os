@@ -13,12 +13,6 @@ if MOLINK_USING_PARSER
             bool "Enable print RAW format AT command communication data"
             default n
             select DLOG_USING_ISR_LOG if OS_USING_DLOG 
-
-        config AT_CMD_LEN_MAX
-            int "The maximum lenght of AT commands buffer"
-
-            default 128 
-
 endif
 
 endmenu

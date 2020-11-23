@@ -56,6 +56,8 @@ if IsDefined(['HAL_RTC_MODULE_ENABLED']):
     
 if IsDefined(['HAL_IWDG_MODULE_ENABLED']):
     src += ['STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_iwdg.c']
+    
+if IsDefined(['HAL_WWDG_MODULE_ENABLED']):
     src += ['STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_wwdg.c']
 
 path = [pwd + '/STM32G0xx_HAL_Driver/Inc',

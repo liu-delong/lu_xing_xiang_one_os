@@ -23,14 +23,14 @@
  ***********************************************************************************************************************
  */
 
-#include <drivers.h>
+#include <os_drivers.h>
 #include <misc/dac.h>
 
 os_err_t os_dac_write(os_dac_device_t *dac, os_uint32_t channel, os_int32_t mv)
 {
     if (mv > dac->ref_hight || mv < dac->ref_low)
     {
-        os_kprintf("invalid dac param %s, %d, %d.\r\n", dac->parent.parent.name, channel, mv);
+        os_kprintf("invalid dac param %s, %d, %d.\r\n", device_name(&dac->parent), channel, mv);
         return OS_EINVAL;
     }
 
@@ -63,12 +63,10 @@ static os_err_t _dac_control(os_device_t *dev, int cmd, void *args)
     return OS_ENOSYS;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops dac_ops = {
     .write   = _dac_write,
     .control = _dac_control,
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -93,13 +91,7 @@ os_err_t os_dac_register(os_dac_device_t *dac, const char *name, const void *use
     os_kprintf("dac register ref:[%d, %d], value:%d, mult:%d, shift:%d.\r\n",
                dac->ref_low, dac->ref_hight, dac->max_value, dac->mult, dac->shift);
 
-#ifdef OS_USING_DEVICE_OPS
     dac->parent.ops       = &dac_ops;
-#else
-    dac->parent.write     = _dac_write;
-    dac->parent.control   = _dac_control;
-#endif
-
     dac->parent.type      = OS_DEVICE_TYPE_MISCELLANEOUS;
     dac->parent.user_data = (void *)user_data;
     return os_device_register(&dac->parent, name, OS_DEVICE_FLAG_RDWR);

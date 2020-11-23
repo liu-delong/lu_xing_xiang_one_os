@@ -50,7 +50,7 @@ void am_pin_mode(struct os_device *dev, os_base_t pin, os_base_t mode)
         /* input setting: pull up. */
         am_hal_gpio_pin_config(pin, AM_HAL_GPIO_INPUT);
     }
-    else if (mode == PIN_MODE_INPUT_PULLDOWN)
+    else if ((mode == PIN_MODE_INPUT_PULLDOWN) || (mode == PIN_MODE_OUTPUT_OD))
     {
         /* input setting: pull down. */
         am_hal_gpio_pin_config(pin, AM_HAL_GPIO_OPENDRAIN);

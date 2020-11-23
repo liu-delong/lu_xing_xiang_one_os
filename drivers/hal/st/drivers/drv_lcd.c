@@ -92,7 +92,7 @@ static os_err_t stm32_lcd_init(struct stm32_lcd *lcd)
     lcd->graphic.info.pixel_format     = LCD_PIXEL_FORMAT;
     lcd->graphic.info.bits_per_pixel   = LCD_BITS_PER_PIXEL;
     lcd->graphic.info.framebuffer_size = LCD_WIDTH * LCD_HEIGHT * LCD_BITS_PER_PIXEL / 8;
-    lcd->graphic.info.framebuffer      = (void *)os_malloc_align(LCD_WIDTH * LCD_HEIGHT * (LCD_BITS_PER_PIXEL / 8), 32);
+    lcd->graphic.info.framebuffer      = (void *)os_malloc_align(LCD_WIDTH * LCD_HEIGHT * (LCD_BITS_PER_PIXEL / 8), 0x200);
 
     OS_ASSERT(lcd->graphic.info.framebuffer);
     
@@ -104,7 +104,28 @@ static os_err_t stm32_lcd_init(struct stm32_lcd *lcd)
     return OS_EOK;
 }
 
-struct os_device_graphic_ops ops =
+static void stm32_lcd_fill(struct os_device *dev, struct os_device_rect_info *rect)
+{
+    os_device_graphic_t *graphic = (os_device_graphic_t *)dev;
+    struct os_device_graphic_info *info = &graphic->info;
+
+    int y, line_total_size, line_copy_size;
+    unsigned long framebuffer_dst = (unsigned long)info->framebuffer 
+                                  + (info->bits_per_pixel / 8 * (rect->y * info->width + rect->x));
+    unsigned long framebuffer_src = (unsigned long)rect->color;
+
+    line_total_size = (info->bits_per_pixel / 8) * info->width;
+    line_copy_size  = (info->bits_per_pixel / 8) * rect->width;
+
+    for (y = 0; y < rect->height; y++)
+    {
+        memcpy((void *)framebuffer_dst, (void *)framebuffer_src, line_copy_size);
+        framebuffer_dst += line_total_size;
+        framebuffer_src += line_copy_size;
+    }
+}
+
+const static struct os_device_graphic_ops ops =
 {
     .set_pixel  = OS_NULL,
     .get_pixel  = OS_NULL,
@@ -116,6 +137,8 @@ struct os_device_graphic_ops ops =
 
     .display_on = OS_NULL,
     .update     = OS_NULL,
+
+    .fill       = stm32_lcd_fill,
 };
 
 static int stm32_lcd_probe(const os_driver_info_t *drv, const os_device_info_t *dev)

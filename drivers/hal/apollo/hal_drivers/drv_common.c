@@ -142,7 +142,11 @@ void SysTick_Configuration(void)
 void am_low_power_init(void)
 {
     /* Enable internal buck converters. */
+	#ifdef SOC_APOLLO2_XXX
+		am_hal_pwrctrl_bucks_init();
+	#else
     am_hal_mcuctrl_bucks_enable();
+	#endif    
 
     /* Turn off the voltage comparator as this is enabled on reset. */
     am_hal_vcomp_disable();
@@ -157,7 +161,10 @@ void am_low_power_init(void)
     am_hal_rtc_osc_disable();
 
     /* Disable the bandgap. */
+	#ifdef SOC_APOLLO2_XXX
+	#else
     am_hal_mcuctrl_bandgap_disable();
+	#endif
 }
 
 void deep_power_save(void)
@@ -211,20 +218,10 @@ void os_hw_board_init(void)
     os_system_heap_init((void *)AM_SRAM_BEGIN, (void *)AM_SRAM_END);
 #endif
 
-    /* USART driver initialization is open by default */
-#ifdef OS_USING_SERIAL
-    os_hw_usart_init();
-#else
-    delay_init(80);
-    uart_init(115200);
-#endif
 #ifdef OS_USING_RTT
     os_hw_rtt_init();
 #endif
     /* Set the shell console output device */
-#ifdef OS_USING_CONSOLE
-    os_console_set_device(OS_CONSOLE_DEVICE_NAME);
-#endif
 
     /* Pin driver initialization is open by default */
 #ifdef OS_USING_PIN
@@ -240,7 +237,7 @@ void os_hw_board_init(void)
     os_hw_adc_init();
 #endif
 
-#ifdef OS_USING_I2C
+#ifdef BSP_USING_I2C
     os_hw_i2c_init();
 #endif
 

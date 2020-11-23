@@ -39,6 +39,8 @@ os_err_t ml302_get_imsi(mo_object_t *self, char *value, os_size_t len);
 os_err_t ml302_get_iccid(mo_object_t *self, char *value, os_size_t len);
 os_err_t ml302_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl);
 os_err_t ml302_set_cfun(mo_object_t *self, os_uint8_t fun_lvl);
+os_err_t ml302_get_firmware_version(mo_object_t *self, mo_firmware_version_t *version);
+
 #endif   /* ML302_USING_GENERAL_OPS */
 
 #ifdef   __cplusplus

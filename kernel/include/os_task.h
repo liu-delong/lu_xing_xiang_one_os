@@ -182,6 +182,8 @@ extern char            *os_task_name(os_task_t *task);
 extern os_err_t         os_task_yield(void);
 extern os_err_t         os_task_control(os_task_t *task, enum os_task_ctrl_cmd cmd, void *arg);
 extern os_task_t       *os_task_find(char *name);
+extern os_err_t         os_task_id_verify(os_task_t *id);
+
 
 extern os_err_t         os_task_sleep(os_tick_t tick);
 extern os_err_t         os_task_msleep(os_uint32_t ms);

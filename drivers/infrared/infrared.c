@@ -64,7 +64,7 @@ static void infrared_rx_idle(struct os_infrared_device *infrared, int rx_pin_sta
 {
     os_int32_t usec = (now - infrared->rx_time_stamp) / NSEC_PER_USEC;
 
-    LOG_EXT_D("%d.%09d, %d, %d", now / NSEC_PER_SEC, now % NSEC_PER_SEC, usec, rx_pin_status);
+    LOG_EXT_D("%d.%09d, %d, %d", (os_int32_t)(now / NSEC_PER_SEC), (os_int32_t)(now % NSEC_PER_SEC), usec, rx_pin_status);
 
     if (rx_pin_status == PIN_LOW)
     {
@@ -89,7 +89,7 @@ static void infrared_rx_sync(struct os_infrared_device *infrared, int rx_pin_sta
 #ifdef OS_DEBUG
     os_int32_t usec = (now - infrared->rx_time_stamp) / NSEC_PER_USEC;
 
-    LOG_EXT_D("%d.%09d, %d, %d", now / NSEC_PER_SEC, now % NSEC_PER_SEC, usec, rx_pin_status);
+    LOG_EXT_D("%d.%09d, %d, %d", (os_int32_t)(now / NSEC_PER_SEC), (os_int32_t)(now % NSEC_PER_SEC), usec, rx_pin_status);
 #endif
 
     if (rx_pin_status == PIN_LOW)
@@ -102,7 +102,7 @@ static void infrared_rx_addr(struct os_infrared_device *infrared, int rx_pin_sta
 {
     os_int32_t usec = (now - infrared->rx_time_stamp) / NSEC_PER_USEC;
 
-    LOG_EXT_D("%d.%09d, %d, %d", now / NSEC_PER_SEC, now % NSEC_PER_SEC, usec, rx_pin_status);
+    LOG_EXT_D("%d.%09d, %d, %d", (os_int32_t)(now / NSEC_PER_SEC), (os_int32_t)(now % NSEC_PER_SEC), usec, rx_pin_status);
 
     if (rx_pin_status == PIN_HIGH)
     {
@@ -128,7 +128,7 @@ static void infrared_rx_data(struct os_infrared_device *infrared, int rx_pin_sta
 {
     os_int32_t usec = (now - infrared->rx_time_stamp) / NSEC_PER_USEC;
 
-    LOG_EXT_D("%d.%09d, %d, %d", now / NSEC_PER_SEC, now % NSEC_PER_SEC, usec, rx_pin_status);
+    LOG_EXT_D("%d.%09d, %d, %d", (os_int32_t)(now / NSEC_PER_SEC), (os_int32_t)(now % NSEC_PER_SEC), usec, rx_pin_status);
 
     if (rx_pin_status == PIN_HIGH)
     {
@@ -160,7 +160,7 @@ static void infrared_rx_repeat0(struct os_infrared_device *infrared, int rx_pin_
 {
     os_int32_t usec = (now - infrared->rx_time_stamp) / NSEC_PER_USEC;
 
-    LOG_EXT_D("%d.%09d, %d, %d", now / NSEC_PER_SEC, now % NSEC_PER_SEC, usec, rx_pin_status);
+    LOG_EXT_D("%d.%09d, %d, %d", (os_int32_t)(now / NSEC_PER_SEC), (os_int32_t)(now % NSEC_PER_SEC), usec, rx_pin_status);
 
     if (rx_pin_status == PIN_HIGH)
     {
@@ -187,7 +187,7 @@ static void infrared_rx_repeat1(struct os_infrared_device *infrared, int rx_pin_
 {
     os_int32_t usec = (now - infrared->rx_time_stamp) / NSEC_PER_USEC;
 
-    LOG_EXT_D("%d.%09d, %d, %d", now / NSEC_PER_SEC, now % NSEC_PER_SEC, usec, rx_pin_status);
+    LOG_EXT_D("%d.%09d, %d, %d", (os_int32_t)(now / NSEC_PER_SEC), (os_int32_t)(now % NSEC_PER_SEC), usec, rx_pin_status);
 
     if (rx_pin_status == PIN_HIGH)
     {
@@ -291,7 +291,7 @@ static int infrared_recv_init(struct os_infrared_device *infrared)
 {
     char buff[32];
 
-    snprintf(buff, sizeof(buff) - 1, "%s_rx", infrared->parent.parent.name);
+    snprintf(buff, sizeof(buff) - 1, "%s_rx", device_name(&infrared->parent));
 
     os_sem_init(&infrared->rx_sem, buff, 0, OS_IPC_FLAG_FIFO);
 
@@ -346,7 +346,7 @@ static int infrared_send_init(struct os_infrared_device *infrared)
 {
     char buff[32];
 
-    snprintf(buff, sizeof(buff) - 1, "%s_tx", infrared->parent.parent.name);
+    snprintf(buff, sizeof(buff) - 1, "%s_tx", device_name(&infrared->parent));
 
     os_sem_init(&infrared->tx_sem, buff, 1, OS_IPC_FLAG_FIFO);
 
@@ -495,7 +495,6 @@ static os_err_t _infrared_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops infrared_ops =
 {
     _infrared_init,
@@ -505,7 +504,6 @@ const static struct os_device_ops infrared_ops =
     _infrared_write,
     _infrared_control
 };
-#endif
 
 os_err_t os_infrared_register_device(const char *name, struct os_infrared_device *device)
 {
@@ -516,19 +514,9 @@ os_err_t os_infrared_register_device(const char *name, struct os_infrared_device
 
     /* set device class and generic device interface */
     dev->type = OS_DEVICE_TYPE_INFRARED;
-#ifdef OS_USING_DEVICE_OPS
     dev->ops = &infrared_ops;
-#else
-    dev->init    = _infrared_init;
-    dev->open    = _infrared_open;
-    dev->read    = _infrared_read;
-    dev->write   = _infrared_write;
-    dev->close   = _infrared_close;
-    dev->control = _infrared_control;
-#endif
-
-    dev->rx_indicate = OS_NULL;
-    dev->tx_complete = OS_NULL;
+    dev->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    dev->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
 
     return os_device_register(dev, name, OS_DEVICE_FLAG_RDWR);
 }
@@ -577,7 +565,7 @@ static int list_infrared(void)
             rx_str = "  ";
         }
     
-        os_kprintf("%12s    %s      %s\r\n", infrared->parent.parent.name, tx_str, rx_str);
+        os_kprintf("%12s    %s      %s\r\n", device_name(&infrared->parent), tx_str, rx_str);
     }
 
     os_hw_interrupt_enable(level);

@@ -2,7 +2,7 @@
 #define __USR_MISC_H
 
 #include <os_memory.h>
-#include <stdint.h>
+#include <stdlib.h>
 #include <model_device.h>
 
 #define usr_malloc(sz)      os_malloc(sz)

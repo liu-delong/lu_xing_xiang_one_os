@@ -26,8 +26,26 @@
 
 #include <os_task.h>
 #include <os_device.h>
+#include "peripherals.h"
+#include "spi.h"
+
+struct imxrt_sw_spi_cs
+{
+    os_uint32_t pin;
+};
+
+typedef struct 
+{
+    struct os_spi_bus spi_bus;
+    LPSPI_Type *base;
+} imxrt_spi_t;
+
+struct nxp_lpspi_info {
+    LPSPI_Type *spi_base;
+    const lpspi_master_config_t *config;
+};
 
 int rt_hw_spi_bus_init(void);
-os_err_t rt_hw_spi_device_attach(const char *bus_name, const char *device_name, os_uint32_t pin);
+os_err_t rt_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t pin);
 
 #endif /* DRV_SPI_H__ */

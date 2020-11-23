@@ -37,9 +37,6 @@ OS_HAL_DEVICE_DEFINE("SPI_HandleTypeDef", "spi2", hspi2);
 extern SPI_HandleTypeDef hspi3;
 OS_HAL_DEVICE_DEFINE("SPI_HandleTypeDef", "spi3", hspi3);
 
-extern TIM_HandleTypeDef htim1;
-OS_HAL_DEVICE_DEFINE("TIM_HandleTypeDef", "tim1", htim1);
-
 extern TIM_HandleTypeDef htim4;
 OS_HAL_DEVICE_DEFINE("TIM_HandleTypeDef", "tim4", htim4);
 

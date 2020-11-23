@@ -31,14 +31,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdio.h>
-//#include <netdb.h>
-//#include <sys/socket.h>
+#include <errno.h>
+#include <sys/socket.h>
 #include <fcntl.h>
 #include <sys/time.h>
-//#include <sys/select.h>
+#include <sys/select.h>
 
 
-#include "at_sock.h"
 
 #include "py/objtuple.h"
 #include "py/objlist.h"

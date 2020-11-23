@@ -140,7 +140,6 @@ static os_err_t ramdisk_dev_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops ramdisk_ops =
 {
     OS_NULL,
@@ -150,22 +149,11 @@ const static struct os_device_ops ramdisk_ops =
     ramdisk_dev_write,
     ramdisk_dev_control
 };
-#endif
 
 static void ramdisk_set_ops(os_device_t *device)
 {
     device->type = OS_DEVICE_TYPE_BLOCK;
-
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &ramdisk_ops;
-#else
-    device->init = NULL;
-    device->open = NULL;
-    device->close = NULL;
-    device->read = ramdisk_dev_read;
-    device->write = ramdisk_dev_write;
-    device->control = ramdisk_dev_control;
-#endif
 }
 
 /**

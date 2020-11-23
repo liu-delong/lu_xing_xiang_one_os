@@ -573,13 +573,13 @@ os_err_t module_onenetnb_create_sh(int argc, char *argv[])
 
     if (argc < 2)
     {
-        printf("Usage:mo_onenetnb_create len config\n");
+        LOG_EXT_E("Usage:mo_onenetnb_create len config\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_create(OS_NULL, 5000, &ref_num, "%d,%s,0,%d,0", atoi(argv[1]), argv[2], atoi(argv[1])) == OS_EOK)
     {
-        printf("nb device instance:%d\n", ref_num);
+        LOG_EXT_E("nb device instance:%d\n", ref_num);
     }
 
     return OS_EOK;
@@ -592,7 +592,7 @@ os_err_t module_onenetnb_createex_sh(int argc, char *argv[])
 
     if (mo_onenetnb_createex(OS_NULL, 5000, &ref_num, "\"183.230.40.39\",1") == OS_EOK)
     {
-        printf("nb device instance:%d\n", ref_num);
+        LOG_EXT_E("nb device instance:%d\n", ref_num);
     }
     return OS_EOK;
 }
@@ -603,13 +603,13 @@ os_err_t module_onenetnb_addobj_sh(int argc, char *argv[])
 
     if (argc < 2)
     {
-        printf("Usage:mo_onenetnb_addobj ref_num\n");
+        LOG_EXT_E("Usage:mo_onenetnb_addobj ref_num\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_addobj(OS_NULL, 2000, OS_NULL, "%d,3200,1,\"1\",0,0", atoi(argv[1])) == OS_EOK)
     {
-        printf("add obj obj:3200, inscount:1, bitmap:1, atts:0, acts:0\n");
+        LOG_EXT_E("add obj obj:3200, inscount:1, bitmap:1, atts:0, acts:0\n");
     }
 
     return OS_EOK;
@@ -620,13 +620,13 @@ os_err_t module_onenetnb_discoverrsp_sh(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("Usage:mo_onenetnb_discoverrsp ref_num\n");
+        LOG_EXT_E("Usage:mo_onenetnb_discoverrsp ref_num\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_discoverrsp(OS_NULL, 2000, OS_NULL, "%d,3200,1,14,\"5500;5501;5750\"", atoi(argv[1])) == OS_EOK)
     {
-        printf("discoverrsp obj:3200, result:1, length:4, data:5500;5501;5750\n");
+        LOG_EXT_E("discoverrsp obj:3200, result:1, length:4, data:5500;5501;5750\n");
     }
     return OS_EOK;
 }
@@ -636,13 +636,13 @@ os_err_t module_onenetnb_nmi_sh(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("Usage:mo_onenetnb_nmi ref_num\n");
+        LOG_EXT_E("Usage:mo_onenetnb_nmi ref_num\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_nmi(OS_NULL, 2000, OS_NULL, "%d,1,1", atoi(argv[1])) == OS_EOK)
     {
-        printf("set numi nnmi:1, nsmi:1\n");
+        LOG_EXT_E("set numi nnmi:1, nsmi:1\n");
     }
 
     return OS_EOK;
@@ -653,13 +653,13 @@ os_err_t module_onenetnb_open_sh(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        printf("Usage:mo_onenetnb_open ref_num lifetime\n");
+        LOG_EXT_E("Usage:mo_onenetnb_open ref_num lifetime\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_open(OS_NULL, 30000, OS_NULL, "%d,%d,30", atoi(argv[1]), atoi(argv[2])) == OS_EOK)
     {
-        printf("open successed!\n");
+        LOG_EXT_E("open successed!\n");
     }
 
     return OS_EOK;
@@ -670,7 +670,7 @@ os_err_t module_onenetnb_notify_sh(int argc, char *argv[])
 {
     if (argc < 4)
     {
-        printf("Usage:mo_onenetnb_notify ref_num len value\n");
+        LOG_EXT_E("Usage:mo_onenetnb_notify ref_num len value\n");
         return OS_EOK;
     }
 
@@ -685,7 +685,7 @@ os_err_t module_onenetnb_notify_sh(int argc, char *argv[])
                            uip) == OS_EOK)
     {
         ++uip;
-        printf("notify mid:0, obj:3200, insid:0, resid:5750, type:1, len: %d, value: %s, index:0, flag:0, ack_id:%d\n",
+        LOG_EXT_E("notify mid:0, obj:3200, insid:0, resid:5750, type:1, len: %d, value: %s, index:0, flag:0, ack_id:%d\n",
                atoi(argv[1]),
                argv[2],
                uip);
@@ -698,13 +698,13 @@ os_err_t module_onenetnb_update_sh(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("Usage:mo_onenetnb_update ref_num\n");
+        LOG_EXT_E("Usage:mo_onenetnb_update ref_num\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_update(OS_NULL, 15000, OS_NULL, "%d,3600,1", atoi(argv[1])) == OS_EOK)
     {
-        printf("update lifetime success!\n");
+        LOG_EXT_E("update lifetime success!\n");
     }
 
     return OS_EOK;
@@ -717,7 +717,7 @@ os_err_t module_onenetnb_get_write_sh(int argc, char *argv[])
     mgr.value = malloc(50);
     if (mo_onenetnb_get_write(OS_NULL, 2000, &mgr, "0") == OS_EOK)
     {
-        printf("result ref:%d, mid:%d, objid:%d, insid:%d, resid:%d, type:%d, len:%d, value:%s\n",
+        LOG_EXT_E("result ref:%d, mid:%d, objid:%d, insid:%d, resid:%d, type:%d, len:%d, value:%s\n",
                mgr.ref,
                mgr.mid,
                mgr.objid,
@@ -737,13 +737,13 @@ os_err_t module_onenetnb_writersp_sh(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        printf("Usage:mo_onenetnb_writersp ref_num mid\n");
+        LOG_EXT_E("Usage:mo_onenetnb_writersp ref_num mid\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_writersp(OS_NULL, 8000, OS_NULL, "%d,%d,2", atoi(argv[1]), atoi(argv[2])) == OS_EOK)
     {
-        printf("write resp ok!\n");
+        LOG_EXT_E("write resp ok!\n");
     }
 
     return OS_EOK;
@@ -759,13 +759,13 @@ os_err_t module_onenetnb_all_sh(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("Usage:mo_onenetnb_all at_cmd config\n");
+        LOG_EXT_E("Usage:mo_onenetnb_all at_cmd config\n");
         return OS_EOK;
     }
 
     if (mo_onenetnb_all(OS_NULL, 15000, OS_NULL, argv[1], argv[2]) == OS_EOK)
     {
-        printf("write resp ok!\n");
+        LOG_EXT_E("write resp ok!\n");
     }
 
     return OS_EOK;

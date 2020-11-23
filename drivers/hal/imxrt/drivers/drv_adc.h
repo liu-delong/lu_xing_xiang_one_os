@@ -24,6 +24,33 @@
 #ifndef DRV_ADC_H__
 #define DRV_ADC_H__
 #include <os_device.h>
+#include "adc.h"
+
+#if defined(ADC1_PERIPHERAL) || defined(ADC2_PERIPHERAL)
+struct nxp_adc_info
+{
+    ADC_Type *adc_base;
+    const adc_config_t *adc_config;
+};
+#endif
+
+#ifdef ADC_ETC_PERIPHERAL
+struct nxp_adc_etc_info
+{
+    ADC_ETC_Type *adc_base;
+    const adc_etc_config_t *adc_etc_config;
+};
+#endif
+
+typedef struct
+{
+    struct os_adc_device adc;
+#if defined(ADC1_PERIPHERAL) || defined(ADC2_PERIPHERAL)
+    struct nxp_adc_info *info;
+#endif
+}imxrt_adc;
+
+
 
 int rt_hw_adc_init(void);
 

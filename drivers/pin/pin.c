@@ -93,7 +93,6 @@ static os_err_t _pin_control(os_device_t *dev, int cmd, void *args)
     return 0;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops pin_ops = {
     OS_NULL,
     OS_NULL,
@@ -102,7 +101,6 @@ const static struct os_device_ops pin_ops = {
     _pin_write,
     _pin_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -144,20 +142,10 @@ int os_device_pin_register(int pin_base, const struct os_pin_ops *ops, void *use
     }
 
     pin->parent.type        = OS_DEVICE_TYPE_MISCELLANEOUS;
-    pin->parent.rx_indicate = OS_NULL;
-    pin->parent.tx_complete = OS_NULL;
-
-#ifdef OS_USING_DEVICE_OPS
+    pin->parent.cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    pin->parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     pin->parent.ops = &pin_ops;
-#else
-    pin->parent.init    = OS_NULL;
-    pin->parent.open    = OS_NULL;
-    pin->parent.close   = OS_NULL;
-    pin->parent.read    = _pin_read;
-    pin->parent.write   = _pin_write;
-    pin->parent.control = _pin_control;
-#endif
-
+    
     pin->ops  = ops;
     pin->base = pin_base;
 

@@ -411,7 +411,6 @@ static os_err_t os_wlan_lwip_protocol_send(os_device_t *device, struct pbuf *p)
 #endif
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops wlan_lwip_ops =
 {
     OS_NULL,
@@ -421,7 +420,6 @@ const static struct os_device_ops wlan_lwip_ops =
     OS_NULL,
     os_wlan_lwip_protocol_control
 };
-#endif
 
 static struct os_wlan_prot *os_wlan_lwip_protocol_register(struct os_wlan_prot *prot, struct os_wlan_device *wlan)
 {
@@ -468,17 +466,8 @@ static struct os_wlan_prot *os_wlan_lwip_protocol_register(struct os_wlan_prot *
 
     eth = &lwip_prot->eth;
 
-#ifdef OS_USING_DEVICE_OPS
     eth->parent.ops = &wlan_lwip_ops;
-#else
-    eth->parent.init    = OS_NULL;
-    eth->parent.open    = OS_NULL;
-    eth->parent.close   = OS_NULL;
-    eth->parent.read    = OS_NULL;
-    eth->parent.write   = OS_NULL;
-    eth->parent.control = os_wlan_lwip_protocol_control;
-#endif
-
+    
     eth->parent.user_data = wlan;
     eth->eth_rx           = OS_NULL;
     eth->eth_tx           = os_wlan_lwip_protocol_send;

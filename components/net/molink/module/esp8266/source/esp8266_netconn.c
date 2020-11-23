@@ -46,6 +46,9 @@
 #define ESP8266_EVENT_CONN_FAIL (1L << 3)
 #define ESP8266_EVENT_SEND_FAIL (1L << 4)
 
+#define ESP8266_MULTI_CONN_ENABLE  (1)
+#define ESP8266_MULTI_CONN_DISABLE (0)
+
 #ifdef ESP8266_USING_NETCONN_OPS
 
 static os_err_t esp8266_lock(os_mutex_t *mutex)
@@ -66,9 +69,9 @@ static mo_netconn_t *esp8266_netconn_alloc(mo_object_t *module)
 
     char check_kw[13] = {0};
 
-    char resp_buff[256] = {0};
+    char *resp_buff = calloc(1, 384);
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
+    at_resp_t resp = {.buff = resp_buff, .buff_size = 384, .timeout = 5 * OS_TICK_PER_SECOND};
 
     at_parser_exec_cmd(parser, &resp, "AT+CIPSTATUS");
 
@@ -82,12 +85,16 @@ static mo_netconn_t *esp8266_netconn_alloc(mo_object_t *module)
             {
                 esp8266->netconn[i].connect_id = i;
 
+                free(resp_buff);
+
                 return &esp8266->netconn[i];
             }            
         }
     }
 
     LOG_EXT_E("Moduel %s alloc netconn failed!", module->name);
+
+    free(resp_buff);
 
     return OS_NULL;
 }
@@ -119,6 +126,7 @@ mo_netconn_t *esp8266_netconn_create(mo_object_t *module, mo_netconn_type_t type
 
     if (OS_NULL == netconn)
     {
+        esp8266_unlock(&esp8266->netconn_lock);
         return OS_NULL;
     }
 
@@ -160,16 +168,18 @@ os_err_t esp8266_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
         break;
     }
 
-    if (netconn->data_queue.queue != OS_NULL)
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        os_data_queue_deinit(&netconn->data_queue);
+        mo_netconn_data_queue_deinit(&netconn->data_queue);
     }
 
     LOG_EXT_I("Module %s netconnn id %d destroyed", module->name, netconn->connect_id);
 
-    netconn->connect_id = -1;
-    netconn->stat       = NETCONN_STAT_NULL;
-    netconn->type       = NETCONN_TYPE_NULL;
+    netconn->connect_id  = -1;
+    netconn->stat        = NETCONN_STAT_NULL;
+    netconn->type        = NETCONN_TYPE_NULL;
+    netconn->remote_port = 0;
+    inet_aton("0.0.0.0", &netconn->remote_ip);
 
     return OS_EOK;
 }
@@ -338,7 +348,7 @@ os_err_t esp8266_netconn_gethostbyname(mo_object_t *module, const char *domain_n
     OS_ASSERT(OS_NULL != domain_name);
     OS_ASSERT(OS_NULL != addr);
 
-    char recvip[IPADDR_MAX_STR_LEN] = {0};
+    char recvip[IPADDR_MAX_STR_LEN + 1] = {0};
 
     at_parser_t *parser = &module->parser;
 
@@ -481,7 +491,7 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
     if (recv_buff == OS_NULL)
     {
         /* read and clean the coming data */
-        LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2);
+        LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size);
         os_size_t temp_size    = 0;
         char      temp_buff[8] = {0};
         while (temp_size < data_size)
@@ -527,10 +537,32 @@ os_err_t esp8266_netconn_init(mo_esp8266_t *module)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CIPMUX=1");
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CIPMUX?");
     if (result != OS_EOK)
     {
-        goto __exit;
+        return result;
+    }
+
+    os_int32_t mode = 0;
+
+    if (at_resp_get_data_by_kw(&resp, "+CIPMUX:", "+CIPMUX:%d", &mode) <= 0)
+    {
+        return result;
+    }
+
+    if (ESP8266_MULTI_CONN_ENABLE == mode)
+    {
+        /* Close all connections */
+        result = at_parser_exec_cmd(parser, &resp, "AT+CIPCLOSE=5");
+    }
+    else
+    {
+        result = at_parser_exec_cmd(parser, &resp, "AT+CIPMUX=1");
+    }
+
+    if (result != OS_EOK)
+    {
+        return result;
     }
 
     /* Init module netconn array */
@@ -541,8 +573,6 @@ os_err_t esp8266_netconn_init(mo_esp8266_t *module)
     }
 
     at_parser_set_urc_table(parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
-
-__exit:
 
     return result;
 }

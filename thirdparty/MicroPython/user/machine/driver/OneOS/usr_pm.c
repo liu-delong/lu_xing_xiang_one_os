@@ -1,7 +1,7 @@
 
 #include "py/mperrno.h"
 
-#if MICROPY_PY_MACHINE_PM
+#if (MICROPY_PY_MACHINE_PM)
 #include "usr_pm.h"
 #include <stdio.h>
 #include <stdlib.h>

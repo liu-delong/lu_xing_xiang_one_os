@@ -25,17 +25,15 @@
 #define __SOCKET_H__
 
 #include <oneos_config.h>
-
 #if defined(BSD_USING_MOLINK)
 #include <mo_socket.h>
 #elif defined(BSD_USING_LWIP)
 #include <lwip/sockets.h>
 #include <lwip/netdb.h>
 #else
-#error "Please select Molink or Lwip"
-#endif
+#error "Please select Molink stack with BSD socket operates or Lwip stack"
+#endif /* end of if defined BSD_USING_MOLINK elif defined BSD_USING_LWIP */
 
-#if defined(BSD_USING_MOLINK) || defined(BSD_USING_LWIP)
 int socket(int domain, int type, int protocol);
 int closesocket(int fd);
 int shutdown(int fd, int how);
@@ -64,8 +62,7 @@ int getsockname (int fd, struct sockaddr *name, socklen_t *namelen);
 #ifdef NET_USING_LWIP212
 const char *inet_ntop(int af, const void *src, char *dst, int32_t size);
 int inet_pton(int af, const char *src, void *dst);
-#endif
+#endif /* end of NET_USING_LWIP212 */
 
-#endif
+#endif /* end of __SOCKET_H__ */
 
-#endif

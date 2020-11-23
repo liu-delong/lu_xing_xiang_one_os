@@ -165,7 +165,7 @@ os_err_t bc28_onenetnb_get_config(mo_object_t *self, os_int32_t timeout, void *r
         {
             goto __exit;
         }
-        LOG_EXT_D("mode:[%d],line[%d][%s]", config_mode_ref, line, tmp_buff);
+        LOG_EXT_D("mode:[%d],line[%u][%s]", config_mode_ref, line, tmp_buff);
         switch (config_mode_ref)
         {
         case BC28_ONENETNB_GUIDEMODE_DISABLE_ADDR:
@@ -328,9 +328,9 @@ static void urc_discover_handler(mo_onenet_cb_t *regist_cb, const char *data, os
     memset(&discover_info, 0, sizeof(mo_onenet_discover_t));
 
     sscanf(data, "+MIPLDISCOVER: %u,%d,%d", 
-                                            &discover_info.ref, 
-                                            &discover_info.msg_id, 
-                                            &discover_info.obj_id);
+          &discover_info.ref, 
+          &discover_info.msg_id, 
+          &discover_info.obj_id);
     
     regist_cb->discover_notify_cb(&discover_info);
 
@@ -353,12 +353,12 @@ static void urc_observe_handler(mo_onenet_cb_t *regist_cb, const char *data, os_
     memset(&observe_info, 0, sizeof(mo_onenet_observe_t));
 
     sscanf(data, "+MIPLOBSERVE: %u,%d,%hhd,%d,%d,%d", 
-                                            &observe_info.ref, 
-                                            &observe_info.msg_id, 
-                                            &observe_info.flag, 
-                                            &observe_info.obj_id, 
-                                            &observe_info.ins_id, 
-                                            &observe_info.res_id);
+          &observe_info.ref, 
+          &observe_info.msg_id, 
+          &observe_info.flag, 
+          &observe_info.obj_id, 
+          &observe_info.ins_id, 
+          &observe_info.res_id);
     
     regist_cb->observe_notify_cb(&observe_info);
 
@@ -381,11 +381,11 @@ static void urc_read_handler(mo_onenet_cb_t *regist_cb, const char *data, os_siz
     memset(&read_info, 0, sizeof(mo_onenet_read_t));
 
     sscanf(data, "+MIPLREAD: %u,%d,%d,%d,%d", 
-                                            &read_info.ref, 
-                                            &read_info.msg_id,  
-                                            &read_info.obj_id, 
-                                            &read_info.ins_id, 
-                                            &read_info.res_id);
+          &read_info.ref, 
+          &read_info.msg_id,  
+          &read_info.obj_id, 
+          &read_info.ins_id, 
+          &read_info.res_id);
     
     regist_cb->read_notify_cb(&read_info);
 
@@ -430,15 +430,16 @@ static void urc_write_handler(mo_onenet_cb_t *regist_cb, const char *data, os_si
         return;
     }
 
-    sscanf(data, regex, &write_info.ref, 
-                        &write_info.msg_id,  
-                        &write_info.obj_id, 
-                        &write_info.ins_id, 
-                        &write_info.res_id,
-                        &write_info.value_type,
-                        value,
-                        &write_info.flag,
-                        &write_info.index);
+    sscanf(data, regex, 
+         &write_info.ref, 
+         &write_info.msg_id,  
+         &write_info.obj_id, 
+         &write_info.ins_id, 
+         &write_info.res_id,
+         &write_info.value_type,
+          value,
+         &write_info.flag,
+         &write_info.index);
     
     regist_cb->write_notify_cb(&write_info, (const char *)value);
     
@@ -472,12 +473,12 @@ static void urc_execute_handler(mo_onenet_cb_t *regist_cb, const char *data, os_
         return;
     }
     sscanf(data, "+MIPLEXECUTE: %u,%d,%d,%d,%d,%*d,\"%s\"",
-                                               &execute_info.ref, 
-                                               &execute_info.msg_id,  
-                                               &execute_info.obj_id, 
-                                               &execute_info.ins_id, 
-                                               &execute_info.res_id,
-                                               arguments);
+          &execute_info.ref, 
+          &execute_info.msg_id,  
+          &execute_info.obj_id, 
+          &execute_info.ins_id, 
+          &execute_info.res_id,
+           arguments);
     
     regist_cb->execute_notify_cb(&execute_info, (const char *)arguments);
     
@@ -510,12 +511,12 @@ static void urc_parameter_handler(mo_onenet_cb_t *regist_cb, const char *data, o
         return;
     }
     sscanf(data, "+MIPLPARAMETER: %u,%d,%d,%d,%d,%*d,\"%s\"",
-                                               &parameter_info.ref, 
-                                               &parameter_info.msg_id,  
-                                               &parameter_info.obj_id, 
-                                               &parameter_info.ins_id, 
-                                               &parameter_info.res_id,
-                                               arguments);
+          &parameter_info.ref, 
+          &parameter_info.msg_id,  
+          &parameter_info.obj_id, 
+          &parameter_info.ins_id, 
+          &parameter_info.res_id,
+           arguments);
     
     regist_cb->parameter_notify_cb(&parameter_info, (const char *)arguments);
     
@@ -541,12 +542,12 @@ static void urc_event_handler(mo_onenet_cb_t *regist_cb, const char *data, os_si
     event_info.cache_command_flag = BC28_ONENETNB_INVALID_DEFAULT;
 
     sscanf(data, "+MIPLEVENT: %u,%hhu,%d,%hu,%s,%hhd",
-                                               &event_info.ref, 
-                                               &event_info.evt_id,  
-                                               &event_info.extend, 
-                                               &event_info.ack_id, 
-                                               event_info.time_stamp,
-                                               &event_info.cache_command_flag);
+          &event_info.ref, 
+          &event_info.evt_id,  
+          &event_info.extend, 
+          &event_info.ack_id, 
+           event_info.time_stamp,
+          &event_info.cache_command_flag);
     
     regist_cb->event_notify_cb(&event_info);
     
@@ -605,9 +606,10 @@ static void bc28_urc_receiver(struct at_parser *parser, const char *data, os_siz
     mo_bc28_t *module = os_container_of(self, mo_bc28_t, parent);
 
     /* send handle_msg to mq */
-    bc28_onenet_mq_msg_t handle_msg = {
-        module->regist_cb, urc_data, size, 
-        bc28_nb_urc_handler_table[handler_ref].func};
+    bc28_onenet_mq_msg_t handle_msg = {module->regist_cb, 
+                                       urc_data, 
+                                       size, 
+                                       bc28_nb_urc_handler_table[handler_ref].func};
     
     if (OS_EOK != os_mq_send(bc28_nb_mq, &handle_msg, sizeof(handle_msg), OS_IPC_WAITING_NO))
     {
@@ -636,12 +638,13 @@ static void bc28_urc_manager_task(void *parameter)
                            &recv_size);
         if (OS_EOK != result)
         {
-            LOG_EXT_W("[%s] mq received failed, recv buff too low.", __func__);
+            LOG_EXT_I("[%s] mq received mq_control [exit] msg.[%d].", __func__, result);
             free((void *)handle_msg.data);
-            continue;
+            /* auto deinit */
+            return;
         }
 
-        /* FIXME [*] add recursive lock, NB AT session */
+        /* [*] add recursive lock, NB AT session */
 
 
         /* execute urc handler */
@@ -718,7 +721,7 @@ os_err_t bc28_onenetnb_init(mo_bc28_t *module)
     parser = &(module->parent.parser);
     at_parser_set_urc_table(parser, bc28_nb_urc_table, sizeof(bc28_nb_urc_table) / sizeof(at_urc_t));
 
-    LOG_EXT_E("Module %s NB init success.", module->parent.name);
+    LOG_EXT_I("Module %s NB init success.", module->parent.name);
     return OS_EOK;
 
 __exit:
@@ -748,7 +751,7 @@ void bc28_onenetnb_deinit(mo_bc28_t *module)
     os_size_t            recv_size  = 0;
 
     /* free buff in mq which alloced in bc28_urc_receiver */
-    do 
+    while (OS_TRUE)
     {
         memset(&handle_msg, 0, sizeof(bc28_onenet_mq_msg_t));
         result = os_mq_recv(bc28_nb_mq,
@@ -756,15 +759,14 @@ void bc28_onenetnb_deinit(mo_bc28_t *module)
                             sizeof(handle_msg), 
                             OS_IPC_WAITING_NO, 
                             &recv_size);
+        if (OS_EOK != result) break;
         free((void *)handle_msg.data);
-    } while (OS_EOK != result);
-
+    }
+    
+    /* auto deinit urc manager task */
     os_mq_control(bc28_nb_mq, OS_IPC_CMD_RESET, OS_NULL);
     os_mq_destroy(bc28_nb_mq);
     bc28_nb_mq = OS_NULL;
-
-    /* deinit urc manager task */
-    os_task_deinit(&bc28_nb_manager_task);
 
     free(module->regist_cb);
     module->regist_cb = OS_NULL;

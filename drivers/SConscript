@@ -3,7 +3,11 @@ from build_tools import *
 
 pwd  = PresentDir()
 objs = []
-src = ['drivers.c']
+src  = ['os_drivers.c']
+
+if IsDefined('OS_USING_DEVICE'):
+    src += ['os_device.c']
+
 list = os.listdir(pwd)
 objs += AddCodeGroup('drivers', src, depend = [''], CPPPATH = [pwd])
 for d in list:

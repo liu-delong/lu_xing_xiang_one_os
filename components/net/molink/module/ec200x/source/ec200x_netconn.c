@@ -132,6 +132,7 @@ mo_netconn_t *ec200x_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 
     if (OS_NULL == netconn)
     {
+        ec200x_unlock(&ec200x->netconn_lock);
         return OS_NULL;
     }
 
@@ -174,16 +175,18 @@ os_err_t ec200x_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
         break;
     }
 
-    if (netconn->data_queue.queue != OS_NULL)
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        os_data_queue_deinit(&netconn->data_queue);
+        mo_netconn_data_queue_deinit(&netconn->data_queue);
     }
 
     LOG_EXT_I("Module %s netconnn id %d destroyed", module->name, netconn->connect_id);
 
-    netconn->connect_id = -1;
-    netconn->stat       = NETCONN_STAT_NULL;
-    netconn->type       = NETCONN_TYPE_NULL;
+    netconn->connect_id  = -1;
+    netconn->stat        = NETCONN_STAT_NULL;
+    netconn->type        = NETCONN_TYPE_NULL;
+    netconn->remote_port = 0;
+    inet_aton("0.0.0.0", &netconn->remote_ip);
 
     return OS_EOK;
 }

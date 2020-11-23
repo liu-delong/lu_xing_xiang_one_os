@@ -388,7 +388,7 @@ static void _set_common_handlers()
         _coap_conncection->sub_func = _coap_sub;
         _coap_conncection->unsub_func = _coap_unsub;
         _coap_conncection->pub_func = _coap_publish;
-        _coap_conncection->yield_func = _coap_yield;
+        _coap_conncection->yield_func = (int (*)(unsigned int))_coap_yield;
         _coap_conncection->close_func = _coap_close;
     }
 }

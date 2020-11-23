@@ -295,7 +295,7 @@ os_err_t os_hwcrypto_gcm_register(struct os_hwcrypto_device *device, const char 
     if (hwcrypto_gcm_device != OS_NULL)
     {
         os_kprintf("hwcrypto gcm dev %s exist, %s register failed.\r\n",
-                   hwcrypto_gcm_device->parent.parent.name, name);
+                   device_name(&hwcrypto_gcm_device->parent), name);
         return OS_EFULL;
     }
 

@@ -26,12 +26,14 @@
 #include <drv_lptim.h>
 #include <am_mcu_apollo.h>
 
-
 static void uart_console_reconfig(void)
 {
+#ifdef OS_USING_SHELL
     struct serial_configure config = OS_SERIAL_CONFIG_DEFAULT;
     os_device_control(os_console_get_device(), OS_DEVICE_CTRL_CONFIG, &config);
+#endif
 }
+
 
 /**
  ***********************************************************************************************************************
@@ -43,7 +45,7 @@ static void uart_console_reconfig(void)
  * @return          None.
  ***********************************************************************************************************************
  */
-static void sleep(struct lpmgr *lpm, uint8_t mode)
+static int sleep(struct lpmgr *lpm, uint8_t mode)
 {
     switch (mode)
     {
@@ -61,6 +63,7 @@ static void sleep(struct lpmgr *lpm, uint8_t mode)
 
     case SYS_SLEEP_MODE_DEEP:
         am_hal_sysctrl_sleep(AM_HAL_SYSCTRL_SLEEP_DEEP);
+        uart_console_reconfig();
         break;
 
     case SYS_SLEEP_MODE_STANDBY:
@@ -70,9 +73,11 @@ static void sleep(struct lpmgr *lpm, uint8_t mode)
         break;
 
     default:
-        OS_ASSERT(0);
+        os_kprintf("invalid mode: %d\n", mode);
         break;
     }
+
+    return OS_EOK;
 }
 
 static uint8_t run_speed[SYS_RUN_MODE_MAX][2] = {
@@ -233,19 +238,6 @@ static os_tick_t lpm_timer_get_tick(struct lpmgr *lpm)
  
 }
 
-extern int serial_suspend(const struct os_device *device, os_uint8_t mode);
-extern void serial_resume(const struct os_device *device, os_uint8_t mode);
-const static struct os_lpmgr_device_ops serial_lpops = 
-{
-    serial_suspend,
-    serial_resume,
-    NULL,
-};   
-
-
-
-
-
 /**
 ***********************************************************************************************************************
 * @brief           Initialise low power manager.
@@ -272,7 +264,6 @@ int drv_lpmgr_hw_init(void)
     
     /* Initialize system lpmgr module */
     os_lpmgr_init(&s_lpmgr_ops, timer_mask, OS_NULL);
-    os_lpmgr_device_register(os_console_get_device(),&serial_lpops);
     return 0;
 }
 

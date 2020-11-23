@@ -379,7 +379,7 @@ static void imxrt_pin_mode(os_device_t *dev, os_base_t pin, os_base_t mode)
         return;
     }
 
-    gpio.outputLogic = 0;
+    gpio.outputLogic = 1;
     gpio.interruptMode = kGPIO_NoIntmode;
 
     switch (mode)

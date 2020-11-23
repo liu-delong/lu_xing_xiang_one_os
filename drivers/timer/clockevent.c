@@ -305,12 +305,10 @@ os_err_t os_clockevent_close(os_device_t *dev)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
-const struct os_device_ops _clockevent_ops =
+const static struct os_device_ops _clockevent_ops =
 {
-    .close = os_clockevent_close;
+    .close = os_clockevent_close,
 };
-#endif
 
 void os_clockevent_register(const char *name, os_clockevent_t *ce)
 {
@@ -331,12 +329,7 @@ void os_clockevent_register(const char *name, os_clockevent_t *ce)
 
     calc_mult_shift(&ce->mult, &ce->shift, NSEC_PER_SEC, ce->freq, msec / MSEC_PER_SEC);
 
-#ifdef OS_USING_DEVICE_OPS
     ce->parent.ops   = &_clockevent_ops;
-#else
-    ce->parent.close = os_clockevent_close;
-#endif
-
     ce->parent.type  = OS_DEVICE_TYPE_CLOCKEVENT;
     os_device_register(&ce->parent, name, OS_DEVICE_FLAG_STANDALONE);
 

@@ -32,6 +32,6 @@ struct am_spi_cs
 };
 
 int      os_hw_spi_init(void);
-os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_uint32_t pin);
+os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t pin);
 
 #endif /* __SPI_H_ */

@@ -24,7 +24,7 @@
 #ifndef CLOCKSOURCE_H__
 #define CLOCKSOURCE_H__
 
-#include <drivers.h>
+#include <os_drivers.h>
 #include <os_types.h>
 #include <timer/timer.h>
 

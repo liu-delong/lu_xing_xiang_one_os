@@ -110,6 +110,13 @@ static void generate_onenet_publish_data_cycle(void)
         OS_ASSERT(OS_NULL != generate_onenet_publish_data_cycle_thread);
     }
     os_task_startup(generate_onenet_publish_data_cycle_thread);
+
+}
+static void stop_onenet_publish_data_cycle(void)
+{
+    os_task_destroy(generate_onenet_publish_data_cycle_thread);
+    LOG_EXT_I("onenet publish_data_cycle thread stop");
+    return;
 }
 
 #ifdef OS_USING_SHELL
@@ -117,4 +124,7 @@ static void generate_onenet_publish_data_cycle(void)
 SH_CMD_EXPORT(generate_onenet_publish_data_cycle,
               generate_onenet_publish_data_cycle,
               "publish message cycle to onenet specified topic");
+SH_CMD_EXPORT(stop_onenet_publish_data_cycle,
+              stop_onenet_publish_data_cycle,
+              "stop publishing message cycle to onenet specified topic");
 #endif

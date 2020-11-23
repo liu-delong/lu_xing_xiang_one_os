@@ -116,6 +116,7 @@ typedef struct mo_netconn
     
     ip_addr_t   remote_ip;
     os_uint16_t remote_port;
+    os_uint16_t local_port;
     
     os_data_queue_t data_queue;  
 } mo_netconn_t;
@@ -169,6 +170,7 @@ os_err_t      mo_netconn_gethostbyname(mo_object_t *module, const char *domain_n
 os_err_t      mo_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info);
 void          mo_netconn_pasv_close_notice(mo_netconn_t *netconn);
 void          mo_netconn_data_recv_notice(mo_netconn_t *netconn, const char *data, os_size_t size);
+void          mo_netconn_data_queue_deinit(os_data_queue_t *data_queue);
 
 #ifdef __cplusplus
 }

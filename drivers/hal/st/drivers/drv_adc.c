@@ -106,7 +106,7 @@ static os_err_t stm32_adc_read(struct os_adc_device *dev, os_uint32_t channel, o
 #ifdef ADC_FLAG_OVR
             if (__HAL_ADC_GET_FLAG(dev_adc->hadc[i], ADC_FLAG_OVR))
             {
-                LOG_EXT_E("adc conversion time or clock is too fast!");
+                LOG_EXT_E("adc conversion time or clock is too fast!\n");
                 return OS_ERROR;
             }
 #endif
@@ -117,12 +117,12 @@ static os_err_t stm32_adc_read(struct os_adc_device *dev, os_uint32_t channel, o
     {
         if ((adc_info.adc_num == 0x01) && (channel > adc_info.regular_channel_num - 1))
         {
-            LOG_EXT_E("adc channel is invalid! check adc channel and dma config");
+            LOG_EXT_E("adc channel is invalid! check adc channel and dma config\n");
             return OS_ENOSYS;
         }
         else if (channel > adc_info.regular_channel_num * 2 - 1)
         {
-            LOG_EXT_E("adc channel is invalid! check adc channel and dma config");
+            LOG_EXT_E("adc channel is invalid! check adc channel and dma config\n");
             return OS_ENOSYS;
         }
         *buff = (os_int32_t)((os_uint64_t)adc_info.adc_convbuf[channel] * dev->mult >> dev->shift);
@@ -143,7 +143,7 @@ static os_err_t stm32_adc_read(struct os_adc_device *dev, os_uint32_t channel, o
         }
         else
         {
-            LOG_EXT_E("adc channel is invalid! check adc channel and dma config");
+            LOG_EXT_E("adc channel is invalid! check adc channel and dma config\n");
             return OS_ENOSYS; 
         }
     }
@@ -256,7 +256,7 @@ static os_err_t stm32_adc_probe_check(struct os_adc_device *adc, ADC_HandleTypeD
 #ifdef ADC_DATAALIGN_RIGHT
     if (hadc->Init.DataAlign != ADC_DATAALIGN_RIGHT)
     {
-        LOG_EXT_E("adc dataalign must be right-align!");
+        LOG_EXT_E("adc dataalign must be right-align!\n");
         return OS_ERROR;
     }
 #endif
@@ -285,7 +285,7 @@ static os_err_t stm32_adc_probe_check(struct os_adc_device *adc, ADC_HandleTypeD
         break;
 #endif
     default:
-        LOG_EXT_E("adc resolution just support 10/12/14/16bits!");
+        LOG_EXT_E("adc resolution just support 10/12/14/16bits!\n");
         return OS_ERROR;
     }
 #else
@@ -300,7 +300,7 @@ static os_err_t stm32_adc_probe_check(struct os_adc_device *adc, ADC_HandleTypeD
     {
         if (adc->max_value != value)
         {
-            LOG_EXT_E("all adc must use same resolution in 10/12/14/16bits!");
+            LOG_EXT_E("all adc must use same resolution in 10/12/14/16bits!\n");
             return OS_ERROR;
         }
     }

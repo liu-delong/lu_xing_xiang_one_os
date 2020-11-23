@@ -27,19 +27,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef MOLINK_USING_IP
-#include <mo_ipaddr.h>
-#endif /* MOLINK_USING_IP */
-
 #define DBG_EXT_TAG "m5310a.netserv"
 #define DBG_EXT_LVL DBG_EXT_INFO
 #include <os_dbg_ext.h>
 
 #ifdef M5310A_USING_NETSERV_OPS
-
-#define M5310A_MIN_PING_PKG_LEN (8)
-#define M5310A_MAX_PING_PKG_LEN (1460)
-#define M5310A_RESOLVE_RETRY    (3)
 
 os_err_t m5310a_set_attach(mo_object_t *self, os_uint8_t attach_stat)
 {
@@ -49,7 +41,7 @@ os_err_t m5310a_set_attach(mo_object_t *self, os_uint8_t attach_stat)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CGATT=%d", attach_stat);
+    return at_parser_exec_cmd(parser, &resp, "AT+CGATT=%hhu", attach_stat);
 }
 
 os_err_t m5310a_get_attach(mo_object_t *self, os_uint8_t *attach_stat)
@@ -66,7 +58,7 @@ os_err_t m5310a_get_attach(mo_object_t *self, os_uint8_t *attach_stat)
         return OS_ERROR;
     }
 
-    if(at_resp_get_data_by_kw(&resp, "+CGATT:", "+CGATT:%d", attach_stat) <= 0)
+    if(at_resp_get_data_by_kw(&resp, "+CGATT:", "+CGATT:%hhu", attach_stat) <= 0)
     {
         LOG_EXT_E("Get %s module attach state failed", self->name);
         return OS_ERROR;
@@ -83,14 +75,14 @@ os_err_t m5310a_set_reg(mo_object_t *self, os_uint8_t reg_n)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CEREG=%d", reg_n);
+    return at_parser_exec_cmd(parser, &resp, "AT+CEREG=%hhu", reg_n);
 }
 
-os_err_t m5310a_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_stat)
+os_err_t m5310a_get_reg(mo_object_t *self, eps_reg_info_t *info)
 {
     at_parser_t *parser = &self->parser;
 
-    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+    char resp_buff[256] = {0};
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
@@ -100,7 +92,7 @@ os_err_t m5310a_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_st
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CEREG:", "+CEREG:%d,%d", reg_n, reg_stat) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CEREG:", "+CEREG:%hhu,%hhu", &info->reg_n, &info->reg_stat) <= 0)
     {
         LOG_EXT_E("Get %s module register state failed", self->name);
         return OS_ERROR;
@@ -117,7 +109,7 @@ os_err_t m5310a_set_cgact(mo_object_t *self, os_uint8_t cid, os_uint8_t act_stat
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CGACT=%d,%d", act_stat, cid);
+    return at_parser_exec_cmd(parser, &resp, "AT+CGACT=%hhu,%hhu", act_stat, cid);
 }
 
 os_err_t m5310a_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_stat)
@@ -134,7 +126,7 @@ os_err_t m5310a_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_st
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CGACT:", "+CGACT:%d,%d", cid, act_stat) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CGACT:", "+CGACT:%hhu,%hhu", cid, act_stat) <= 0)
     {
         LOG_EXT_E("Get %s module cgact state failed", self->name);
         return OS_ERROR;
@@ -157,7 +149,7 @@ os_err_t m5310a_get_csq(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber)
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CSQ:", "+CSQ:%d,%d", rssi, ber) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CSQ:", "+CSQ:%hhu,%hhu", rssi, ber) <= 0)
     {
         LOG_EXT_E("Get %s module signal quality failed", self->name);
         return OS_ERROR;
@@ -229,129 +221,15 @@ __exit:
     return result;
 }
 
-os_err_t m5310a_get_ipaddr(mo_object_t *self, char ip[])
+os_err_t m5310a_clear_stored_earfcn(mo_object_t *self)
 {
     at_parser_t *parser = &self->parser;
-    os_int8_t    ucid   = -1;
-    os_int8_t    len    = -1;
 
-    char ipaddr[IP_SIZE] = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    char resp_buff[128] = {0};
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
-
-    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CGPADDR");
-    if (result != OS_EOK)
-    {
-        LOG_EXT_E("Get ip address fail: AT+CGPADDR cmd exec fail.");
-        goto __exit;
-    }
-
-    /* Response for ex: +CGPADDR:0,10.208.88.25,2409:8962:B516:123A:1:0:4C7:E50F */
-    if (at_resp_get_data_by_kw(&resp, "+CGPADDR:", "+CGPADDR:%d,%[^,]", &ucid, ipaddr) <= 0)
-    {
-        LOG_EXT_E("Get ip address: parse resp fail.");
-        result = OS_ERROR;
-        goto __exit;
-    }
-    /* Delete the last useless byte of data --OD */
-    ipaddr[strlen(ipaddr) - 1] = 0;
-
-    len = strlen(ipaddr);
-    if ((len < MIN_IP_SIZE) || (len >= IP_SIZE))
-    {
-        LOG_EXT_E("IP address size [%d] error.", len);
-        result = OS_ERROR;
-        goto __exit;
-    }
-    else
-    {
-        strcpy(ip, ipaddr);
-        LOG_EXT_D("IP address: %s", ip);
-    }
-
-__exit:
-    
-    return result;
-}
-
-os_err_t m5310a_ping(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp)
-{
-    at_parser_t *parser          = &self->parser;
-    os_err_t     result          = OS_EOK;
-    os_int16_t   req_time        = -1;
-    os_int16_t   ttl             = -1;
-    char         ipaddr[IP_SIZE] = {0};
-    char         ret_buff[36]    = {0};
-    
-    if (parser == OS_NULL)
-    {
-        LOG_EXT_E("M5310-A ping: at parser is NULL.");
-        return OS_ERROR;
-    }
-
-    if ((len < M5310A_MIN_PING_PKG_LEN) || (len > M5310A_MAX_PING_PKG_LEN))
-    {
-        LOG_EXT_E("M5310-A ping: ping package len[%d] is out of rang[8, 1460].", len);
-        return OS_ERROR;
-    }
-
-    LOG_EXT_D("M5310-A ping: %s, len: %d, timeout: %d", host, len, timeout);
-
-    char resp_buff[256] = {0};
-    /* Need to wait for 4 lines response msg */
-    at_resp_t at_resp = {.buff      = resp_buff,
-                        .buff_size = sizeof(resp_buff),
-                        .line_num  = 4,
-                        .timeout   = 16 * OS_TICK_PER_SECOND};
-
-    /* App config is ignored and tools default set timeout to 5000ms */
-    /* It is found that the ping packet of M5310-A takes 4 seconds to return */
-    /* Exec commond "AT+NPING=www.baidu.com,64,5000,4 and wait response */
-    /* Return: success: +NPING:183.232.231.174,54,1974  fail: +NPINGERR:1 */
-    if (at_parser_exec_cmd(parser, &at_resp, "AT+NPING=%s,%d,%d,1", host, len, timeout) < 0)
-    {
-        LOG_EXT_E("Ping: AT cmd exec fail: AT+NPING=%s,%d,%d", host, len, timeout);
-        result = OS_ERROR;
-        goto __exit;
-    }
-
-    if (at_resp_get_data_by_kw(&at_resp, "+NPING", "+NPING:%[^,],%d,%d", ipaddr, &ttl, &req_time) <= 0)
-    {
-        if (at_resp_get_data_by_kw(&at_resp, "+", "+%s", ret_buff) <= 0)
-        {
-            LOG_EXT_E("AT+NPING resp prase \"+NPINGERR\" fail.");
-        }
-
-        LOG_EXT_E("M5310-A ping %s fail: %s, check network status and try to set a longer timeout.", host, ret_buff);
-        result = OS_ERROR;
-        goto __exit;
-    }
-    else
-    {
-        LOG_EXT_D("M5310-A ping: resp prase ip[%s], req_time[%d], ttl[%d]", ipaddr, req_time, ttl);
-        if (ttl <= 0)
-        {
-            result = OS_ETIMEOUT;
-        }
-        else
-        {
-            result = OS_EOK;
-        }
-    }
-
-    if (req_time)
-    {
-        inet_aton(ipaddr, &(resp->ip_addr));
-        resp->data_len = len;
-        resp->ttl      = ttl;
-        resp->time     = req_time;
-    }
-
-__exit:
-
-    return result;
+    return at_parser_exec_cmd(parser, &resp, "AT+NCSEARFCN");
 }
 
 #endif /* M5310A_USING_NETSERV_OPS */

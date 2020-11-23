@@ -962,7 +962,7 @@ os_err_t sh_list_mem(os_int32_t argc, char **argv)
 
     return OS_EOK;
 }
-SH_CMD_EXPORT(list_mem, sh_list_mem, "list memory usage information");
+SH_CMD_EXPORT(mem, sh_list_mem, "show memory usage information");
 
 #endif
 #endif

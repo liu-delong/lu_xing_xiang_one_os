@@ -1,257 +1,235 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
- * Change Logs:
- * Date           Author       Notes
- * 2019-04-28     tyustli      first version
- * 2019-07-15     Magicoe      The first version for LPC55S6x, we can also use SCT as PWM
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_pwm.c
+ *
+ * @brief       This file implements PWM driver for stm32.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-02-20   OneOS Team      First Version
+ ***********************************************************************************************************************
  */
 
-#include <rtthread.h>
-
-#ifdef RT_USING_PWM
-#if !defined(BSP_USING_CTIMER2_MAT0) && !defined(BSP_USING_CTIMER2_MAT1) && \
-    !defined(BSP_USING_CTIMER2_MAT2)
-#error "Please define at least one BSP_USING_CTIMERx_MATx"
-#else
-    #define BSP_USING_CTIMER2
-#endif
-
-#define LOG_TAG             "drv.pwm"
-#include <drv_log.h>
-
-#include <rtdevice.h>
-#include "fsl_ctimer.h"
+#include <board.h>
+#include <drv_hwtimer.h>
+#include <string.h>
+#include <os_memory.h>
 #include "drv_pwm.h"
 
-#define DEFAULT_DUTY                  50
-#define DEFAULT_FREQ                  1000
+#define DRV_EXT_LVL    DBG_EXT_INFO
+#define DRV_EXT_TAG    "drv.pwm"
+#include <drv_log.h>
 
-static rt_err_t lpc_drv_pwm_control(struct rt_device_pwm *device, int cmd, void *arg);
-
-static struct rt_pwm_ops lpc_drv_ops =
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
-    .control = lpc_drv_pwm_control
-};
 
-static rt_err_t lpc_drv_pwm_enable(struct rt_device_pwm *device, struct rt_pwm_configuration *configuration, rt_bool_t enable)
+}
+void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim)
 {
-    CTIMER_Type *base;
+
+}
+
+static os_err_t get_pwm_channel(os_uint16_t channel, os_uint32_t *stm32_channel)
+{
+    switch(channel)
+    {
+#ifdef TIM_CHANNEL_1
+    case 1:
+       *stm32_channel = TIM_CHANNEL_1;
+        break;
+#endif
+#ifdef TIM_CHANNEL_2
+    case 2:
+       *stm32_channel =  TIM_CHANNEL_2;
+        break;
+#endif
+#ifdef TIM_CHANNEL_3
+    case 3:
+       *stm32_channel =  TIM_CHANNEL_3;
+        break;
+#endif
+#ifdef TIM_CHANNEL_4
+    case 4:
+       *stm32_channel =  TIM_CHANNEL_4;
+        break;
+#endif
+#ifdef TIM_CHANNEL_5
+    case 5:
+       *stm32_channel =  TIM_CHANNEL_5;
+        break;
+#endif
+#ifdef TIM_CHANNEL_6
+    case 6:
+       *stm32_channel =  TIM_CHANNEL_6;
+        break;
+#endif
+#ifdef TIM_CHANNEL_ALL
+    case 0xFFFF:
+       *stm32_channel =  TIM_CHANNEL_ALL;
+        break;
+#endif
+    default:
+        return OS_ENOSYS;
+    }
+    return OS_EOK;
+}
+
+static os_err_t stm32_pwm_enabled(struct os_pwm_device *dev, os_uint32_t channel, os_bool_t enable)
+{
+    os_uint32_t st_timer_channel = 0;
     
-    base = (CTIMER_Type *)device->parent.user_data;
+    struct stm32_pwm *st_pwm;
 
+    st_pwm = os_container_of(dev, struct stm32_pwm, pwm);
+
+    if (get_pwm_channel(channel, &st_timer_channel) != OS_EOK)
+    {
+        LOG_EXT_E("pwm cahnnel &d is illegal!", channel);
+        return OS_ENOSYS;
+    }
+    
     if (!enable)
     {
-        /* Stop the timer */
-        CTIMER_StopTimer(base);
+        HAL_TIM_PWM_Stop(st_pwm->tim->handle, st_timer_channel);
     }
     else
     {
-        /* Start the timer */
-        CTIMER_StartTimer(base);
+        HAL_TIM_PWM_Start(st_pwm->tim->handle, st_timer_channel);
     }
 
-    return RT_EOK;
+    return OS_EOK;
 }
 
-static rt_err_t lpc_drv_pwm_get(struct rt_device_pwm *device, struct rt_pwm_configuration *configuration)
+static os_err_t stm32_pwm_set_period(struct os_pwm_device *dev, os_uint32_t channel, os_uint32_t nsec)
 {
-    uint8_t get_duty;
-    uint32_t get_frequence;
-    uint32_t pwmClock = 0;
-    CTIMER_Type *base;
+    os_uint64_t os_tim_tick = 0;
+    os_uint64_t prescaler = 0;
     
-    base = (CTIMER_Type *)device->parent.user_data;
-    
-#ifdef BSP_USING_CTIMER2
-    /* get frequence */
-    pwmClock = CLOCK_GetFreq(kCLOCK_CTimer2) ;
-#endif
-    
-    get_frequence = pwmClock / (base->MR[kCTIMER_Match_3] + 1);
+    struct stm32_pwm *st_pwm;
 
-    if(configuration->channel == 1)
+    st_pwm = os_container_of(dev, struct stm32_pwm, pwm);
+    
+    os_tim_tick = (os_uint64_t)nsec * st_pwm->tim_mult >> st_pwm->tim_shift;
+    prescaler = os_tim_tick / st_pwm->pwm.max_value;
+    if (st_pwm->tim->handle->Init.Prescaler != prescaler)
     {
-        /* get dutycycle */
-        get_duty = (100*(base->MR[kCTIMER_Match_3] + 1 - base->MR[kCTIMER_Match_1]))/(base->MR[kCTIMER_Match_3] + 1);
+        st_pwm->tim->handle->Init.Prescaler = prescaler;
+        st_pwm->tim->handle->Init.Period = os_tim_tick / (st_pwm->tim->handle->Init.Prescaler + 1) - 1;
+
+        if (st_pwm->tim->handle->Init.Period == 65535)
+            st_pwm->tim->handle->Init.Period = 65534;
+        
+        st_pwm->freq = st_pwm->tim->freq / (st_pwm->tim->handle->Init.Prescaler + 1);
+        
+        HAL_TIM_Base_Stop(st_pwm->tim->handle);
+        __HAL_TIM_SET_PRESCALER(st_pwm->tim->handle, st_pwm->tim->handle->Init.Prescaler);
+        __HAL_TIM_SET_AUTORELOAD(st_pwm->tim->handle, st_pwm->tim->handle->Init.Period);
+        
+        calc_mult_shift(&st_pwm->pwm.mult, &st_pwm->pwm.shift, NSEC_PER_SEC, st_pwm->freq, st_pwm->pwm.max_value);
+        calc_mult_shift(&st_pwm->pwm.mult_t, &st_pwm->pwm.shift_t, st_pwm->freq, NSEC_PER_SEC, (os_uint64_t)st_pwm->freq * st_pwm->pwm.max_value >> 16);
+        st_pwm->pwm.max_sec = (os_uint64_t)st_pwm->pwm.max_value * st_pwm->pwm.mult_t >> st_pwm->pwm.shift_t;
     }
 
-    /* get dutycycle */
-    /* conversion */
-    configuration->period = 1000000000 / get_frequence;
-    configuration->pulse = get_duty * configuration->period / 100;
-
-    rt_kprintf("*** PWM period %d, pulse %d\r\n", configuration->period, configuration->pulse);
-    
-    return RT_EOK;
+    return OS_EOK;
 }
 
-static rt_err_t lpc_drv_pwm_set(struct rt_device_pwm *device, struct rt_pwm_configuration *configuration)
+static os_err_t stm32_pwm_set_pulse(struct os_pwm_device *dev, os_uint32_t channel, os_uint32_t buffer)
 {
-    RT_ASSERT(configuration->period > 0);
-    RT_ASSERT(configuration->pulse <= configuration->period);
+    os_uint32_t pwm_pulse = 0;
+    os_uint32_t st_timer_channel = 0;
 
-    ctimer_config_t config;
-    CTIMER_Type *base;
-    base = (CTIMER_Type *)device->parent.user_data;
-    
-    uint32_t pwmPeriod, pulsePeriod;
-    /* Run as a timer */
-    config.mode = kCTIMER_TimerMode;
-    /* This field is ignored when mode is timer */
-    config.input = kCTIMER_Capture_0;
-    /* Timer counter is incremented on every APB bus clock */
-    config.prescale = 0;
-    
-    if(configuration->channel == 1)
+    struct stm32_pwm *st_pwm;
+
+    st_pwm = os_container_of(dev, struct stm32_pwm, pwm);
+
+    if (get_pwm_channel(channel, &st_timer_channel) != OS_EOK)
     {
-        /* Get the PWM period match value and pulse width match value of DEFAULT_FREQ PWM signal with DEFAULT_DUTY dutycycle */
-        /* Calculate PWM period match value */
-        pwmPeriod = (( CLOCK_GetFreq(kCLOCK_CTimer2) / (config.prescale + 1) ) / DEFAULT_FREQ) - 1;
-
-        /* Calculate pulse width match value */
-        if (DEFAULT_DUTY == 0)
-        {
-            pulsePeriod = pwmPeriod + 1;
-        }
-        else
-        {
-            pulsePeriod = (pwmPeriod * (100 - DEFAULT_DUTY)) / 100;
-        }
-        /* Match on channel 3 will define the PWM period */
-        base->MR[kCTIMER_Match_3] = pwmPeriod;
-        /* This will define the PWM pulse period */
-        base->MR[kCTIMER_Match_1] = pulsePeriod;
-
+        LOG_EXT_E("pwm cahnnel &d is illegal!", channel);
+        return OS_ENOSYS;
     }
-
-    return RT_EOK;
-}
-
-static rt_err_t lpc_drv_pwm_control(struct rt_device_pwm *device, int cmd, void *arg)
-{
-    struct rt_pwm_configuration *configuration = (struct rt_pwm_configuration *)arg;
-
-    switch (cmd)
+    
+    if (buffer > dev->period)
     {
-    case PWM_CMD_ENABLE:
-        return lpc_drv_pwm_enable(device, configuration, RT_TRUE);
-    case PWM_CMD_DISABLE:
-        return lpc_drv_pwm_enable(device, configuration, RT_FALSE);
-    case PWM_CMD_SET:
-        return lpc_drv_pwm_set(device, configuration);
-    case PWM_CMD_GET:
-        return lpc_drv_pwm_get(device, configuration);
-    default:
-        return RT_EINVAL;
+        LOG_EXT_E("pwm pulse value over range!");
+        return OS_ERROR;
     }
-}
-
-int rt_hw_pwm_init(void)
-{
-    rt_err_t ret = RT_EOK;
-
-#ifdef BSP_USING_CTIMER2
-
-    static struct rt_device_pwm pwm1_device;
-    ctimer_config_t config;
-    uint32_t pwmPeriod, pulsePeriod;
-    
-    /* Use 12 MHz clock for some of the Ctimers */
-    CLOCK_AttachClk(kMAIN_CLK_to_CTIMER2);
-    
-    /* Run as a timer */
-    config.mode = kCTIMER_TimerMode;
-    /* This field is ignored when mode is timer */
-    config.input = kCTIMER_Capture_0;
-    /* Timer counter is incremented on every APB bus clock */
-    config.prescale = 0;
-    
-    CTIMER_Init(CTIMER2, &config);
-
-#ifdef BSP_USING_CTIMER2_MAT1
-    /* Get the PWM period match value and pulse width match value of DEFAULT_FREQ PWM signal with DEFAULT_DUTY dutycycle */
-    /* Calculate PWM period match value */
-    pwmPeriod = (( CLOCK_GetFreq(kCLOCK_CTimer2) / (config.prescale + 1) ) / DEFAULT_FREQ) - 1;
-
-    /* Calculate pulse width match value */
-    if (DEFAULT_DUTY == 0)
+    else if (buffer == dev->period)
     {
-        pulsePeriod = pwmPeriod + 1;
+        pwm_pulse = st_pwm->tim->handle->Init.Period + 1;
     }
     else
     {
-        pulsePeriod = (pwmPeriod * (100 - DEFAULT_DUTY)) / 100;
-    }
-    CTIMER_SetupPwmPeriod(CTIMER2, kCTIMER_Match_1 , pwmPeriod, pulsePeriod, false);
-#endif
-
-    ret = rt_device_pwm_register(&pwm1_device, "pwm1", &lpc_drv_ops, CTIMER2);
-
-    if (ret != RT_EOK)
-    {
-        LOG_E("%s register failed", "pwm1");
+        pwm_pulse = (os_uint64_t)buffer * dev->mult >> dev->shift;
     }
 
-#endif /* BSP_USING_CTIMER2 */
-
-    return ret;
-}
-
-INIT_DEVICE_EXPORT(rt_hw_pwm_init);
-
-
-#ifdef RT_USING_FINSH
-#include <finsh.h>
-
-#ifdef FINSH_USING_MSH
-
-rt_err_t rt_pwm_get(struct rt_device_pwm *device, int channel)
-{
-    rt_err_t result = RT_EOK;
-    struct rt_pwm_configuration configuration = {0};
-
-    if (!device)
+    
+    if (pwm_pulse > dev->max_value)
     {
-        return -RT_EIO;
-    }
-
-    configuration.channel = channel;
-    result = rt_device_control(&device->parent, PWM_CMD_GET, &configuration);
-
-    return result;
-}
-
-static int pwm_get(int argc, char **argv)
-{
-    int result = 0;
-    struct rt_device_pwm *device = RT_NULL;
-
-    if (argc != 3)
-    {
-        rt_kprintf("Usage: pwm_get pwm1 1\n");
-        result = -RT_ERROR;
-        goto _exit;
-    }
-
-    device = (struct rt_device_pwm *)rt_device_find(argv[1]);
-    if (!device)
-    {
-        result = -RT_EIO;
-        goto _exit;
+        LOG_EXT_E("pwm pulse value over range!");
+        return OS_EFULL;
     }
     
-    result = rt_pwm_get(device, atoi(argv[2]));
+    __HAL_TIM_SET_COMPARE(st_pwm->tim->handle, st_timer_channel, pwm_pulse);
+    __HAL_TIM_SET_COUNTER(st_pwm->tim->handle, 0);
 
-_exit:
-    return result;
+    HAL_TIM_GenerateEvent(st_pwm->tim->handle, TIM_EVENTSOURCE_UPDATE);
+
+    return OS_EOK;
 }
-MSH_CMD_EXPORT(pwm_get, pwm_get pwm1 1);
 
-#endif /* FINSH_USING_MSH */
-#endif /* RT_USING_FINSH */
+static const struct os_pwm_ops stm32_pwm_ops =
+{
+    .enabled = stm32_pwm_enabled,
+    .set_period = stm32_pwm_set_period,
+    .set_pulse = stm32_pwm_set_pulse,
+    .control  = OS_NULL,
+};
 
-#endif /* RT_USING_PWM */
+os_err_t stm32_pwm_register(const char *name, struct stm32_timer *tim)
+{
+    char *pwm_name = os_calloc(1, sizeof(name) + 14);
+
+    strcpy(pwm_name, "pwm_");
+    
+    pwm_name = strcat(pwm_name,name);
+
+    struct stm32_pwm *st_pwm = os_calloc(1, sizeof(struct stm32_pwm));
+    
+    OS_ASSERT(st_pwm);
+    
+    st_pwm->tim = tim;
+    
+    st_pwm->freq = st_pwm->tim->freq / (st_pwm->tim->handle->Init.Prescaler + 1);
+    
+    if (stm32_timer_is_32b(st_pwm->tim->handle->Instance))
+    {
+        st_pwm->pwm.max_value = 0xFFFFFFFF;
+    }
+    else
+    {
+        st_pwm->pwm.max_value = 0xFFFF;
+    }
+    
+    calc_mult_shift(&st_pwm->tim_mult, &st_pwm->tim_shift, NSEC_PER_SEC, st_pwm->tim->freq, st_pwm->pwm.max_value);
+    calc_mult_shift(&st_pwm->pwm.mult, &st_pwm->pwm.shift, NSEC_PER_SEC, st_pwm->freq, st_pwm->pwm.max_value);
+    calc_mult_shift(&st_pwm->pwm.mult_t, &st_pwm->pwm.shift_t, st_pwm->freq, NSEC_PER_SEC, (os_uint64_t)st_pwm->freq * st_pwm->pwm.max_value >> 16);
+    st_pwm->pwm.max_sec = (os_uint64_t)st_pwm->pwm.max_value * st_pwm->pwm.mult_t >> st_pwm->pwm.shift_t;
+   
+    st_pwm->pwm.ops = &stm32_pwm_ops;
+   
+    os_device_pwm_register(&st_pwm->pwm,
+                            pwm_name);
+    return OS_EOK;
+}
+

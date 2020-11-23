@@ -8,8 +8,6 @@ CPPPATH = [pwd + '/include']
 if IsDefined('OS_USING_CPU_USAGE') or IsDefined('OS_USING_TASK_MONITOR'):
     src += ['source/resource_monitor.c']
 
-if IsDefined('OS_USING_CMDUMP'):
-    src += ['source/cmdump.c']
 
 group = AddCodeGroup('diagnose', src, depend = [''], CPPPATH = CPPPATH)
 

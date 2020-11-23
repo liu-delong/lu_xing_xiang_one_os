@@ -335,7 +335,7 @@ os_err_t os_hwcrypto_bignum_register(struct os_hwcrypto_device *device, const ch
     if (hwcrypto_bignum_device != OS_NULL)
     {
         os_kprintf("hwcrypto bignum dev %s exist, %s register failed.\r\n",
-                   hwcrypto_bignum_device->parent.parent.name, name);
+                   device_name(&hwcrypto_bignum_device->parent), name);
         return OS_EFULL;
     }
 

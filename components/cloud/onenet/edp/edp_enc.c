@@ -7,6 +7,7 @@
 #include <rsa.h>
 #include <aes.h>
 #include <cmac.h>
+#include <os_kernel.h>
 
 #define RSA_E_LEN_BYTE                          4
 #define RSA_N_LEN_BYTE                          128
@@ -37,7 +38,6 @@ static int myrand( void *rng_state, unsigned char *output, size_t len )
 }
 
 EdpPacket* PacketEncryptReq(EncryptAlgType type){
-    int len = 0;
     int ret = 0;
     EdpPacket* pkg = NULL;
     unsigned remainlen = 0;
@@ -111,16 +111,8 @@ int32 UnpackEncryptResp(EdpPacket* pkg){
     uint16 key_len = 0;
 
     int ret = 0;
-
-    unsigned rsa_size = 0;
-    unsigned slice_size = 0;
-    
     unsigned char key[BUFFER_SIZE] = {0};
-    unsigned decrypt_len = 0;
-    int len = 0;
-    unsigned char* from = 0;
-    unsigned char* to = 0;
-    uint32 i = 0;
+    unsigned int len = 0;
 
     if (ReadRemainlen(pkg, &remainlen))
 	return ERR_UNPACK_ENCRYPT_RESP;
@@ -155,7 +147,6 @@ int32 UnpackEncryptResp(EdpPacket* pkg){
 
     default:
         return ERR_UNPACK_ENCRYPT_RESP;
-        break;
     }
 
     return 0;
@@ -177,7 +168,6 @@ static int aes_encrypt(EdpPacket* pkg, int remain_pos){
     EdpPacket tmp_pkg;
     int diff = 0;
     int i = 0;
-    int ret;
 
     /* 加密 */
     in_len = pkg->_write_pos - remain_pos;

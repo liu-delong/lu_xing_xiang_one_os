@@ -29,7 +29,7 @@
 #define PIN_MAX_VAL                64
 #define IRQ_MAX_VAL                 8
 
-struct lpc_pin
+struct nxp_pin
 {
     os_uint16_t   pin;
     GPIO_Type    *gpio;
@@ -42,9 +42,9 @@ struct lpc_pin
 #define __LPC55S69_PIN_DEFAULT {0, 0, 0, 0}
 #define __LPC55S69_PIN(INDEX, REG, PORT, PIN) {INDEX, REG, PORT, PIN}
 
-static struct os_pin_ops lpc_pin_ops;
+static struct os_pin_ops nxp_pin_ops;
 
-static struct lpc_pin lpc_pin_map[] =
+static struct nxp_pin nxp_pin_map[] =
 {
     __LPC55S69_PIN_DEFAULT,
 
@@ -130,12 +130,12 @@ struct os_pin_irq_hdr pin_irq_hdr_tab[] =
     {-1, 0, OS_NULL, OS_NULL},    
 };
 
-static void lpc_pin_mode(os_device_t *dev, os_base_t pin, os_base_t mode)
+static void nxp_pin_mode(os_device_t *dev, os_base_t pin, os_base_t mode)
 {
     int dir;
     uint32_t pin_cfg;
 
-    if ((pin > __ARRAY_LEN(lpc_pin_map)) || (pin == 0))
+    if ((pin > __ARRAY_LEN(nxp_pin_map)) || (pin == 0))
     {
         return;
     }
@@ -180,34 +180,34 @@ static void lpc_pin_mode(os_device_t *dev, os_base_t pin, os_base_t mode)
     
     /* Enable IOCON Clock */
     CLOCK_EnableClock(kCLOCK_Iocon);
-    IOCON->PIO[lpc_pin_map[pin].gpio_port][lpc_pin_map[pin].gpio_pin] = pin_cfg;       
+    IOCON->PIO[nxp_pin_map[pin].gpio_port][nxp_pin_map[pin].gpio_pin] = pin_cfg;       
     /* Disable IOCON Clock -- To Save Power */
     CLOCK_DisableClock(kCLOCK_Iocon);
     
     gpio_pin_config_t pin_config = {(gpio_pin_direction_t)dir, 1};
-    GPIO_PinInit(GPIO, lpc_pin_map[pin].gpio_port, lpc_pin_map[pin].gpio_pin, &pin_config); 
+    GPIO_PinInit(GPIO, nxp_pin_map[pin].gpio_port, nxp_pin_map[pin].gpio_pin, &pin_config); 
 }
 
 
-static void lpc_pin_write(os_device_t *dev, os_base_t pin, os_base_t value)
+static void nxp_pin_write(os_device_t *dev, os_base_t pin, os_base_t value)
 {
-    if ((pin > __ARRAY_LEN(lpc_pin_map)) || (pin == 0))
+    if ((pin > __ARRAY_LEN(nxp_pin_map)) || (pin == 0))
     {
         return;
     }
     
-    GPIO_PinWrite(lpc_pin_map[pin].gpio, lpc_pin_map[pin].gpio_port, lpc_pin_map[pin].gpio_pin, value);
+    GPIO_PinWrite(nxp_pin_map[pin].gpio, nxp_pin_map[pin].gpio_port, nxp_pin_map[pin].gpio_pin, value);
 }
 
-static int lpc_pin_read(os_device_t *dev, os_base_t pin)
+static int nxp_pin_read(os_device_t *dev, os_base_t pin)
 {
     int value;   
-    if ((pin > __ARRAY_LEN(lpc_pin_map)) || (pin == 0))
+    if ((pin > __ARRAY_LEN(nxp_pin_map)) || (pin == 0))
     {
         return OS_ERROR;
     }
 
-    value = GPIO_PinRead(lpc_pin_map[pin].gpio, lpc_pin_map[pin].gpio_port, lpc_pin_map[pin].gpio_pin);
+    value = GPIO_PinRead(nxp_pin_map[pin].gpio, nxp_pin_map[pin].gpio_port, nxp_pin_map[pin].gpio_pin);
     
     return value;
 }
@@ -236,14 +236,17 @@ static void pin_irq_hdr(pint_pin_int_t pintr, uint32_t pmatch_status)
 
 void callback(pint_pin_int_t pintr, uint32_t pmatch_status)
 {
+    os_interrupt_enter();
     pin_irq_hdr(pintr, pmatch_status);
+    os_interrupt_leave();
 }
 
 /* IRQ handler functions overloading weak symbols in the startup */
 void PIN_INT0_IRQHandler(void)
 {
     uint32_t pmstatus;
-
+    
+    os_interrupt_enter();
     /* Reset pattern match detection */
     pmstatus = PINT_PatternMatchResetDetectLogic(PINT);
 
@@ -254,9 +257,10 @@ void PIN_INT0_IRQHandler(void)
         /* Edge sensitive: clear Pin interrupt after callback */
         PINT_PinInterruptClrStatus(PINT, kPINT_PinInt0);
     }
+    os_interrupt_leave();
 }
 
-static os_err_t lpc_pin_attach_irq(struct os_device *device,
+static os_err_t nxp_pin_attach_irq(struct os_device *device,
                                    os_int32_t pin,
                                    os_uint32_t mode,
                                    void (*hdr)(void *args),
@@ -264,7 +268,7 @@ static os_err_t lpc_pin_attach_irq(struct os_device *device,
 {
     int trigger_mode, pin_initx, pintsel, pin_cfg, i;    
     
-    if ((pin > __ARRAY_LEN(lpc_pin_map)) || (pin == 0))
+    if ((pin > __ARRAY_LEN(nxp_pin_map)) || (pin == 0))
     {
         return OS_ERROR;
     }
@@ -318,13 +322,13 @@ static os_err_t lpc_pin_attach_irq(struct os_device *device,
     /* Turnoff clock to inputmux to save power. Clock is only needed to make changes */
     INPUTMUX_Deinit(INPUTMUX);
     
-    pin_cfg = ((IOCON->PIO[lpc_pin_map[pin].gpio_port][lpc_pin_map[pin].gpio_pin] &
+    pin_cfg = ((IOCON->PIO[nxp_pin_map[pin].gpio_port][nxp_pin_map[pin].gpio_pin] &
               (~(IOCON_PIO_FUNC_MASK | IOCON_PIO_DIGIMODE_MASK | IOCON_PIO_FILTEROFF_MASK))) /* Mask bits to zero which are setting */
               | IOCON_PIO_FUNC(0)                /* Selects pin function.: PORT18 (pin 28) is configured as PIO1_8 */
               | IOCON_PIO_DIGIMODE(1)            /* Select Analog/Digital mode.: Digital mode. */
               | IOCON_PIO_FILTEROFF(0));         /* Controls input glitch filter.: Filter enabled. Noise pulses below approximately 10 ns are filtered out. */
                    
-    IOCON_PinMuxSet(IOCON, lpc_pin_map[pin].gpio_port, lpc_pin_map[pin].gpio_pin, pin_cfg);    
+    IOCON_PinMuxSet(IOCON, nxp_pin_map[pin].gpio_port, nxp_pin_map[pin].gpio_pin, pin_cfg);    
     
     /* PINT_PinInterruptConfig */
     PINT_PinInterruptConfig(PINT, (pint_pin_int_t)pin_initx, (pint_pin_enable_t)(pin_irq_hdr_tab[i].mode), callback);    
@@ -334,11 +338,11 @@ static os_err_t lpc_pin_attach_irq(struct os_device *device,
     return OS_EOK;
 }
 
-static os_err_t lpc_pin_detach_irq(struct os_device *device, os_int32_t pin)
+static os_err_t nxp_pin_detach_irq(struct os_device *device, os_int32_t pin)
 {
     int i;    
 
-    if ((pin > __ARRAY_LEN(lpc_pin_map)) || (pin == 0))
+    if ((pin > __ARRAY_LEN(nxp_pin_map)) || (pin == 0))
     {
         return OS_ERROR;
     }
@@ -357,11 +361,11 @@ static os_err_t lpc_pin_detach_irq(struct os_device *device, os_int32_t pin)
     return OS_EOK;
 }
 
-static os_err_t lpc_pin_irq_enable(struct os_device *device, os_base_t pin, os_uint32_t enabled)
+static os_err_t nxp_pin_irq_enable(struct os_device *device, os_base_t pin, os_uint32_t enabled)
 {
     int irqn_type, i;
     
-    if ((pin > __ARRAY_LEN(lpc_pin_map)) || (pin == 0))
+    if ((pin > __ARRAY_LEN(nxp_pin_map)) || (pin == 0))
     {
         return OS_ERROR;
     }
@@ -411,14 +415,14 @@ int os_hw_pin_init(void)
 {
     int ret = OS_EOK;
 
-    lpc_pin_ops.pin_mode        = lpc_pin_mode;
-    lpc_pin_ops.pin_read        = lpc_pin_read;
-    lpc_pin_ops.pin_write       = lpc_pin_write;
-    lpc_pin_ops.pin_attach_irq  = lpc_pin_attach_irq;
-    lpc_pin_ops.pin_detach_irq  = lpc_pin_detach_irq;
-    lpc_pin_ops.pin_irq_enable  = lpc_pin_irq_enable;
+    nxp_pin_ops.pin_mode        = nxp_pin_mode;
+    nxp_pin_ops.pin_read        = nxp_pin_read;
+    nxp_pin_ops.pin_write       = nxp_pin_write;
+    nxp_pin_ops.pin_attach_irq  = nxp_pin_attach_irq;
+    nxp_pin_ops.pin_detach_irq  = nxp_pin_detach_irq;
+    nxp_pin_ops.pin_irq_enable  = nxp_pin_irq_enable;
 
-    ret = os_device_pin_register(0, &lpc_pin_ops, OS_NULL);
+    ret = os_device_pin_register(0, &nxp_pin_ops, OS_NULL);
 
     return ret;
 }

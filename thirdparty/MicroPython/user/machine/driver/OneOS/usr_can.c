@@ -25,17 +25,18 @@
  */
 #include "py/runtime.h"
 
+
+
 #if (MICROPY_PY_MACHINE_CAN)
 #include "can.h"
 #include "bus_can.h"
 #include "usr_misc.h"
-#include <stdio.h>
 #include <string.h>
 #include <os_device.h>
+#include <os_util.h>
 
-
-static int rx_count = 0;
-static int tx_count = 0;
+//static int rx_count = 0;
+//static int tx_count = 0;
 
 
 int can_open(void *device, uint16_t oflag)
@@ -70,11 +71,11 @@ static uint32_t Byte2HexStr(uint8_t *buf, uint32_t bufsize, char *dest)
 }
 
 
-static os_err_t can_rx_call(os_device_t *dev, os_size_t size)
-{
-    rx_count++;
-    return MP_CAN_OP_OK;
-}
+//static os_err_t can_rx_call(os_device_t *dev, os_size_t size)
+//{
+//    rx_count++;
+//    return MP_CAN_OP_OK;
+//}
 
 
 static int can_read(void *device, uint32_t offset, void *buf, uint32_t bufsize)
@@ -89,7 +90,7 @@ static int can_read(void *device, uint32_t offset, void *buf, uint32_t bufsize)
 		os_kprintf("can_read find name error\n");
 		return MP_CAN_OP_ERROR;
 	}
-	os_device_set_rx_indicate(can_device, can_rx_call);
+	//os_device_set_rx_indicate(can_device, can_rx_call);
 	if (os_device_read(can_device, offset, &msg, sizeof(msg)) > 0){
 		id_buf[3] = msg.id & 0xff;
 		id_buf[2] = (msg.id >> 8) & 0xff;
@@ -166,11 +167,11 @@ static struct os_can_msg *check_data(uint32_t *buf, uint32_t bufsize, struct os_
 	return msg;
 }
 
-static os_err_t can_tx_done(os_device_t *uart, void *buffer)
-{
-    tx_count++;
-    return MP_CAN_OP_OK;
-}
+//static os_err_t can_tx_done(os_device_t *uart, void *buffer)
+//{
+//    tx_count++;
+//    return MP_CAN_OP_OK;
+//}
 
 static int can_write(void *device, uint32_t offset, void *buf, uint32_t bufsize)
 {
@@ -186,7 +187,7 @@ static int can_write(void *device, uint32_t offset, void *buf, uint32_t bufsize)
 		os_kprintf("can_write failed! \n");
 		return MP_CAN_OP_ERROR;
 	}
-	os_device_set_tx_complete(can_device, can_tx_done);
+	//os_device_set_tx_complete(can_device, can_tx_done);
 	return os_device_write(can_device, offset, &msg, sizeof(msg));
 }
 
@@ -236,7 +237,7 @@ STATIC struct operate can_ops = {
 	
 int mpycall_can_register(void)
 {
-	device_info_t  *pos, *can = mp_misc_find_similar_device("can");
+	device_info_t  *pos, *can = mp_misc_find_similar_device(MICROPYTHON_MACHINE_CAN_PRENAME);
 	if (!can){
 		return -1;
 	}

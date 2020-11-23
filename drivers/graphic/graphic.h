@@ -33,6 +33,8 @@
 #define OS_GRAPHIC_CTRL_GET_INFO         3  /* get graphic device info */
 #define OS_GRAPHIC_CTRL_SET_MODE         4  /* set graphic device mode */
 #define OS_GRAPHIC_CTRL_GET_EXT          5  /* get graphic device extern info */
+#define OS_GRAPHIC_CTRL_SET_PIXEL        6  /* get graphic device extern info */
+#define OS_GRAPHIC_CTRL_FILL             7  /* get graphic device extern info */
 
 enum
 {
@@ -74,21 +76,30 @@ struct os_device_rect_info
     os_uint16_t y;                  /* y coordinate. */
     os_uint16_t width;              /* Width. */
     os_uint16_t height;             /* Height. */
+    char *color;
+};
+
+struct os_graphic_pixel {
+    char *pixel;
+    os_int32_t x;
+    os_int32_t y;
 };
 
 struct os_device_graphic_ops
 {
-    void (*set_pixel) (const char *pixel, os_int32_t x, os_int32_t y);
-    void (*get_pixel) (char *pixel, os_int32_t x, os_int32_t y);
+    void (*set_pixel) (struct os_device *dev, const char *pixel, os_int32_t x, os_int32_t y);
+    void (*get_pixel) (struct os_device *dev, char *pixel, os_int32_t x, os_int32_t y);
 
-    void (*draw_hline)(const char *pixel, os_int32_t x1, os_int32_t x2, os_int32_t y);
-    void (*draw_vline)(const char *pixel, os_int32_t x, os_int32_t y1, os_int32_t y2);
+    void (*draw_hline)(struct os_device *dev, const char *pixel, os_int32_t x1, os_int32_t x2, os_int32_t y);
+    void (*draw_vline)(struct os_device *dev, const char *pixel, os_int32_t x, os_int32_t y1, os_int32_t y2);
 
-    void (*blit_line) (const char *pixel, os_int32_t x, os_int32_t y, os_size_t size);
+    void (*blit_line) (struct os_device *dev, const char *pixel, os_int32_t x, os_int32_t y, os_size_t size);
 
-    void (*display_on)(os_bool_t on_off);
+    void (*display_on)(struct os_device *dev, os_bool_t on_off);
 
-    void (*update)(struct os_device_rect_info *rect);
+    void (*update)(struct os_device *dev, struct os_device_rect_info *rect);
+
+    void (*fill)(struct os_device *dev, struct os_device_rect_info *rect);
 };
 
 #define os_graphix_ops(device)          ((struct os_device_graphic_ops *)(device->user_data))
@@ -97,7 +108,7 @@ typedef struct os_device_graphic {
     os_device_t parent;
     
     struct os_device_graphic_info info;
-    struct os_device_graphic_ops *ops;
+    const struct os_device_graphic_ops *ops;
 } os_device_graphic_t;
 
 void os_graphic_register(const char *name, os_device_graphic_t *graphic);

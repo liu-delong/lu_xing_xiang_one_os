@@ -1,0 +1,61 @@
+import osconfig
+from build_tools import *
+
+# get current directory
+pwd = PresentDir()
+
+# The set of source files associated with this SConscript file.
+
+src = Split('''
+MM32L3xx/Source/system_MM32L3xx.c
+mm32_hal.c
+MM32L3xx/HAL_lib/src/HAL_adc.c
+MM32L3xx/HAL_lib/src/HAL_aes.c
+MM32L3xx/HAL_lib/src/HAL_bkp.c
+MM32L3xx/HAL_lib/src/HAL_can.c
+MM32L3xx/HAL_lib/src/HAL_crc.c
+MM32L3xx/HAL_lib/src/HAL_dac.c
+MM32L3xx/HAL_lib/src/HAL_dma.c
+MM32L3xx/HAL_lib/src/HAL_exti.c
+MM32L3xx/HAL_lib/src/HAL_flash.c
+MM32L3xx/HAL_lib/src/HAL_gpio.c
+MM32L3xx/HAL_lib/src/HAL_i2c.c
+MM32L3xx/HAL_lib/src/HAL_iwdg.c
+MM32L3xx/HAL_lib/src/HAL_misc.c
+MM32L3xx/HAL_lib/src/HAL_pwr.c
+MM32L3xx/HAL_lib/src/HAL_rcc.c
+MM32L3xx/HAL_lib/src/HAL_rtc.c
+MM32L3xx/HAL_lib/src/HAL_spi.c
+MM32L3xx/HAL_lib/src/HAL_tim.c
+MM32L3xx/HAL_lib/src/HAL_uart.c
+MM32L3xx/HAL_lib/src/HAL_wwdg.c
+''')
+
+
+
+#if IsDefined(['HAL_TIM_MODULE_ENABLED']) or IsDefined(['OS_USING_PWM']) or IsDefined(['OS_USING_INPUT_CAPTURE']) or IsDefined(['OS_USING_PULSE_ENCODER'])or IsDefined(['OS_USING_INFRARED']) or IsDefined(['OS_USING_LPMGR']):
+#    src += ['STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_lptim.c']
+    
+	
+	
+
+
+path = [pwd,
+        pwd + '/MM32L3xx/HAL_lib/inc',
+        pwd + '/MM32L3xx/Include',
+        ]
+ 
+
+if osconfig.CROSS_TOOL == 'keil':
+    path += [pwd + '/CMSIS\KEIL_CORE']
+elif osconfig.CROSS_TOOL == 'iar':
+    path += [pwd + '/CMSIS\IAR_CORE']
+#gcc is not suported
+elif osconfig.CROSS_TOOL == 'gcc':
+    path += [pwd + '/CMSIS/KEIL_CORE']
+
+    
+CPPDEFINES = ['USE_STDPERIPH_DRIVER']
+group = AddCodeGroup('hal/lowlevel', src, depend = ['SOC_SERIES_MM32L3'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

@@ -37,10 +37,10 @@ static uint16_t rx_crc           = 0;
 static os_mailbox_t rx_mb;
 static os_uint32_t  mb_pool[4];
 
-static os_err_t rx_done(os_device_t *uart, os_size_t size)
+static os_err_t rx_done(os_device_t *uart, struct os_device_cb_info *info)
 {
     rx_done_cnt++;
-    os_mb_send(&rx_mb, (os_uint32_t)size, OS_IPC_WAITING_NO);
+    os_mb_send(&rx_mb, (os_uint32_t)info->size, OS_IPC_WAITING_NO);
     return 0;
 }
 
@@ -88,7 +88,7 @@ static void rx_thread(void *parameter)
 static int tx_complete;
 static int tx_done_cnt;
 
-static os_err_t tx_done(os_device_t *uart, void *buffer)
+static os_err_t tx_done(os_device_t *uart, struct os_device_cb_info *info)
 {
     os_kprintf("<%d>tx done %d\r\n", os_tick_get(), tx_done_cnt++);
     tx_complete = 1;
@@ -122,8 +122,15 @@ static int serial_int_tx_test(int argc, char *argv[])
         loops = strtol(argv[2], OS_NULL, 0);
     }
 
-    os_device_set_rx_indicate(uart, rx_done);
-    os_device_set_tx_complete(uart, tx_done);
+    struct os_device_cb_info cb_info;
+    
+    cb_info.type = OS_DEVICE_CB_TYPE_TX;
+    cb_info.cb   = tx_done;
+    os_device_control(uart, IOC_SET_CB, &cb_info);
+
+    cb_info.type = OS_DEVICE_CB_TYPE_RX;
+    cb_info.cb   = rx_done;
+    os_device_control(uart, IOC_SET_CB, &cb_info);
 
     os_device_open(uart, OS_SERIAL_FLAG_RX_NOPOLL | OS_SERIAL_FLAG_TX_NOPOLL | OS_DEVICE_OFLAG_RDWR);
 
@@ -190,9 +197,14 @@ static int serial_int_tx_test(int argc, char *argv[])
         os_kprintf("wait rx thread exit..\r\n");
         os_task_msleep(300);
     }
+    
+    cb_info.type = OS_DEVICE_CB_TYPE_TX;
+    cb_info.cb   = OS_NULL;
+    os_device_control(uart, IOC_SET_CB, &cb_info);
 
-    os_device_set_rx_indicate(uart, OS_NULL);
-    os_device_set_tx_complete(uart, OS_NULL);
+    cb_info.type = OS_DEVICE_CB_TYPE_RX;
+    cb_info.cb   = OS_NULL;
+    os_device_control(uart, IOC_SET_CB, &cb_info);
 
     os_device_close(uart);
     os_mb_deinit(&rx_mb);
@@ -294,7 +306,13 @@ static int serial_rx_test(int argc, char *argv[])
     uart = os_device_find(dev_name);
     OS_ASSERT(uart);
 
-    os_device_set_rx_indicate(uart, rx_done);
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .cb   = rx_done,
+    };
+
+    os_device_control(uart, IOC_SET_CB, &cb_info);
 
     os_device_open(uart, OS_SERIAL_FLAG_RX_NOPOLL | OS_SERIAL_FLAG_TX_NOPOLL | OS_DEVICE_OFLAG_RDWR);
 

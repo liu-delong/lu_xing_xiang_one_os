@@ -43,7 +43,7 @@ menu "Timer"
             if OS_USING_HRTIMER
                 config OS_USING_HRTIMER_FOR_SYSTICK
                     bool "Using high-resolution timer for systick"
-                    default y
+                    default n
             endif
     endif
 endmenu

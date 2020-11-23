@@ -24,12 +24,9 @@
 #include "m5311_netserv.h"
 #include "m5311.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef MOLINK_USING_IP
-#include <mo_ipaddr.h>
-#endif /* MOLINK_USING_IP */
 
 #define DBG_EXT_TAG "m5311.netserv"
 #define DBG_EXT_LVL DBG_EXT_INFO
@@ -37,8 +34,10 @@
 
 #ifdef M5311_USING_NETSERV_OPS
 
-#define M5311_MIN_PING_PKG_LEN (8)
-#define M5311_MAX_PING_PKG_LEN (1400)
+#define M5311_PSM_QUOTES_LEN    (2)
+#define M5311_EARFCN_MAX        (262143)
+#define M5311_PCI_MAX           (503)
+#define M5311_EARFCN_OFFSET_MAX (4)
 
 os_err_t m5311_set_attach(mo_object_t *self, os_uint8_t attach_stat)
 {
@@ -48,7 +47,7 @@ os_err_t m5311_set_attach(mo_object_t *self, os_uint8_t attach_stat)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CGATT=%d", attach_stat);
+    return at_parser_exec_cmd(parser, &resp, "AT+CGATT=%hhu", attach_stat);
 }
 
 os_err_t m5311_get_attach(mo_object_t *self, os_uint8_t *attach_stat)
@@ -65,7 +64,7 @@ os_err_t m5311_get_attach(mo_object_t *self, os_uint8_t *attach_stat)
         return OS_ERROR;
     }
 
-    if(at_resp_get_data_by_kw(&resp, "+CGATT:", "+CGATT:%d", attach_stat) <= 0)
+    if(at_resp_get_data_by_kw(&resp, "+CGATT:", "+CGATT:%hhu", attach_stat) <= 0)
     {
         LOG_EXT_E("Get %s module attach state failed", self->name);
         return OS_ERROR;
@@ -82,14 +81,14 @@ os_err_t m5311_set_reg(mo_object_t *self, os_uint8_t reg_n)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CEREG=%d", reg_n);
+    return at_parser_exec_cmd(parser, &resp, "AT+CEREG=%hhu", reg_n);
 }
 
-os_err_t m5311_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_stat)
+os_err_t m5311_get_reg(mo_object_t *self, eps_reg_info_t *info)
 {
     at_parser_t *parser = &self->parser;
 
-    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+    char resp_buff[256] = {0};
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
@@ -99,7 +98,7 @@ os_err_t m5311_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_sta
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CEREG:", "+CEREG:%d,%d", reg_n, reg_stat) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CEREG:", "+CEREG:%hhu,%hhu", &info->reg_n, &info->reg_stat) <= 0)
     {
         LOG_EXT_E("Get %s module register state failed", self->name);
         return OS_ERROR;
@@ -116,7 +115,7 @@ os_err_t m5311_set_cgact(mo_object_t *self, os_uint8_t cid, os_uint8_t act_stat)
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CGACT=%d,%d", act_stat, cid);
+    return at_parser_exec_cmd(parser, &resp, "AT+CGACT=%hhu,%hhu", act_stat, cid);
 }
 
 os_err_t m5311_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_stat)
@@ -133,7 +132,7 @@ os_err_t m5311_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_sta
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CGACT:", "+CGACT:%d,%d", cid, act_stat) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CGACT:", "+CGACT:%hhu,%hhu", cid, act_stat) <= 0)
     {
         LOG_EXT_E("Get %s module cgact state failed", self->name);
         return OS_ERROR;
@@ -156,7 +155,7 @@ os_err_t m5311_get_csq(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber)
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CSQ:", "+CSQ:%d,%d", rssi, ber) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CSQ:", "+CSQ:%hhu,%hhu", rssi, ber) <= 0)
     {
         LOG_EXT_E("Get %s module signal quality failed", self->name);
         return OS_ERROR;
@@ -167,7 +166,7 @@ os_err_t m5311_get_csq(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber)
 
 os_err_t m5311_get_radio(mo_object_t *self, radio_info_t *radio_info)
 {
-#define M5311_NETSTAT_REGEX "*ENGINFOSC: %hd,%*[^\"]\"%[^\"]\"\n,%*d,%d,%*d,%hd,%*d,%*[^,],%hhu,"
+#define M5311_NETSTAT_REGEX "*ENGINFOSC: %hd,%*[^\"]\"%[^\"]\"\n,%*d,%d,%*d,%d,%*d,%*[^,],%hhu,"
 
     at_parser_t *parser = &self->parser;
 
@@ -203,126 +202,290 @@ __exit:
     return result;
 }
 
-os_err_t m5311_get_ipaddr(mo_object_t *self, char ip[])
+os_err_t m5311_set_psm(mo_object_t *self, mo_psm_info_t info)
 {
     at_parser_t *parser = &self->parser;
-    os_int8_t    ucid   = -1;
-    os_int8_t    len    = -1;
+    
+    /* M5311 needs double quotes */
+    os_int8_t periodic_rau[PSM_TIMER_MAX_STR_LEN + M5311_PSM_QUOTES_LEN]     = {0};
+    os_int8_t gprs_ready_timer[PSM_TIMER_MAX_STR_LEN + M5311_PSM_QUOTES_LEN] = {0};
+    os_int8_t periodic_tau[PSM_TIMER_MAX_STR_LEN + M5311_PSM_QUOTES_LEN]     = {0};
+    os_int8_t active_time[PSM_TIMER_MAX_STR_LEN + M5311_PSM_QUOTES_LEN]      = {0};
 
-    char ipaddr[IP_SIZE] = {0};
+    /* only insert double quotes when the value is valid */
+    if (0 != strlen(info.periodic_rau))
+	    snprintf((char *)periodic_rau, sizeof(periodic_rau), "\"%s\"", info.periodic_rau);
+    if (0 != strlen(info.gprs_ready_timer))
+	    snprintf((char *)gprs_ready_timer, sizeof(gprs_ready_timer), "\"%s\"", info.gprs_ready_timer);
+    if (0 != strlen(info.periodic_tau))
+	    snprintf((char *)periodic_tau, sizeof(periodic_tau), "\"%s\"", info.periodic_tau);
+    if (0 != strlen(info.active_time))
+	    snprintf((char *)active_time, sizeof(active_time), "\"%s\"", info.active_time);
 
-    char resp_buff[128] = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
 
-    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+CGPADDR=");
-    if (result != OS_EOK)
+    return at_parser_exec_cmd(parser, &resp, "AT+CPSMS=%d,%s,%s,%s,%s", 
+                                              info.psm_mode, 
+                                              periodic_rau,
+                                              gprs_ready_timer,
+                                              periodic_tau,
+                                              active_time);
+}
+
+os_err_t m5311_get_psm(mo_object_t *self, mo_psm_info_t *info)
+{
+    at_parser_t *parser = &self->parser;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
+
+    if (OS_EOK != at_parser_exec_cmd(parser, &resp, "AT+CPSMS?"))
     {
-        LOG_EXT_E("Get ip address fail: AT+CGPADDR cmd exec fail.");
-        goto __exit;
+        LOG_EXT_E("Get psm info fail: AT+CPSMS? cmd exec fail.");
+        return OS_ERROR;
     }
 
-    /* Response for ex: +CGPADDR:0,100.113.120.235 */
-    if (at_resp_get_data_by_kw(&resp, "+CGPADDR:", "+CGPADDR:%d,\"%[^\"]", &ucid, ipaddr) <= 0)
+    memset(info, 0, sizeof(mo_psm_info_t));
+
+    if (0 >= at_resp_get_data_by_kw(&resp, "+CPSMS", "+CPSMS: %d,,,\"%[^\"]\",\"%[^\"]", &info->psm_mode, info->periodic_tau, info->active_time))
     {
-        LOG_EXT_E("Get ip address: parse resp fail.");
-        result = OS_ERROR;
-        goto __exit;
+        LOG_EXT_E("Get %s module psm info failed", self->name);
+        return OS_ERROR;
     }
 
-    len = strlen(ipaddr);
-    if ((len < MIN_IP_SIZE) || (len > IP_SIZE))
+    return OS_EOK;
+}
+
+os_err_t m5311_set_edrx_cfg(mo_object_t *self, mo_edrx_cfg_t cfg)
+{
+    at_parser_t *parser = &self->parser;
+    
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
+
+    return at_parser_exec_cmd(parser, &resp, "AT+CEDRXS=%d,5,%s", 
+                                              cfg.mode, 
+                                              cfg.edrx.req_edrx_value);
+}
+
+os_err_t m5311_get_edrx_cfg(mo_object_t *self, mo_edrx_t *edrx_local)
+{
+    at_parser_t *parser = &self->parser;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
+
+    if (OS_EOK != at_parser_exec_cmd(parser, &resp, "AT+CEDRXS?"))
     {
-        LOG_EXT_E("IP address size [%d] error.", len);
-        result = OS_ERROR;
-        goto __exit;
-    }
-    else
-    {
-        strcpy(ip, ipaddr);
-        LOG_EXT_D("IP address: %s", ip);
+        LOG_EXT_E("%s fail: AT+CEDRXS? cmd exec fail.", __func__);
+        return OS_ERROR;
     }
 
-__exit:
+    memset(edrx_local, 0, sizeof(mo_edrx_t));
+
+    if (0 >= at_resp_get_data_by_kw(&resp, "+CEDRXS", "+CEDRXS: %d,\"%[^\"]", 
+                                                       &edrx_local->act_type, 
+                                                        edrx_local->req_edrx_value))
+    {
+        LOG_EXT_E("Get %s module edrx local config failed", self->name);
+        return OS_ERROR;
+    }
+
+    return OS_EOK;
+}
+
+os_err_t m5311_get_edrx_dynamic(mo_object_t *self, mo_edrx_t *edrx_dynamic)
+{
+    at_parser_t *parser = &self->parser;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
+
+    if (OS_EOK != at_parser_exec_cmd(parser, &resp, "AT+CEDRXRDP"))
+    {
+        LOG_EXT_E("%s fail: AT+CEDRXRDP cmd exec fail.", __func__);
+        return OS_ERROR;
+    }
+
+    memset(edrx_dynamic, 0, sizeof(mo_edrx_t));
+
+    if (0 >= at_resp_get_data_by_kw(&resp, "+CEDRXRDP", "+CEDRXRDP: %d,\"%[^\"]\",\"%[^\"]\",\"%[^\"]\"", 
+                                                        &edrx_dynamic->act_type, 
+                                                         edrx_dynamic->req_edrx_value,
+                                                         edrx_dynamic->nw_edrx_value,
+                                                         edrx_dynamic->paging_time_window))
+    {
+        LOG_EXT_E("Get %s module edrx dynamic config failed", self->name);
+        return OS_ERROR;
+    }
+
+    return OS_EOK;
+}
+
+#if 0
+os_err_t m5311_set_band(mo_object_t *self, char band_list[], os_uint8_t num)
+{
+    /* invalid input check */
+    if (0 == num)
+    {
+        LOG_EXT_E("%s input invalid band count num.", __func__);
+        return OS_EINVAL;
+    }
+
+    at_parser_t *parser = &self->parser;
+    os_err_t     result = OS_ERROR;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
+
+    char exec_cmd[512] = "AT*CMBAND=";
+    for (int idex=0; idex < num-1; idex++)
+    {
+        sprintf(exec_cmd, "%s%d,", exec_cmd, band_list[idex]);
+    }
+    sprintf(exec_cmd, "%s%d", exec_cmd, band_list[num - 1]);
+
+    result = at_parser_exec_cmd(parser, &resp, exec_cmd);
+    if (OS_EOK != result)
+    {
+        LOG_EXT_E("%s fail: %s cmd exec fail.", __func__, exec_cmd);
+    }
 
     return result;
 }
 
-os_err_t m5311_ping(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp)
+os_err_t m5311_set_earfcn(mo_object_t *self, mo_earfcn_t earfcn)
 {
-    at_parser_t *parser          = &self->parser;
-    os_err_t     result          = OS_EOK;
-    os_int16_t   req_time        = -1;
-    os_int16_t   ttl             = -1;
-    char         ipaddr[IP_SIZE] = {0};
-    char         ret_buff[36]    = {0};
-    
-    if (parser == OS_NULL)
+    /* AT*FRCLLCK NOT SUPPORT M5311_CM */
+
+    if (M5311_EARFCN_MAX        < earfcn.earfcn ||
+        M5311_PCI_MAX           < earfcn.pci    ||
+        M5311_EARFCN_OFFSET_MAX < earfcn.earfcn_offset)
     {
-        LOG_EXT_E("M5311 ping: at parser is NULL.");
-        return OS_ERROR;
+        LOG_EXT_E("%s input invalid.", __func__);
+        return OS_EINVAL;
     }
 
-    if ((len < M5311_MIN_PING_PKG_LEN) || (len > M5311_MAX_PING_PKG_LEN))
+    at_parser_t *parser = &self->parser;
+    os_err_t     result = OS_ERROR;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
+
+    /* TODO TEST THIS FORMAT */
+    result = at_parser_exec_cmd(parser, &resp, "AT*FRCLLCK=%u,%u,%u,%u", 
+                                                earfcn.mode, 
+                                                earfcn.earfcn,
+                                                earfcn.earfcn_offset,
+                                                earfcn.pci);
+    if (OS_EOK != result)
     {
-        LOG_EXT_E("M5311 ping: ping package len[%d] is out of rang[%d, %d].",
-                   len, M5311_MIN_PING_PKG_LEN, M5311_MAX_PING_PKG_LEN);
-        return OS_ERROR;
+        LOG_EXT_E("%s fail: AT*FRCLLCK exec fail.", __func__);
     }
-
-    LOG_EXT_D("M5311 ping: %s, len: %d, timeout: %d", host, len, timeout);
-    /* Need to wait for 4 lines response msg */
-    char resp_buff[256] = {0};
-    at_resp_t at_resp = {.buff      = resp_buff,
-                        .buff_size  = sizeof(resp_buff),
-                        .line_num   = 4,
-                        .timeout    = 16 * OS_TICK_PER_SECOND};
-
-    /* Exec commond "AT+PING="www.baidu.com",32,2000,1 and wait response */
-    /* Return: success: +PING: 39.156.66.14,49,1206  fail: +PINGERR: 1 */
-    if (at_parser_exec_cmd(parser, &at_resp, "AT+PING=%s,%d,%d,1", host, len, timeout) < 0)
-    {
-        LOG_EXT_E("Ping: AT cmd exec fail: AT+PING=%s,%d,%d", host, len, timeout);
-        result = OS_ERROR;
-        goto __exit;
-    }
-
-    if (at_resp_get_data_by_kw(&at_resp, "+PING", "+PING: %[^,],%d,%d", ipaddr, &ttl, &req_time) <= 0)
-    {
-        if (at_resp_get_data_by_kw(&at_resp, "+", "+%s", ret_buff) <= 0)
-        {
-            LOG_EXT_E("AT+PING resp prase \"+PINGERR\" fail.");
-        }
-
-        LOG_EXT_E("M5311 ping %s fail: %s, check network status and try to set a longer timeout.", host, ret_buff);
-        result = OS_ERROR;
-        goto __exit;
-    }
-    else
-    {
-        LOG_EXT_D("M5311 ping: resp prase ip[%s], req_time[%d], ttl[%d]", ipaddr, req_time, ttl);
-        if (ttl <= 0)
-        {
-            result = OS_ETIMEOUT;
-        }
-        else
-        {
-            result = OS_EOK;
-        }
-    }
-
-    if (req_time)
-    {
-        LOG_EXT_D("M5311 ping return ip: %s", ipaddr);
-        inet_aton(ipaddr, &(resp->ip_addr));
-        resp->data_len = len;
-        resp->ttl      = ttl;
-        resp->time     = req_time;
-    }
-
-__exit:
 
     return result;
+}
+
+os_err_t m5311_get_earfcn(mo_object_t *self, mo_earfcn_t *earfcn)
+{
+    at_parser_t *parser = &self->parser;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 1 * OS_TICK_PER_SECOND};
+
+    if (OS_EOK != at_parser_exec_cmd(parser, &resp, "AT*FRCLLCK"))
+    {
+        LOG_EXT_E("%s fail: AT*FRCLLCK cmd exec fail.", __func__);
+        return OS_ERROR;
+    }
+
+    memset(earfcn, 0, sizeof(mo_earfcn_t));
+
+    /* TODO TEST RETURN VALUE ON MUTIPLE BAND MODULE */
+    /* return eg. *FRCLLCK: <lock>[,<earfcn>,<earfcn_offset>[,<pci>]] */
+    if (0 >= at_resp_get_data_by_kw(&resp, "*FRCLLCK:", "*FRCLLCK: %hhu,%u,%hu,%hhu", 
+                                                         &earfcn->mode, 
+                                                         &earfcn->earfcn,
+                                                         &earfcn->earfcn_offset,
+                                                         &earfcn->pci))
+    {
+        LOG_EXT_E("%s get earfcn( frequency lock info) failed", __func__);
+        return OS_ERROR;
+    }
+
+    return OS_EOK;
+}
+
+os_err_t m5311_clear_plmn(mo_object_t *self)
+{
+    at_parser_t *parser = &self->parser;
+    os_uint32_t  status = 0;
+
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 6 * OS_TICK_PER_SECOND};
+
+    if (OS_EOK != at_parser_exec_cmd(parser, &resp, "AT+CLPLMN"))
+    {
+        LOG_EXT_E("%s fail: AT+CLPLMN cmd exec fail.", __func__);
+        return OS_ERROR;
+    }
+
+    if (0 >= at_resp_get_data_by_kw(&resp, "+CLPLMN:", "+CLPLMN: %u", &status))
+    {
+        LOG_EXT_E("%s failed.", __func__);
+        return OS_ERROR;
+    }
+
+    if (0 != status)
+    {
+        LOG_EXT_E("%s failed with error code[%u]", __func__, status);
+    }
+
+    return OS_EOK;
+}
+
+#endif /* Put on hold */
+
+void m5311_edrx_urc_handler(struct at_parser *parser, const char *data, os_size_t size)
+{
+    OS_ASSERT(OS_NULL != parser);
+    OS_ASSERT(OS_NULL != data);
+
+    mo_edrx_t edrx_urc;
+    memset(&edrx_urc, 0, sizeof(mo_edrx_t));
+    sscanf(data, "+CEDRXP: %d,\"%[^\"]\",\"%[^\"]\",\"%[^\"]\"", 
+                  (int *)&edrx_urc.act_type,
+                   edrx_urc.req_edrx_value,
+                   edrx_urc.nw_edrx_value,
+                   edrx_urc.paging_time_window);
+    LOG_EXT_I("Get %s module edrx urc act_type[%d]", parser->name, edrx_urc.act_type);
+    LOG_EXT_I("Get %s module edrx urc req_edrx_value[%s]", parser->name, edrx_urc.req_edrx_value);
+    LOG_EXT_I("Get %s module edrx urc nw_edrx_value[%s]", parser->name, edrx_urc.nw_edrx_value);
+    LOG_EXT_I("Get %s module edrx urc paging_time_window[%s]", parser->name, edrx_urc.paging_time_window);
+
+    return;
+}
+
+static at_urc_t m5311_netserv_urc_table[] = {
+    {.prefix = "+CEDRXP:",  .suffix = "\r\n", .func = m5311_edrx_urc_handler},
+};
+
+void m5311_netserv_init(mo_m5311_t *module)
+{
+    /* Set netserv urc table */
+    at_parser_t *parser = &(module->parent.parser);
+    at_parser_set_urc_table(parser, m5311_netserv_urc_table, sizeof(m5311_netserv_urc_table) / sizeof(at_urc_t));
+    return;
 }
 
 #endif /* M5311_USING_NETSERV_OPS */

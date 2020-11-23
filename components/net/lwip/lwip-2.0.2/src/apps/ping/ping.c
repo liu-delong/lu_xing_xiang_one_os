@@ -2,8 +2,7 @@
  * netutils: ping implementation
  */
 
-#include <os_task.h>
-#include <os_clock.h>
+#include <os_kernel.h>
 
 #ifdef LWIP_USING_ICMP    /* don't build if not configured for use in oneos_config.h */
 #include <lwip/opt.h>
@@ -111,29 +110,43 @@ err_t lwip_ping_send(int s, ip_addr_t *addr, int size)
     return (err == ping_size ? ERR_OK : ERR_VAL);
 }
 
-int lwip_ping_recv(int s, int *ttl)
+int lwip_ping_recv(int s, unsigned char *buf, size_t buf_size, int *ttl)
 {
-    char buf[64];
-    int fromlen = sizeof(struct sockaddr_in), len;
+    int fromlen = sizeof(struct sockaddr_in);
     struct sockaddr_in from;
     struct ip_hdr *iphdr;
     struct icmp_echo_hdr *iecho;
+    int rcved_len;
+    int len;
 
-    while ((len = lwip_recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr*) &from, (socklen_t*) &fromlen)) > 0)
+    len = 0;
+    rcved_len = 0;
+    do
     {
-        if (len >= (int)(sizeof(struct ip_hdr) + sizeof(struct icmp_echo_hdr)))
+        len = lwip_recvfrom(s, buf + rcved_len, buf_size - rcved_len, 0, (struct sockaddr*) &from, (socklen_t*) &fromlen);
+
+        if (len > 0)
         {
-            iphdr = (struct ip_hdr *) buf;
-            iecho = (struct icmp_echo_hdr *) (buf + (IPH_HL(iphdr) * 4));
-            if ((iecho->id == PING_ID) && (iecho->seqno == htons(ping_seq_num)))
-            {
-                *ttl = iphdr->_ttl;
-                return len;
-            }
+            rcved_len += len;
+        }
+        if (rcved_len == buf_size)
+        {
+            break;
+        }
+    } while(len > 0);
+
+    if (rcved_len == buf_size)
+    {
+        iphdr = (struct ip_hdr *) buf;
+        iecho = (struct icmp_echo_hdr *) (buf + (IPH_HL(iphdr) * 4));
+        if ((iecho->id == PING_ID) && (iecho->seqno == htons(ping_seq_num)))
+        {
+            *ttl = iphdr->_ttl;
+            return rcved_len - sizeof(struct ip_hdr) - sizeof(struct icmp_echo_hdr);
         }
     }
 
-    return len;
+    return OS_ERROR;
 }
 
 #ifdef LWIP_USING_PING
@@ -151,15 +164,18 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
     os_uint32_t send_times;
     os_uint32_t recv   = 0;
     os_uint32_t lose   = 0;
-    os_uint32_t maxttl = 0;
-    os_uint32_t minttl = 255;
+    int maxttl = -1;
+    int minttl = -1;
     os_tick_t recv_start_tick;
     struct addrinfo hint, *res = NULL;
     struct sockaddr_in *h = NULL;
     struct in_addr ina;
-
-    send_times = 0;
+    unsigned char *ping_recv_buf;
+    int recv_buf_len;
+    
+    send_times   = 0;
     ping_seq_num = 0;
+    ping_recv_buf = NULL;
 
     if (size == 0)
     {
@@ -170,6 +186,7 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
     {
         times = PING_DATA_TIMES;
     }
+
     memset(&hint, 0, sizeof(hint));
     /* convert URL to IP */
     if (lwip_getaddrinfo(target_name, NULL, &hint, &res) != 0)
@@ -185,10 +202,22 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
         os_kprintf("ping: unknown host %s\n", target_name);
         return OS_ERROR;
     }
+    
+    recv_buf_len = size + sizeof(struct ip_hdr) + sizeof(struct icmp_echo_hdr);
+    ping_recv_buf = os_malloc(recv_buf_len);
+    if (NULL == ping_recv_buf)
+    {
+        os_kprintf("ping: no memory\n");
+        return OS_ERROR;
+    }
+    
     /* new a socket */
     if ((s = lwip_socket(AF_INET, SOCK_RAW, IP_PROTO_ICMP)) < 0)
     {
+        os_free(ping_recv_buf);
+        ping_recv_buf = NULL;
         os_kprintf("ping: create socket failed\n");
+        
         return OS_ERROR;
     }
 
@@ -201,18 +230,19 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
         if (lwip_ping_send(s, &target_addr, size) == ERR_OK)
         {
             recv_start_tick = os_tick_get();
-            if ((recv_len = lwip_ping_recv(s, &ttl)) >= 0)
-            {
+            recv_len = lwip_ping_recv(s, ping_recv_buf, recv_buf_len, &ttl);
+            if (recv_len >= 0)
+            {                
                 elapsed_time = (os_tick_get() - recv_start_tick) * 1000UL / OS_TICK_PER_SECOND;
                 os_kprintf("%d bytes from %s icmp_seq=%d ttl=%d time=%d ms\n", recv_len, inet_ntoa(ina), send_times,
                         ttl, elapsed_time);
                 recv++;
-                if (ttl > maxttl)
+                if (maxttl < 0 || ttl > maxttl)
                 {
                     maxttl = ttl;
                 }
 
-                if (ttl < minttl)
+                if (minttl < 0 || ttl < minttl)
                 {
                     minttl = ttl;
                 }
@@ -232,6 +262,14 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
         send_times++;
         if (send_times >= times)
         {
+            if (maxttl < 0)
+            {
+                maxttl = 0;
+            }
+            if (minttl < 0)
+            {
+                minttl = 0;
+            }
             /* send ping times reached, stop */
             os_kprintf("\nResult: from %s, sent=%d, recv=%d, lose=%d, minttl=%d, maxttl=%d\n", 
                        inet_ntoa(ina),
@@ -247,13 +285,12 @@ os_err_t ping(char* target_name, os_uint32_t times, os_size_t size)
     }
 
     lwip_close(s);
+    
+    os_free(ping_recv_buf);
+    ping_recv_buf = NULL;
 
     return OS_EOK;
 }
-#ifdef OS_USING_SHELL
-#include <shell.h>
-
-SH_CMD_EXPORT(ping, ping, "ping network host");
 
 /*Note that:  uint32: 0~4294967295 */
 static os_uint32_t strnum_to_uint(char *strnum)
@@ -272,7 +309,7 @@ static os_uint32_t strnum_to_uint(char *strnum)
 	return ret;
 }
 
-int cmd_ping(int argc, char **argv)
+static int cmd_ping(int argc, char **argv)
 {
     os_uint16_t times = 0;
     os_uint16_t size  = 0;
@@ -337,13 +374,16 @@ int cmd_ping(int argc, char **argv)
     }
 
     default:
-        os_kprintf("Input error, please input: ping <host address> <times[1-1000]> <pkg_size[64-2000]>\n");
+        os_kprintf("Input error, please input: ping <host address> <times[1-1000]> <pkg_size[36-2000]>\n");
         ret = OS_ERROR;
         break;
     }
 
     return ret;
 }
+
+#ifdef OS_USING_SHELL
+#include <shell.h>
 SH_CMD_EXPORT(lwip_ping, cmd_ping, "ping network host");
 #endif /* OS_USING_SHELL */
 

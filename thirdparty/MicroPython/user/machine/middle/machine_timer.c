@@ -24,6 +24,12 @@
  * THE SOFTWARE.
  */
 
+
+#include "mphalport.h"
+#include <os_util.h>
+
+
+#ifdef MICROPY_PY_MACHINE_TIMER
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,13 +37,6 @@
 #include "py/obj.h"
 #include "py/runtime.h"
 #include "modmachine.h"
-#include "mphalport.h"
-#include <os_util.h>
-
-#define MICROPYTHON_USING_MACHINE_TIMER
-
-#ifdef MICROPYTHON_USING_MACHINE_TIMER
-
 #include <os_task.h>
 #include "machine_timer.h"
 

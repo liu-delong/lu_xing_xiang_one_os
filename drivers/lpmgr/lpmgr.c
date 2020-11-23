@@ -128,52 +128,101 @@ static os_uint8_t lpmgr_select_sleep_mode(struct lpmgr *lpm)
     return mode;
 }
 
-extern os_tick_t os_timer_next_timeout_tick(void);
-extern void      os_timer_check(void);
+os_tick_t timer_next_timeout_tick(void)
+{
+    os_tick_t hard_timer = OS_TICK_MAX;
+    os_tick_t soft_timer = OS_TICK_MAX;
+
+    hard_timer = os_timer_next_timeout_tick();
+#ifdef OS_USING_TIMER_SOFT
+    soft_timer = os_soft_timer_next_timeout_tick();
+#endif
+    //os_kprintf("[%ud]-[%ud]\n", hard_timer, soft_timer);
+    return (hard_timer < soft_timer) ? hard_timer : soft_timer;
+}
+
+
+int lpmgr_enter_sleep_call(os_uint8_t mode)
+{
+    int       ret = OS_EOK;
+    /* Notify app will enter sleep mode */
+    if (gs_lpmgr_notify.notify)
+        gs_lpmgr_notify.notify(SYS_ENTER_SLEEP, mode, gs_lpmgr_notify.data);
+
+    /* Suspend all peripheral device */
+    ret = lpmgr_device_suspend(mode);
+    if (ret != OS_EOK)
+    {
+        lpmgr_device_resume(mode);
+        if (gs_lpmgr_notify.notify)
+            gs_lpmgr_notify.notify(SYS_EXIT_SLEEP, mode, gs_lpmgr_notify.data);
+
+        return OS_ERROR;
+    }
+
+    return OS_EOK;
+}
+
+int lpmgr_exit_sleep_call(os_uint8_t mode)
+{
+        /* resume all device */
+        lpmgr_device_resume(mode);
+
+        if (gs_lpmgr_notify.notify)
+            gs_lpmgr_notify.notify(SYS_EXIT_SLEEP, mode, gs_lpmgr_notify.data);
+
+    return OS_EOK;
+}
+
+
+extern void os_timer_check(void);
 
 static void lpmgr_change_sleep_mode(struct lpmgr *lpm, os_uint8_t mode)
 {
     os_tick_t timeout_tick, delta_tick;
     os_base_t level;
     int       ret = OS_EOK;
-    static os_uint8_t last_mode = SYS_SLEEP_MODE_MAX;
 
-    if (last_mode == mode)
+    /* check sleep mode status change */
+    if (!getbit(lpm->mode_change_falg, LPMGR_MODE_CHANGE_FLAG))
     {
         return;
     }
 
-    last_mode = mode;
-
-    if (mode == SYS_SLEEP_MODE_NONE)
+    level = lpmgr_enter_critical(lpm->sleep_mode);
+    
+    if (lpm->sleep_mode == SYS_SLEEP_MODE_NONE)
     {
-        lpm->sleep_mode = mode;
         lpm->ops->sleep(lpm, SYS_SLEEP_MODE_NONE);
     }
     else
     {
-        level = lpmgr_enter_critical(mode);
-
-        /* Notify app will enter sleep mode */
-        if (gs_lpmgr_notify.notify)
-            gs_lpmgr_notify.notify(SYS_ENTER_SLEEP, mode, gs_lpmgr_notify.data);
-
-        /* Suspend all peripheral device */
-        ret = lpmgr_device_suspend(mode);
-        if (ret != OS_EOK)
+        /* 
+      * The LPMGR_MODE_ENTER_SLEEP_CALL flag is used to prevent the user and peripheral processing functions(lpmgr_enter_sleep_call) from 
+      * being called repeatedly when the low power consumption fails. After calling the user and peripheral 
+      * processing functions, enter the low power consumption. If the low power consumption fails, the next cycle 
+      * attempts to enter the low power No need to call user and peripheral processing functions again before 
+      * power consumption
+     */
+        if (!getbit(lpm->mode_change_falg, LPMGR_MODE_ENTER_SLEEP_CALL))
         {
-            lpmgr_device_resume(mode);
-            if (gs_lpmgr_notify.notify)
-                gs_lpmgr_notify.notify(SYS_EXIT_SLEEP, mode, gs_lpmgr_notify.data);
-            lpmgr_exit_critical(level, mode);
-
-            return;
+            /* Call user program and suspend peripherals before entering sleep mode */
+            ret = lpmgr_enter_sleep_call(lpm->sleep_mode);
+            if (OS_EOK != ret)
+            {
+                os_kprintf("[%s]-[%d], lpmgr_enter_sleep_call err, ret[%d]\r\n", __FILE__, __LINE__, ret);
+               goto __err;
+            }
+            else
+            {
+                setbit(lpm->mode_change_falg, LPMGR_MODE_ENTER_SLEEP_CALL);
+            }
         }
 
         /* Tickless*/
-        if (lpm->timer_mask & (0x01 << mode))
+        if (lpm->timer_mask & (0x01 << lpm->sleep_mode))
         {
-            timeout_tick = os_timer_next_timeout_tick();
+            timeout_tick = timer_next_timeout_tick();
             if (timeout_tick == OS_TICK_MAX)
             {
                 if (lpm->ops->timer_start)
@@ -184,10 +233,12 @@ static void lpmgr_change_sleep_mode(struct lpmgr *lpm, os_uint8_t mode)
             else
             {
                 timeout_tick = timeout_tick - os_tick_get();
+                /* os_kprintf("[%s]-[%d], timeout_tick[%d]\r\n", __FILE__, __LINE__, timeout_tick); */
+                //os_kprintf("[%s]-[%d], timeout_tick[%d]\r\n", __FILE__, __LINE__, timeout_tick);
                 /* timeout_tick = 20*100; // test sleep 20s */
                 if (timeout_tick < LPMGR_TICKLESS_THRESH)
                 {
-                    mode = SYS_SLEEP_MODE_IDLE;
+                    lpm->sleep_mode = SYS_SLEEP_MODE_IDLE;
                 }
                 else
                 {
@@ -197,10 +248,20 @@ static void lpmgr_change_sleep_mode(struct lpmgr *lpm, os_uint8_t mode)
         }
 
         /* enter lower power state */
-        lpm->ops->sleep(lpm, mode);
+        ret = lpm->ops->sleep(lpm, lpm->sleep_mode);
+        if (OS_EOK != ret)
+        {
+            /* Failed to enter sleep mode, wait for the next cycle to re-enter */
+            //os_kprintf("[%s]-[%d], enter sleep mode failed, ret[%d]\r\n", __FILE__, __LINE__, ret);
+            goto __err;
+        }
+        else
+        {
+            clrbit(lpm->mode_change_falg, LPMGR_MODE_CHANGE_FLAG);
+        }
 
         /* wake up from lower power state*/
-        if (lpm->timer_mask & (0x01 << mode))
+        if (lpm->timer_mask & (0x01 << lpm->sleep_mode))
         {
             delta_tick = lpm->ops->timer_get_tick(lpm);
             lpm->ops->timer_stop(lpm);
@@ -211,14 +272,12 @@ static void lpmgr_change_sleep_mode(struct lpmgr *lpm, os_uint8_t mode)
             }
         }
 
-        /* resume all device */
-        lpmgr_device_resume(lpm->sleep_mode);
+        lpmgr_exit_sleep_call(lpm->sleep_mode);
 
-        if (gs_lpmgr_notify.notify)
-            gs_lpmgr_notify.notify(SYS_EXIT_SLEEP, mode, gs_lpmgr_notify.data);
-
-        lpmgr_exit_critical(level, mode);
     }
+	
+__err:
+	lpmgr_exit_critical(level, lpm->sleep_mode);
 }
 
 /**
@@ -232,8 +291,6 @@ static void lpmgr_change_sleep_mode(struct lpmgr *lpm, os_uint8_t mode)
  */
 void os_low_power_manager(void)
 {
-    os_uint8_t mode;
-
     if (gs_lpmgr_init_flag == 0)
         return;
 
@@ -241,8 +298,22 @@ void os_low_power_manager(void)
     lpmgr_frequency_scaling(&gs_lpmgr);
 
     /* Low Power Mode Processing */
-    mode = lpmgr_select_sleep_mode(&gs_lpmgr);
-    lpmgr_change_sleep_mode(&gs_lpmgr, mode);
+    lpmgr_change_sleep_mode(&gs_lpmgr, gs_lpmgr.sleep_mode);
+}
+
+static void lpmr_check_sleep_mode(struct lpmgr *lpm)
+{
+    static os_uint8_t last_mode = SYS_SLEEP_MODE_IDLE;
+    os_uint8_t mode;
+    
+    mode = lpmgr_select_sleep_mode(lpm);
+    if (last_mode != mode)
+    {
+        setbit(lpm->mode_change_falg,  LPMGR_MODE_CHANGE_FLAG);
+        clrbit(lpm->mode_change_falg, LPMGR_MODE_ENTER_SLEEP_CALL);
+        last_mode = mode;
+    }
+    
 }
 
 /**
@@ -269,6 +340,9 @@ void os_lpmgr_request(os_uint8_t sleep_mode)
     lpm   = &gs_lpmgr;
     if (lpm->modes[sleep_mode] < 255)
         lpm->modes[sleep_mode]++;
+
+    lpmr_check_sleep_mode(&gs_lpmgr);
+	
     os_hw_interrupt_enable(level);
 }
 
@@ -296,6 +370,9 @@ void os_lpmgr_release(os_uint8_t sleep_mode)
     lpm   = &gs_lpmgr;
     if (lpm->modes[sleep_mode] > 0)
         lpm->modes[sleep_mode]--;
+
+    lpmr_check_sleep_mode(&gs_lpmgr);
+	
     os_hw_interrupt_enable(level);
 }
 
@@ -309,12 +386,23 @@ void os_lpmgr_release(os_uint8_t sleep_mode)
  * @return          no return value
  ***********************************************************************************************************************
  */
-void os_lpmgr_device_register(struct os_device *device, const struct os_lpmgr_device_ops *ops)
+os_err_t os_lpmgr_device_register(struct os_device *device, const struct os_lpmgr_device_ops *ops)
 {
     os_base_t               level;
     struct os_lpmgr_device *device_lpm;
+    os_uint32_t index;
 
     level = os_hw_interrupt_disable();
+
+    for (index = 0; index < gs_lpmgr.device_number; index++)
+    {
+        if ((gs_lpmgr.lp_device[index].device == device) && (gs_lpmgr.lp_device[index].ops == ops))
+        {
+            os_hw_interrupt_enable(level);
+            os_kprintf("err, dev[%s], ops[%p] alread register!\n", device->name, ops);
+            return OS_EINVAL;
+        }
+    }
 
     device_lpm = (struct os_lpmgr_device *)os_realloc(gs_lpmgr.lp_device,
                                                       (gs_lpmgr.device_number + 1) * sizeof(struct os_lpmgr_device));
@@ -327,6 +415,8 @@ void os_lpmgr_device_register(struct os_device *device, const struct os_lpmgr_de
     }
 
     os_hw_interrupt_enable(level);
+
+    return OS_EOK;
 }
 
 /**
@@ -338,16 +428,17 @@ void os_lpmgr_device_register(struct os_device *device, const struct os_lpmgr_de
  * @return          no return value
  ***********************************************************************************************************************
  */
-void os_lpmgr_device_unregister(struct os_device *device)
+void os_lpmgr_device_unregister(struct os_device *device, const struct os_lpmgr_device_ops *ops)
 {
     os_ubase_t  level;
     os_uint32_t index;
+    os_uint8_t del_flag = 0;
 
     level = os_hw_interrupt_disable();
 
     for (index = 0; index < gs_lpmgr.device_number; index++)
     {
-        if (gs_lpmgr.lp_device[index].device == device)
+        if ((gs_lpmgr.lp_device[index].device == device) && (gs_lpmgr.lp_device[index].ops == ops))
         {
             /* remove current entry */
             for (; index < gs_lpmgr.device_number - 1; index++)
@@ -359,12 +450,19 @@ void os_lpmgr_device_unregister(struct os_device *device)
             gs_lpmgr.lp_device[gs_lpmgr.device_number - 1].ops    = OS_NULL;
 
             gs_lpmgr.device_number -= 1;
+            del_flag = 1;
             /* break out and not touch memory */
             break;
         }
     }
 
     os_hw_interrupt_enable(level);
+
+    if (0 == del_flag)
+    {
+        os_kprintf("not found dev[%s], ops[%p]!\n", device->name, ops);
+    }
+    
 }
 
 /**
@@ -500,7 +598,6 @@ int os_lpmgr_run_enter(os_uint8_t run_mode)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops lpm_ops = {
     OS_NULL,
     OS_NULL,
@@ -509,7 +606,6 @@ const static struct os_device_ops lpm_ops = {
     lpmgr_device_write,
     lpmgr_device_control,
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -531,19 +627,10 @@ void os_lpmgr_init(const struct os_lpmgr_ops *ops, os_uint8_t timer_mask, void *
     device = &(gs_lpmgr.parent);
 
     device->type        = OS_DEVICE_TYPE_PM;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &lpm_ops;
-#else
-    device->init    = OS_NULL;
-    device->open    = OS_NULL;
-    device->close   = OS_NULL;
-    device->read    = lpmgr_device_read;
-    device->write   = lpmgr_device_write;
-    device->control = lpmgr_device_control;
-#endif
     device->user_data = user_data;
 
     /* register low power manager device to the system */
@@ -625,8 +712,28 @@ static void lpmgr_dump_status(void)
 
     os_kprintf("lpmgr current sleep mode: %s\n", gs_lpmgr_sleep_str[lpm->sleep_mode]);
     os_kprintf("lpmgr current run mode:   %s\n", gs_lpmgr_run_str[lpm->run_mode]);
+    os_kprintf("[%s]-[%d], default_sleep: %s\n", __FILE__, __LINE__, gs_lpmgr_sleep_str[gs_lpmgr_default_sleep]);
+    os_kprintf("[%s]-[%d], mode_change_falg[0x%x]\n", __FILE__, __LINE__, lpm->mode_change_falg);
 }
 SH_CMD_EXPORT(power_status, lpmgr_dump_status, "dump power management status");
+
+static void lpmgr_dump_dev(void)
+{
+    os_uint32_t index;
+
+    os_kprintf("| %-5s | %-20s | %-10s |\n", "no", "dev name", "ops");
+    os_kprintf("+-------+----------------------+------------+\n");
+
+    for (index = 0; index < gs_lpmgr.device_number; index++)
+    {
+        os_kprintf("| %-5d | %-20s | 0x%p |\n", index, gs_lpmgr.lp_device[index].device->name, gs_lpmgr.lp_device[index].ops);
+    }
+    os_kprintf("total register num: %d\n", gs_lpmgr.device_number);
+
+}
+SH_CMD_EXPORT(power_dev, lpmgr_dump_dev, "dump power management dev");
+
+
 #endif
 
 #endif /* OS_USING_LPMGR */

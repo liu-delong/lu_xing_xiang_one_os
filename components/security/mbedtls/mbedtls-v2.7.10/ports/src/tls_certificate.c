@@ -31,4 +31,3 @@ const char mbedtls_root_certificate[] = "" \
 ;
 
 const size_t mbedtls_root_certificate_len = sizeof(mbedtls_root_certificate);
-

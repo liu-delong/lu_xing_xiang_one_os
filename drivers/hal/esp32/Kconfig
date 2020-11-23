@@ -1,0 +1,4 @@
+config SOC_FAMILY_ESP32
+    bool
+    default n
+

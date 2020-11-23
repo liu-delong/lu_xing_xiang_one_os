@@ -146,7 +146,7 @@ static int _can_int_tx(struct os_can_device *can, const struct os_can_msg *data,
                 os_list_add_tail(&tx_fifo->freelist, &tx_tosnd->list);
                 os_sem_post(&tx_fifo->sem);
                 os_hw_interrupt_enable(level);
-                os_kprintf("%s send failed %d.\r\n", can->parent.parent.name, ret);
+                os_kprintf("%s send failed %d.\r\n", device_name(&can->parent), ret);
                 break;
             }
         }
@@ -460,7 +460,6 @@ static os_err_t os_can_control(struct os_device *dev, int cmd, void *args)
     return res;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops can_device_ops =
 {
     os_can_init,
@@ -470,7 +469,6 @@ const static struct os_device_ops can_device_ops =
     os_can_write,
     os_can_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -494,8 +492,8 @@ os_err_t os_hw_can_register(struct os_can_device *can, const char *name, const s
     device = &(can->parent);
 
     device->type        = OS_DEVICE_TYPE_CAN;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     can->can_rx = OS_NULL;
     can->can_tx = OS_NULL;
     os_mutex_init(&(can->lock), "can", OS_IPC_FLAG_PRIO, OS_FALSE);
@@ -503,17 +501,8 @@ os_err_t os_hw_can_register(struct os_can_device *can, const char *name, const s
     can->bus_hook = OS_NULL;
 #endif /*OS_CAN_USING_BUS_HOOK*/
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &can_device_ops;
-#else
-    device->init    = os_can_init;
-    device->open    = os_can_open;
-    device->close   = os_can_close;
-    device->read    = os_can_read;
-    device->write   = os_can_write;
-    device->control = os_can_control;
-#endif
-    can->ops        = ops;
+    can->ops    = ops;
 
     can->status_indicate.ind  = OS_NULL;
     can->status_indicate.args = OS_NULL;
@@ -555,9 +544,11 @@ void os_hw_can_isr_rxdone(struct os_can_device *can)
     
     rx_fifo->rx_available++;
 
-    if (can->parent.rx_indicate != OS_NULL)
+    struct os_device_cb_info *info = &can->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+    if (info->cb != OS_NULL)
     {
-        can->parent.rx_indicate(&can->parent, rx_fifo->rx_available);
+        info->size = rx_fifo->rx_available;
+        info->cb(&can->parent, info);
     }
 
     listmsg = os_list_first_entry_or_null(&rx_fifo->freelist, struct os_can_msg_list, list);
@@ -593,10 +584,12 @@ void os_hw_can_isr_txdone(struct os_can_device *can, int event)
     os_sem_post(&tx_fifo->sem);
 
     if (os_list_empty(&tx_fifo->datalist))
-    {        
-        if (can->parent.tx_complete != OS_NULL)
+    {
+        struct os_device_cb_info *info = &can->parent.cb_table[OS_DEVICE_CB_TYPE_TX];
+        if (info->cb != OS_NULL)
         {
-            can->parent.tx_complete(&can->parent, OS_NULL);
+            info->data = OS_NULL;
+            info->cb(&can->parent, info);
         }
     }
 

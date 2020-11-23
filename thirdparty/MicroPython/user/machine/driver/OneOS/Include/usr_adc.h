@@ -4,11 +4,11 @@
 #include "model_device.h"
 #include "mpconfigport.h"
 
+#define MP_ADC_DEINIT_FLAG		0
+#define MP_ADC_INIT_FLAG		1
 
-#define _adc_open	mpycall_adc_open
-#define _adc_close	mpycall_adc_close
-#define _adc_read	mpycall_adc_read
-#define _adc_ioctl	mpycall_adc_ctrl
+#define MP_ADC_OP_ERROR 		-1
+
 
 enum{
 	SET_BASEV = 0,
@@ -16,12 +16,7 @@ enum{
 };
 
 extern uint32_t resolution;
-/*
-float _adc_read(uint32_t pin);
-int _adc_open(uint32_t pin, uint32_t mode);
-int _adc_close(uint32_t pin);
-int _adc_ioctl(uint32_t pin, uint32_t ctl);
-*/
+
 
 //int _adc_init(uint32_t pin, uint32_t mode);
 

@@ -36,14 +36,7 @@ static os_err_t sh_query_oneos_version(os_int32_t argc, char **argv)
 
     return OS_EOK;
 }
-SH_CMD_EXPORT(oneos_version, sh_query_oneos_version, "Query oneos version");
+SH_CMD_EXPORT(version, sh_query_oneos_version, "show oneos version");
 
-static os_err_t sh_query_kernel_version(os_int32_t argc, char **argv)
-{
-    SH_PRINT("\r\n%s\r\n", OS_KERNEL_VERSION);
-
-    return OS_EOK;
-}
-SH_CMD_EXPORT(kernel_version, sh_query_kernel_version, "Query kernel version");
 #endif /* OS_USING_SHELL */
 

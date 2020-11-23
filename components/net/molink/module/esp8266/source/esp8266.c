@@ -26,36 +26,54 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef ESP8266_USING_HW_CONTROL
+#include <drv_gpio.h>
+#endif
+
 #define DBG_EXT_TAG "esp8266"
 #define DBG_EXT_LVL LOG_LVL_INFO
 #include <os_dbg_ext.h>
 
 #ifdef MOLINK_USING_ESP8266
 
+#define ESP8266_RETRY_TIMES (5)
+
+#ifndef ESP8266_RST_PIN_NUM
+#define ESP8266_RST_PIN_NUM (-1)
+#endif
+
 #ifdef ESP8266_USING_GENERAL_OPS
 static const struct mo_general_ops gs_general_ops = {
-    .soft_reset = esp8266_soft_reset,
-    .at_test    = esp8266_at_test,
+    .at_test              = esp8266_at_test,
+    .get_firmware_version = esp8266_get_firmware_version,
 };
 #endif /* ESP8266_USING_GENERAL_OPS */
 
-#ifdef ESP8266_USING_NETSERV_OPS
-static const struct mo_netserv_ops gs_netserv_ops = {
-    .get_ipaddr     = esp8266_get_ipaddr,
-    .ping           = esp8266_ping,
+#ifdef ESP8266_USING_PING_OPS
+static const struct mo_ping_ops gs_ping_ops = {
+    .ping                 = esp8266_ping,
 };
-#endif /* ESP8266_USING_NETSERV_OPS */
+#endif /* ESP8266_USING_PING_OPS */
+
+#ifdef ESP8266_USING_IFCONFIG_OPS
+static const struct mo_ifconfig_ops gs_ifconfig_ops = {
+    .ifconfig             = esp8266_ifconfig,
+    .get_ipaddr           = esp8266_get_ipaddr,
+    .set_dnsserver        = esp8266_set_dnsserver,
+    .get_dnsserver        = esp8266_get_dnsserver,
+};
+#endif /* ESP8266_USING_IFCONFIG_OPS */
 
 #ifdef ESP8266_USING_NETCONN_OPS
 extern os_err_t esp8266_netconn_init(mo_esp8266_t *module);
 
 static const struct mo_netconn_ops gs_netconn_ops = {
-    .create        = esp8266_netconn_create,
-    .destroy       = esp8266_netconn_destroy,
-    .gethostbyname = esp8266_netconn_gethostbyname,
-    .connect       = esp8266_netconn_connect,
-    .send          = esp8266_netconn_send,
-    .get_info      = esp8266_netconn_get_info,
+    .create               = esp8266_netconn_create,
+    .destroy              = esp8266_netconn_destroy,
+    .gethostbyname        = esp8266_netconn_gethostbyname,
+    .connect              = esp8266_netconn_connect,
+    .send                 = esp8266_netconn_send,
+    .get_info             = esp8266_netconn_get_info,
 };
 #endif /* ESP8266_USING_NETCONN_OPS */
 
@@ -63,12 +81,12 @@ static const struct mo_netconn_ops gs_netconn_ops = {
 extern os_err_t esp8266_wifi_init(mo_object_t *module);
 
 static const struct mo_wifi_ops gs_wifi_ops = {
-    .set_mode       = esp8266_wifi_set_mode,
-    .get_mode       = esp8266_wifi_get_mode,
-    .get_stat       = esp8266_wifi_get_stat,
-    .connect_ap     = esp8266_wifi_connect_ap,
-    .scan_info      = esp8266_wifi_scan_info,
-    .scan_info_free = esp8266_wifi_scan_info_free,
+    .set_mode             = esp8266_wifi_set_mode,
+    .get_mode             = esp8266_wifi_get_mode,
+    .get_stat             = esp8266_wifi_get_stat,
+    .connect_ap           = esp8266_wifi_connect_ap,
+    .scan_info            = esp8266_wifi_scan_info,
+    .disconnect_ap        = esp8266_wifi_disconnect_ap,
 };
 #endif /* ESP8266_USING_WIFI_OPS */
 
@@ -93,38 +111,87 @@ static at_urc_t gs_urc_table[] = {
     {.prefix = "busy s", .suffix = "\r\n", .func = urc_busy_s_func},
 };
 
-mo_object_t *module_esp8266_create(const char *name, os_device_t *device, os_size_t recv_len)
+
+#ifdef ESP8266_USING_HW_CONTROL
+
+void esp8266_hw_rst(os_base_t rst_pin)
+{
+    if (-1 == rst_pin)
+    {
+        return;
+    }
+    
+    os_pin_mode(rst_pin, PIN_MODE_OUTPUT);
+
+    os_pin_write(rst_pin, PIN_LOW);
+
+    os_task_mdelay(10);
+
+    os_pin_write(rst_pin, PIN_HIGH);
+
+    os_task_mdelay(200);
+
+    LOG_EXT_I("The ESP8266 hardware reset is complete.");
+}
+
+#endif
+
+static os_err_t esp8266_at_init(mo_object_t *self)
+{
+    at_parser_t *parser = &self->parser;
+
+    at_parser_set_urc_table(parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
+
+    os_err_t result = at_parser_connect(parser, ESP8266_RETRY_TIMES);
+    if (result != OS_EOK)
+    {
+        LOG_EXT_E("Connect to %s module failed, please check whether the module connection is correct", self->name);
+        return result;
+    }
+
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "ATE0");
+}
+
+mo_object_t *module_esp8266_create(const char *name, void *parser_config)
 {
     mo_esp8266_t *module = (mo_esp8266_t *)malloc(sizeof(mo_esp8266_t));
+    if (OS_NULL == module)
+    {
+        LOG_EXT_E("Create %s module instance failed, no enough memory.", name);
+        return OS_NULL;
+    }
 
-    os_err_t result = mo_object_init(&(module->parent), name, device, recv_len);
+    os_err_t result = mo_object_init(&(module->parent), name, parser_config);
 	if (result != OS_EOK)
+    {
+        free(module);
+        
+        return OS_NULL;
+    }
+
+    result = esp8266_at_init(&module->parent);
+    if (result != OS_EOK)
     {
         goto __exit;
     }
-
-    at_parser_set_urc_table(&module->parent.parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
 
 #ifdef ESP8266_USING_GENERAL_OPS
     module->parent.ops_table[MODULE_OPS_GENERAL] = &gs_general_ops;
-
-    result = esp8266_soft_reset(&module->parent);
-    if (result != OS_EOK)
-    {
-        goto __exit;
-    }
-
-    result = esp8266_set_echo(&module->parent, OS_FALSE);
-    if (result != OS_EOK)
-    {
-        goto __exit;
-    }
-
 #endif /* ESP8266_USING_GENERAL_OPS */
 
-#ifdef ESP8266_USING_NETSERV_OPS
-    module->parent.ops_table[MODULE_OPS_NETSERV] = &gs_netserv_ops;
-#endif /* ESP8266_USING_NETSERV_OPS */
+#ifdef ESP8266_USING_PING_OPS
+    module->parent.ops_table[MODULE_OPS_PING] = &gs_ping_ops;
+#endif /* ESP8266_USING_PING_OPS */
+
+#ifdef ESP8266_USING_IFCONFIG_OPS
+    module->parent.ops_table[MODULE_OPS_IFCONFIG] = &gs_ifconfig_ops;
+#endif /* ESP8266_USING_IFCONFIG_OPS */
 
 #ifdef ESP8266_USING_WIFI_OPS
     result = esp8266_wifi_init(&module->parent);
@@ -212,7 +279,15 @@ int esp8266_auto_create(void)
 
     os_device_control(device, OS_DEVICE_CTRL_CONFIG, &uart_config);
 
-    mo_object_t *module = module_esp8266_create(ESP8266_NAME, device, ESP8266_RECV_BUFF_LEN);
+#ifdef ESP8266_USING_HW_CONTROL
+    esp8266_hw_rst(ESP8266_RST_PIN_NUM);
+#endif
+
+    mo_parser_config_t parser_config = {.parser_name   = ESP8266_NAME,
+                                        .parser_device = device,
+                                        .recv_buff_len = ESP8266_RECV_BUFF_LEN};
+
+    mo_object_t *module = module_esp8266_create(ESP8266_NAME, &parser_config);
 
     if (OS_NULL == module)
     {

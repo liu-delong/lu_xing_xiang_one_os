@@ -4347,7 +4347,7 @@ FRESULT f_getfree (
 	if (res == FR_OK) {
 		*fatfs = fs;				/* Return ptr to the fs object */
 		/* If free_clst is valid, return it without full cluster scan */
-		if (fs->free_clst <= fs->n_fatent - 2) {
+		if (fs->free_clst < fs->n_fatent - 2) {
 			*nclst = fs->free_clst;
 		} else {
 			/* Get number of free clusters */

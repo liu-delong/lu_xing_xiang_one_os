@@ -64,7 +64,6 @@ static os_err_t _spi_bus_device_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops spi_bus_ops = 
 {
     OS_NULL,
@@ -74,7 +73,6 @@ const static struct os_device_ops spi_bus_ops =
     _spi_bus_device_write,
     _spi_bus_device_control
 };
-#endif
 
 os_err_t os_spi_bus_device_init(struct os_spi_bus *bus, const char *name)
 {
@@ -86,16 +84,7 @@ os_err_t os_spi_bus_device_init(struct os_spi_bus *bus, const char *name)
     /* Set device type */
     device->type = OS_DEVICE_TYPE_SPIBUS;
     /* Initialize device interface */
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &spi_bus_ops;
-#else
-    device->init    = OS_NULL;
-    device->open    = OS_NULL;
-    device->close   = OS_NULL;
-    device->read    = _spi_bus_device_read;
-    device->write   = _spi_bus_device_write;
-    device->control = _spi_bus_device_control;
-#endif
 
     /* Register to device manager */
     return os_device_register(device, name, OS_DEVICE_FLAG_RDWR);
@@ -137,7 +126,6 @@ static os_err_t _spidev_device_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops spi_device_ops = 
 {
     OS_NULL,
@@ -147,7 +135,6 @@ const static struct os_device_ops spi_device_ops =
     _spidev_device_write,
     _spidev_device_control
 };
-#endif
 
 os_err_t os_spidev_device_init(struct os_spi_device *dev, const char *name)
 {
@@ -158,16 +145,7 @@ os_err_t os_spidev_device_init(struct os_spi_device *dev, const char *name)
 
     /* Set device type */
     device->type = OS_DEVICE_TYPE_SPIDEVICE;
-#ifdef OS_USING_DEVICE_OPS
-    device->ops = &spi_device_ops;
-#else
-    device->init    = OS_NULL;
-    device->open    = OS_NULL;
-    device->close   = OS_NULL;
-    device->read    = _spidev_device_read;
-    device->write   = _spidev_device_write;
-    device->control = _spidev_device_control;
-#endif
+    device->ops  = &spi_device_ops;
 
     /* Register to device manager */
     return os_device_register(device, name, OS_DEVICE_FLAG_RDWR);

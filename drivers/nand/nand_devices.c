@@ -34,7 +34,12 @@ static const struct nand_device_info nand_info_table[] =
         .spare_size = 64,
         .block_size = 64,
         .plane_size = 2048,
-        .plane_nr   = 2
+        .plane_nr   = 2,
+        .badflag_info.length = 1,
+        .badflag_info.data = 0x00,
+        .badflag_info.addr_offset = 0,
+        .badflag_info.page_offset = 0,
+        .hardecc_info.addr_offset = 1
     },
 #endif
 };

@@ -31,13 +31,13 @@
 
 
 #if MICROPY_PY_MACHINE_WDT
-#include <stdio.h>
 #include <string.h>
 #include <os_device.h>
 #include <os_memory.h>
 #include "usr_wdt.h"
+#include "watchdog.h"
 
-#define WDT_NAME 	"iwdg"
+#define WDT_NAME 	MICROPYTHON_MACHINE_WDT_NAME
 
 os_device_t *G_wdt = OS_NULL;
 

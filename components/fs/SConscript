@@ -26,6 +26,13 @@ if IsDefined('OS_USING_VFS_NFS') == True:
 if IsDefined('OS_USING_VFS_NFS') == True:
     CPPPATH.append(pwd + '/source/nfs')
 
+if IsDefined('OS_USING_VFS_YAFFS') == True:
+    CPPPATH.append(pwd + '/include/yaffs2')
+
+if IsDefined('OS_USING_VFS_YAFFS') == True:
+    CPPPATH.append(pwd + '/source/yaffs2/yaffs')
+    CPPPATH.append(pwd + '/source/yaffs2/yaffs/direct')
+
 if IsDefined('OS_USING_VFS_DEVFS') == True:
 	src += Glob('source/devfs/*.c')
 
@@ -38,6 +45,11 @@ if IsDefined('OS_USING_VFS_FATFS') == True:
 if IsDefined('OS_USING_VFS_NFS') == True:
 	src += Glob('source/nfs/*.c')
 	src += Glob('source/nfs/rpc/*.c')
+
+if IsDefined('OS_USING_VFS_YAFFS') == True:
+	src += Glob('source/yaffs2/*.c')
+	src += Glob('source/yaffs2/yaffs/*.c')
+	src += Glob('source/yaffs2/yaffs/direct/*.c')
 
 group = AddCodeGroup('filesystem', src, depend = ['OS_USING_VFS'], CPPPATH = CPPPATH)
 

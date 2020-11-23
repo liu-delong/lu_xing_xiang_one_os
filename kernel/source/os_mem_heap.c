@@ -878,6 +878,59 @@ void *os_calloc(os_size_t count, os_size_t size)
 }
 EXPORT_SYMBOL(os_calloc);
 
+#ifdef OS_MEM_STATS
+/**
+ ***********************************************************************************************************************
+ * @brief           This function shows the information of memory usage.
+ *
+ * @param[out]       total           The total amount of usable memory, in bytes.
+ * @param[out]       used            The amount of used memory, in bytes.
+ * @param[out]       max_used        The maximum amount of the used memory, in bytes.
+ *
+ * @return           None.
+ ***********************************************************************************************************************
+*/
+void os_memory_info(os_uint32_t *total, os_uint32_t *used, os_uint32_t *max_used)
+{
+    struct os_object      *object;
+    struct os_list_node   *node;
+    struct os_memheap     *heap;
+    struct os_object_info *info;
+
+    info = os_object_get_info(OS_OBJECT_MEMHEAP);
+    OS_ASSERT(info != OS_NULL);
+
+    if (OS_NULL != total)
+    {
+        *total = 0;
+    }
+
+    if (OS_NULL != used)
+    {
+        *used = 0;
+    }
+
+    if (OS_NULL != max_used)
+    {
+        *max_used = 0;
+    }
+            
+    for (node  = info->object_list.next; node != &(info->object_list); node  = node->next)
+    {
+        object = os_list_entry(node, struct os_object, list);
+        heap   = (struct os_memheap *)object;
+
+        OS_ASSERT(heap);
+        OS_ASSERT(os_object_get_type(&heap->parent) == OS_OBJECT_MEMHEAP);
+
+        *total += heap->pool_size;
+        *used += (heap->pool_size - heap->available_size);
+        *max_used += heap->max_used_size;
+    }
+
+}
+#endif /* end of OS_MEM_STATS */
+
 #endif /* end of defined(OS_USING_HEAP) && defined(OS_USING_MEM_HEAP_AS_HEAP) */
 
 #ifdef OS_USING_SHELL
@@ -919,7 +972,7 @@ static os_err_t sh_list_memheap(os_int32_t argc, char **argv)
     info = os_object_get_info(OS_OBJECT_MEMHEAP);
     return list_memheap_info(&info->object_list);
 }
-SH_CMD_EXPORT(list_memheap, sh_list_memheap, "list memory heap in system");
+SH_CMD_EXPORT(memh, sh_list_memheap, "show memory heap information");
 #endif /* end of OS_USING_SHELL */
 
 #endif /* end of OS_USING_MEM_HEAP */

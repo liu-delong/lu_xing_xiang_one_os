@@ -549,7 +549,7 @@ int audio_speaker_init(void)
     os_task_t *speaker_tid;
     speaker.event = os_event_create("speaker_event", OS_IPC_FLAG_FIFO);
 
-    speaker_tid = os_task_create("speaker_thread", speaker_entry, OS_NULL, 1024, 5, 10);
+    speaker_tid = os_task_create("speaker_task", speaker_entry, OS_NULL, 1024, 5, 10);
 
     if (speaker_tid != OS_NULL)
         os_task_startup(speaker_tid);

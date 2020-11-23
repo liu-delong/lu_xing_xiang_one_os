@@ -1,11 +1,9 @@
-#include <stdio.h>
-#include <string.h>
 #include "py/runtime.h"
 #include "py/mphal.h"
 #include "py/mperrno.h"
 #include "usr_i2c.h"
 
-#ifdef MICROPY_PY_I2C
+#if MICROPY_PY_MACHINE_I2C
 #include "usr_misc.h"
 
 
@@ -78,7 +76,7 @@ STATIC struct operate i2c_ops = {
 
 int mpycall_i2c_register(void)
 {
-	device_info_t  *pos, *i2c = mp_misc_find_similar_device("i2c");
+	device_info_t  *pos, *i2c = mp_misc_find_similar_device(MICROPYTHON_MACHINE_I2C_PRENAME);
 	if (!i2c){
 		return -1;
 	}
@@ -95,31 +93,5 @@ int mpycall_i2c_register(void)
 }
 OS_DEVICE_INIT(mpycall_i2c_register);
 
-
-void test_devmodel_i2c(void)
-{
-	os_uint8_t cmd[32] = {0};
-	os_uint8_t recvbuf[32] = {0};
-	mpycall_device_listall();
-	
-	device_info_t * i2c1 = mpycall_device_find("i2c1");
-	cmd[0] = 0x00;
-	cmd[1] = 'a';
-	cmd[2] = 'b';
-	
-	i2c1->ops->open(i2c1, 0);
-	i2c1->ops->write(i2c1, 0x50<<1, cmd, 3);
-	os_task_mdelay(5);
-	
-	i2c1->ops->write(i2c1, 0x50<<1, cmd, 1);
-	i2c1->ops->read(i2c1, ((0x50<<1) + 1), recvbuf, 2);
-	printf("i2c read e2prom: %s\n", recvbuf);
-	
-}
-
-#ifdef FINSH_USING_MSH
-#include <shell.h>
-SH_CMD_EXPORT(test_devmodel_i2c, i2c1 read write e2prom);
-#endif
 #endif
 

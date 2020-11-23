@@ -21,13 +21,16 @@
  ***********************************************************************************************************************
  */
 #include <sys/socket.h>
+#include <os_errno.h>
 
 #define DBG_EXT_TAG "bsd.socket"
 #define DBG_EXT_LVL LOG_LVL_INFO
 #include <os_dbg_ext.h>
 
 #ifdef OS_USING_POSIX
+
 #include <vfs_file.h>
+
 static int sockfs_adapter_ioctl(struct vfs_fd *file, int cmd, void *args);
 static int sockfs_adapter_read(struct vfs_fd *file, void *buf, size_t count);
 static int sockfs_adapter_write(struct vfs_fd *file, const void *buf, size_t count);
@@ -444,7 +447,6 @@ int ioctlsocket(int fd, long cmd, void *argp)
 }
 
 #elif defined(BSD_USING_LWIP)
-#include <vfs_file.h>
 
 #ifdef OS_USING_POSIX
 static int sockfs_adapter_ioctl(struct vfs_fd *file, int cmd, void *args)
@@ -499,7 +501,12 @@ int socket(int domain, int type, int protocol)
     int socket;
     
     socket = lwip_socket(domain, type, protocol);
-
+    if (socket < 0)
+    {
+        os_set_errno(-ENOMEM);
+        return OS_ERROR;
+    }
+    
 #ifdef OS_USING_POSIX
     struct vfs_fd *d;
     int fd;

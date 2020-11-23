@@ -18,6 +18,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <os_util.h>
+
+
 static mpy_os_list_t device_list_head;
 
 /**
@@ -241,7 +244,7 @@ uint32_t mpycall_device_listall(void)
 	{
 		head = head->next;
 		nodehead = list_entry(head ,struct core, list);
-		printf("%s\n", nodehead->name);
+		os_kprintf("%s\n", nodehead->name);
 	}
 	return 0;
 }

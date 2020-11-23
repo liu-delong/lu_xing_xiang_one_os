@@ -1,20 +1,33 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
- * Change Logs:
- * Date           Author       Notes
- * 2018-03-15     Liuguang     the first version.
- * 2019-04-22     tyustli      add imxrt series support
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_rtc.c
+ *
+ * @brief       This file implements rtc driver for imxrt.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-09-01   OneOS Team      First Version
+ ***********************************************************************************************************************
  */
 #include <os_task.h>
 
-#ifdef BSP_USING_RTC
+#ifdef OS_USING_RTC
 
-#define LOG_TAG             "drv.rtc"
+#include "os_assert.h"
+#include "os_types.h"
 #include <drv_log.h>
+#include "bus.h"
 
 #include "drv_rtc.h"
 #include "fsl_snvs_hp.h"
@@ -24,6 +37,7 @@
 #error "Please don't define 'FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL'!"
 #endif
 
+#ifdef RTC_PERIPHERAL
 static time_t get_timestamp(void)
 {
     struct tm tm_new = {0};
@@ -59,14 +73,14 @@ static int set_timestamp(time_t timestamp)
 
     if (SNVS_HP_RTC_SetDatetime(SNVS, &rtcDate) != kStatus_Success)
     {
-        LOG_E("set rtc date time failed\n");
+        os_kprintf("set rtc date time failed\n");
         return -OS_ERROR;
     }
 
     return OS_EOK;
 }
 
-static os_err_t imxrt_hp_rtc_init(os_device_t dev)
+static os_err_t imxrt_hp_rtc_init(os_device_t *dev)
 {
     snvs_hp_rtc_config_t snvsRtcConfig;
 
@@ -76,58 +90,50 @@ static os_err_t imxrt_hp_rtc_init(os_device_t dev)
     return OS_EOK;
 }
 
-static os_err_t imxrt_hp_rtc_open(os_device_t dev, os_uint16_t oflag)
+static os_err_t imxrt_hp_rtc_open(os_device_t *dev, os_uint16_t oflag)
 {
     SNVS_HP_RTC_StartTimer(SNVS);
 
     return OS_EOK;
 }
 
-static os_err_t imxrt_hp_rtc_close(os_device_t dev)
+static os_err_t imxrt_hp_rtc_close(os_device_t *dev)
 {
     SNVS_HP_RTC_StopTimer(SNVS);
 
     return OS_EOK;
 }
 
-static os_size_t imxrt_hp_rtc_read(os_device_t dev, os_off_t pos, void* buffer, os_size_t size)
+static os_size_t imxrt_hp_rtc_read(os_device_t *dev, os_off_t pos, void* buffer, os_size_t size)
 {
     return OS_EOK;
 }
 
-static os_size_t imxrt_hp_rtc_write(os_device_t dev, os_off_t pos, const void* buffer, os_size_t size)
+static os_size_t imxrt_hp_rtc_write(os_device_t *dev, os_off_t pos, const void* buffer, os_size_t size)
 {
     return OS_EOK;
 }
 
-static os_err_t imxrt_hp_rtc_control(os_device_t dev, int cmd, void *args)
+static os_err_t imxrt_hp_rtc_control(os_device_t *dev, int cmd, void *args)
 {
     OS_ASSERT(dev != OS_NULL);
 
     switch(cmd)
     {
-    case RT_DEVICE_CTRL_RTC_GET_TIME:
-    {
-        *(uint32_t *)args = get_timestamp();
-    }
-    break;
-
-    case RT_DEVICE_CTRL_RTC_SET_TIME:
-    {
-        set_timestamp(*(time_t *)args);
-    }
-    break;
-
-    default:
-        return OS_EINVAL;
+        case OS_DEVICE_CTRL_RTC_GET_TIME:
+            *(uint32_t *)args = get_timestamp();
+            break;
+        case OS_DEVICE_CTRL_RTC_SET_TIME:
+            set_timestamp(*(time_t *)args);
+            break;
+        default:
+            return OS_EINVAL;
     }
 
     return OS_EOK;
 }
 
-static struct os_device device =
-{
-    .type    = OS_DEVICE_TYPE_RTC,
+const static struct os_device_ops rtc_ops = {
     .init    = imxrt_hp_rtc_init,
     .open    = imxrt_hp_rtc_open,
     .close   = imxrt_hp_rtc_close,
@@ -136,23 +142,40 @@ static struct os_device device =
     .control = imxrt_hp_rtc_control,
 };
 
-int os_hw_rtc_init(void)
+static struct os_device device =
+{
+    .type    = OS_DEVICE_TYPE_RTC,
+    .ops     = &rtc_ops,
+};
+
+static int imxrt_hp_rtc_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
 {
     os_err_t ret = OS_EOK;
 
-    ret = os_device_register(&device, "rtc", RT_DEVICE_FLAG_RDWR);
-
+    ret = os_device_register(&device, dev->name, OS_DEVICE_FLAG_RDWR);
     if(ret != OS_EOK)
     {
-        LOG_E("rt device register failed %d\n", ret);
+        os_kprintf("rtc device register failed %d\n", ret);
         return ret;
     }
-
-    rt_device_open(&device, RT_DEVICE_OFLAG_RDWR);
+    
+    os_device_open(&device, OS_DEVICE_OFLAG_RDWR);
 
     return OS_EOK;
 }
 
-INIT_DEVICE_EXPORT(os_hw_rtc_init);
+OS_DRIVER_INFO imxrt_hp_rtc_driver = {
+    .name   = "RTC_Type",
+    .probe  = imxrt_hp_rtc_probe,
+};
 
-#endif /* BSP_USING_RTC */
+OS_DRIVER_DEFINE(imxrt_hp_rtc_driver, "1");
+
+#endif
+
+
+#ifdef RTC_LP_PERIPHERAL
+
+#endif
+
+#endif

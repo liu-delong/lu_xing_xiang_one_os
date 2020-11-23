@@ -1,4 +1,8 @@
 menu "Drivers"
+    config OS_USING_DEVICE
+        bool "Enable device manager"
+        default y
+
     source "$OS_ROOT/drivers/hal/Kconfig"
     source "$OS_ROOT/drivers/audio/Kconfig"    
     source "$OS_ROOT/drivers/misc/Kconfig"
@@ -22,4 +26,5 @@ menu "Drivers"
     source "$OS_ROOT/drivers/infrared/Kconfig"
     source "$OS_ROOT/drivers/lpmgr/Kconfig"
     source "$OS_ROOT/drivers/nand/Kconfig"
+    source "$OS_ROOT/drivers/driver_test/Kconfig"
 endmenu

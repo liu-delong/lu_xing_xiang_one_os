@@ -136,7 +136,7 @@ const char *sh_get_prompt(void)
 }
 
 #ifndef OS_USING_POSIX
-static os_err_t sh_rx_ind(os_device_t *dev, os_size_t size)
+static os_err_t sh_rx_ind(os_device_t *dev, struct os_device_cb_info *info)
 {
     OS_ASSERT(OS_NULL != gs_shell);
 
@@ -174,7 +174,14 @@ static void sh_set_device(const char *device_name)
         {
             /* Close old shell device */
             os_device_close(gs_shell->device);
-            os_device_set_rx_indicate(gs_shell->device, OS_NULL);
+
+            struct os_device_cb_info cb_info = 
+            {
+                .type = OS_DEVICE_CB_TYPE_RX,
+                .cb   = OS_NULL,
+            };
+
+            os_device_control(gs_shell->device, IOC_SET_CB, &cb_info);
         }
 
         /* Clear line buffer before switch to new device */
@@ -183,7 +190,14 @@ static void sh_set_device(const char *device_name)
         gs_shell->line_position = 0;
 
         gs_shell->device = dev;
-        os_device_set_rx_indicate(dev, sh_rx_ind);
+
+        struct os_device_cb_info cb_info = 
+        {
+            .type = OS_DEVICE_CB_TYPE_RX,
+            .cb   = sh_rx_ind,
+        };
+
+        os_device_control(dev, IOC_SET_CB, &cb_info);
     }
     else
     {
@@ -206,7 +220,7 @@ const char *sh_get_device(void)
 {
     OS_ASSERT(OS_NULL != gs_shell);
     
-    return gs_shell->device->parent.name;
+    return device_name(gs_shell->device);
 }
 #endif /* Not define OS_USING_POSIX */
 
@@ -411,7 +425,7 @@ static void sh_task_entry(void *parameter)
         console = os_console_get_device();
         if (console)
         {
-            sh_set_device(console->parent.name);
+            sh_set_device(device_name(console));
         }
     }
 #endif

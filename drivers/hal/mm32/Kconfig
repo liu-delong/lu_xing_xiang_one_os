@@ -1,0 +1,6 @@
+config SOC_FAMILY_MM32
+    bool
+    default n
+
+source "$OS_ROOT/drivers/hal/mm32/MM32L3xx_HAL/Kconfig"
+source "$OS_ROOT/drivers/hal/mm32/drivers/Kconfig"

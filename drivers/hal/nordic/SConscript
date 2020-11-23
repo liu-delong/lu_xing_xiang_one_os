@@ -1,0 +1,11 @@
+# for module compiling
+import os
+Import('OS_ROOT')
+from build_tools import *
+
+cwd = PresentDir()
+objs = []
+list = os.listdir(cwd)
+
+
+Return('objs')

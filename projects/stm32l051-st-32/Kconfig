@@ -1,0 +1,14 @@
+mainmenu "One-Os Configuration"
+
+#Define the relative path to root directory of os code
+OS_ROOT=../..
+SRC_HAL=st
+
+config BOARD_SMOKE_ALARM
+    bool
+	select SOC_STM32L051XX
+	select OS_USING_COMPONENTS_INIT
+    select OS_USING_USER_MAIN
+    default y
+	
+source "$OS_ROOT/Kconfig"

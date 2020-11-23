@@ -1,357 +1,237 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
- * Change Logs:
- * Date           Author       Notes
- * 2017-08-08     Yang         the first version
- * 2018-03-24     LaiYiKeTang  add hardware iic
- * 2019-04-22     tyustli      add imxrt series support
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_i2c.c
+ *
+ * @brief       This file implements i2c driver for imxrt.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-09-01   OneOS Team      First Version
+ ***********************************************************************************************************************
  */
 
+#include <drv_cfg.h>
 #include <os_task.h>
-
-#ifdef BSP_USING_I2C
+#include <os_device.h>
+#include <os_memory.h>
 
 #define LOG_TAG              "drv.i2c"
 #include <drv_log.h>
 
-#if !defined(BSP_USING_I2C1) && !defined(BSP_USING_I2C2) && !defined(BSP_USING_I2C3) && !defined(BSP_USING_I2C4)
-#error "Please define at least one BSP_USING_I2Cx"
-#endif
-
-#include <os_device.h>
 #include "fsl_lpi2c.h"
 #include "drv_i2c.h"
 
-struct imxrt_i2c_bus
+struct imxrt_i2c
 {
-    struct rt_i2c_bus_device parent;
-    LPI2C_Type *I2C;
-    struct rt_i2c_msg *msg;
-    os_uint32_t msg_cnt;
-    volatile os_uint32_t msg_ptr;
-    volatile os_uint32_t dptr;
+    struct os_i2c_bus_device i2c;
+    struct nxp_lpi2c_info *i2c_info;
+    os_list_node_t list;
+
+    struct os_i2c_msg *msg;
+    os_uint16_t msg_pos;
+    
     char *device_name;
+
+    os_sem_t sem;
 };
 
-#if defined (BSP_USING_I2C1)
-#define I2C1BUS_NAME  "i2c1"
-#endif /*BSP_USING_I2C1*/
+static os_list_node_t imxrt_i2c_list = OS_LIST_INIT(imxrt_i2c_list);
 
-#if defined (BSP_USING_I2C2)
-#define I2C2BUS_NAME  "i2c2"
-#endif /*BSP_USING_I2C2*/
-
-#if !defined (MIMXRT1015_SERIES)      /* imxrt1015 only have two i2c bus*/
-
-#if defined (BSP_USING_I2C3)
-#define I2C3BUS_NAME  "i2c3"
-#endif /*BSP_USING_I2C3*/
-
-#if defined (BSP_USING_I2C4)
-#define I2C4BUS_NAME  "i2c4"
-#endif /*BSP_USING_I2C4*/
-
-#endif /* MIMXRT1015_SERIES */
-
-#define LPI2C_CLOCK_SOURCE_DIVIDER 4
-
+/* Select USB1 PLL (480 MHz) as master lpi2c clock source */
+#define LPI2C_CLOCK_SOURCE_SELECT (0U)
+/* Clock divider for master lpi2c clock source */
+#define LPI2C_CLOCK_SOURCE_DIVIDER (5U)
 /* Get frequency of lpi2c clock */
-#define LPI2C_CLOCK_FREQUENCY ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (LPI2C_CLOCK_SOURCE_DIVIDER))
+#define LPI2C_CLOCK_FREQUENCY ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
 
-#ifdef BSP_USING_I2C1
-static struct imxrt_i2c_bus lpi2c1 =
+static void i2c_irq_callback(struct imxrt_i2c *imxrt_i2c)
 {
-    .I2C = LPI2C1,
-    .device_name = I2C1BUS_NAME,
-};
-#endif /* RT_USING_HW_I2C1 */
+    uint32_t flags = 0U;
+    status_t reVal = kStatus_Fail;                                           
+                                                                                                                                                  
+    /* Get interrupt status flags */
+    flags = LPI2C_MasterGetStatusFlags(imxrt_i2c->i2c_info->hi2c);
 
-#ifdef BSP_USING_I2C2
-static struct imxrt_i2c_bus lpi2c2 =
-{
-    .I2C = LPI2C2,
-    .device_name = I2C2BUS_NAME,
-};
-#endif /* RT_USING_HW_I2C2 */
-
-#if !defined (MIMXRT1015_SERIES)        /* imxrt1015 only have two i2c bus*/
-
-#ifdef BSP_USING_I2C3
-static struct imxrt_i2c_bus lpi2c3 =
-{
-    .I2C = LPI2C3,
-    .device_name = I2C3BUS_NAME,
-};
-#endif /* RT_USING_HW_I2C3 */
-
-#ifdef BSP_USING_I2C4
-static struct imxrt_i2c_bus lpi2c4 =
-{
-    .I2C = LPI2C4,
-    .device_name = I2C4BUS_NAME,
-};
-#endif /* RT_USING_HW_I2C4 */
-
-#endif /* MIMXRT1015_SERIES */
-
-#if (defined(BSP_USING_I2C1) || defined(BSP_USING_I2C2) || defined(BSP_USING_I2C3) || defined(BSP_USING_I2C4))
-
-static os_size_t imxrt_i2c_mst_xfer(struct rt_i2c_bus_device *bus,
-                                    struct rt_i2c_msg msgs[],
-                                    os_uint32_t num);
-static os_size_t imxrt_i2c_slv_xfer(struct rt_i2c_bus_device *bus,
-                                    struct rt_i2c_msg msgs[],
-                                    os_uint32_t num);
-static os_err_t imxrt_i2c_bus_control(struct rt_i2c_bus_device *bus,
-                                      os_uint32_t,
-                                      os_uint32_t);
-
-static const struct rt_i2c_bus_device_ops imxrt_i2c_ops =
-{
-    .master_xfer = imxrt_i2c_mst_xfer,
-    .slave_xfer = imxrt_i2c_slv_xfer,
-    .i2c_bus_control = imxrt_i2c_bus_control,
-};
-
-static os_err_t imxrt_lpi2c_configure(struct imxrt_i2c_bus *bus, lpi2c_master_config_t *cfg)
-{
-    OS_ASSERT(bus != OS_NULL);
-    OS_ASSERT(cfg != OS_NULL);
-
-    bus->parent.ops = &imxrt_i2c_ops;
-    LPI2C_MasterInit(bus->I2C, cfg, LPI2C_CLOCK_FREQUENCY);
-    return OS_EOK;
-}
-
-status_t LPI2C_MasterCheck(LPI2C_Type *base, uint32_t status)
-{
-    status_t result = kStatus_Success;
-
-    /* Check for error. These errors cause a stop to automatically be sent. We must */
-    /* clear the errors before a new transfer can start. */
-    status &= 0x3c00;
-    if (status)
+    if ((flags & kLPI2C_MasterTxReadyFlag) && !(imxrt_i2c->msg->flags & OS_I2C_RD))
     {
-        /* Select the correct error code. Ordered by severity, with bus issues first. */
-        if (status & kLPI2C_MasterPinLowTimeoutFlag)
+        /* If tx Index < LPI2C_DATA_LENGTH, master send->slave receive transfer is ongoing. */
+        if (imxrt_i2c->msg_pos < imxrt_i2c->msg->len)
         {
-            result = kStatus_LPI2C_PinLowTimeout;
-        }
-        else if (status & kLPI2C_MasterArbitrationLostFlag)
-        {
-            result = kStatus_LPI2C_ArbitrationLost;
-        }
-        else if (status & kLPI2C_MasterNackDetectFlag)
-        {
-            result = kStatus_LPI2C_Nak;
-        }
-        else if (status & kLPI2C_MasterFifoErrFlag)
-        {
-            result = kStatus_LPI2C_FifoError;
-        }
-        else
-        {
-            assert(false);
-        }
-
-        /* Clear the flags. */
-        LPI2C_MasterClearStatusFlags(base, status);
-
-        /* Reset fifos. These flags clear automatically. */
-        base->MCR |= LPI2C_MCR_RRF_MASK | LPI2C_MCR_RTF_MASK;
-    }
-
-    return result;
-}
-
-/*!
- * @brief Wait until the tx fifo all empty.
- * @param base The LPI2C peripheral base address.
- * @retval #kStatus_Success
- * @retval #kStatus_LPI2C_PinLowTimeout
- * @retval #kStatus_LPI2C_ArbitrationLost
- * @retval #kStatus_LPI2C_Nak
- * @retval #kStatus_LPI2C_FifoError
- */
-static status_t LPI2C_MasterWaitForTxFifoAllEmpty(LPI2C_Type *base)
-{
-    uint32_t status;
-    size_t txCount;
-
-    do
-    {
-        status_t result;
-
-        /* Get the number of words in the tx fifo and compute empty slots. */
-        LPI2C_MasterGetFifoCounts(base, NULL, &txCount);
-
-        /* Check for error flags. */
-        status = LPI2C_MasterGetStatusFlags(base);
-        result = LPI2C_MasterCheck(base, status);
-        if (result)
-        {
-            return result;
+            reVal = LPI2C_MasterSend(imxrt_i2c->i2c_info->hi2c, &imxrt_i2c->msg->buf[imxrt_i2c->msg_pos++], 1);
+            if ((reVal != kStatus_Success) || (imxrt_i2c->msg_pos == imxrt_i2c->msg->len))
+            {
+                LPI2C_MasterDisableInterrupts(imxrt_i2c->i2c_info->hi2c, kLPI2C_MasterTxReadyFlag);
+                os_sem_post(&imxrt_i2c->sem);
+            }
         }
     }
 
-    while (txCount);
+    if ((flags & kLPI2C_MasterRxReadyFlag) && (imxrt_i2c->msg->flags & OS_I2C_RD))
+    {
+        /* If rx Index < LPI2C_DATA_LENGTH, master receive->slave send transfer is ongoing. */
+        if (imxrt_i2c->msg_pos < imxrt_i2c->msg->len)
+        {
+            //reVal = LPI2C_MasterReceive(imxrt_i2c->i2c_info->hi2c, &imxrt_i2c->msg->buf[imxrt_i2c->msg_pos++], 1);
 
-    return kStatus_Success;
+            imxrt_i2c->msg->buf[imxrt_i2c->msg_pos++] = imxrt_i2c->i2c_info->hi2c->MRDR;
+            reVal = kStatus_Success;
+            
+            if ((reVal != kStatus_Success) || (imxrt_i2c->msg_pos == imxrt_i2c->msg->len))
+            {
+                LPI2C_MasterDisableInterrupts(imxrt_i2c->i2c_info->hi2c, kLPI2C_MasterTxReadyFlag);
+                os_sem_post(&imxrt_i2c->sem);
+            }
+        }
+    }                                                                     
 }
 
-static os_size_t imxrt_i2c_mst_xfer(struct rt_i2c_bus_device *bus,
-                                    struct rt_i2c_msg msgs[],
+#define LPI2C_IRQHandler_DEFINE(__index)                                        \
+void LPI2C##__index##_IRQHandler(void)                                          \
+{                                                                               \
+    struct imxrt_i2c *imxrt_i2c;                                                \
+                                                                                \
+    os_list_for_each_entry(imxrt_i2c, &imxrt_i2c_list, struct imxrt_i2c, list)  \
+    {                                                                           \
+        if (imxrt_i2c->i2c_info->hi2c == LPI2C##__index)                        \
+        {                                                                       \
+            break;                                                              \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    if (imxrt_i2c->i2c_info->hi2c == LPI2C##__index)                            \
+        i2c_irq_callback(imxrt_i2c);                                            \
+}
+
+LPI2C_IRQHandler_DEFINE(1);
+LPI2C_IRQHandler_DEFINE(2);
+LPI2C_IRQHandler_DEFINE(3);
+LPI2C_IRQHandler_DEFINE(4);
+
+static os_size_t imxrt_i2c_mst_xfer(struct os_i2c_bus_device *bus,
+                                    struct os_i2c_msg msgs[],
                                     os_uint32_t num)
 {
-    struct imxrt_i2c_bus *imxrt_i2c;
-    os_size_t i;
+    struct imxrt_i2c *imxrt_i2c;
+    int i;
+    status_t  ret;
     OS_ASSERT(bus != OS_NULL);
-    imxrt_i2c = (struct imxrt_i2c_bus *) bus;
-
-    imxrt_i2c->msg = msgs;
-    imxrt_i2c->msg_ptr = 0;
-    imxrt_i2c->msg_cnt = num;
-    imxrt_i2c->dptr = 0;
+    imxrt_i2c = (struct imxrt_i2c *) bus;
 
     for (i = 0; i < num; i++)
     {
-        if (imxrt_i2c->msg[i].flags & RT_I2C_RD)
+        imxrt_i2c->msg = &msgs[i];
+        imxrt_i2c->msg_pos = 0;
+    
+        if (!(msgs[i].flags & OS_I2C_NO_START))
         {
-            if (LPI2C_MasterStart(imxrt_i2c->I2C, imxrt_i2c->msg[i].addr, kLPI2C_Write) != kStatus_Success)
+            if (msgs[i].flags & OS_I2C_RD)
+            {
+                ret = LPI2C_MasterStart(imxrt_i2c->i2c_info->hi2c, msgs[i].addr, kLPI2C_Read);
+                imxrt_i2c->i2c_info->hi2c->MTDR = LPI2C_MTDR_CMD(0X1U) | LPI2C_MTDR_DATA(msgs[i].len - 1);
+            }
+            else
+            {
+                ret = LPI2C_MasterStart(imxrt_i2c->i2c_info->hi2c, msgs[i].addr, kLPI2C_Write);
+            }
+        
+            if (ret != kStatus_Success)
             {
                 i = 0;
                 break;
             }
+        }
 
-            while (LPI2C_MasterGetStatusFlags(imxrt_i2c->I2C) & kLPI2C_MasterNackDetectFlag)
-            {
-            }
-
-            if (LPI2C_MasterRepeatedStart(imxrt_i2c->I2C, imxrt_i2c->msg[i].addr, kLPI2C_Read) != kStatus_Success)
-            {
-                i = 0;
-                break;
-            }
-
-            if (LPI2C_MasterReceive(imxrt_i2c->I2C, imxrt_i2c->msg[i].buf, imxrt_i2c->msg[i].len) != kStatus_Success)
-            {
-                i = 0;
-                break;
-            }
+        if (msgs[i].flags & OS_I2C_RD)
+        {
+            LPI2C_MasterEnableInterrupts(imxrt_i2c->i2c_info->hi2c, kLPI2C_MasterRxReadyFlag);
         }
         else
         {
-            if (LPI2C_MasterStart(imxrt_i2c->I2C, imxrt_i2c->msg[i].addr, kLPI2C_Write) != kStatus_Success)
-            {
-                i = 0;
-                break;
-            }
-
-            while (LPI2C_MasterGetStatusFlags(imxrt_i2c->I2C) & kLPI2C_MasterNackDetectFlag)
-            {
-            }
-
-            if (LPI2C_MasterSend(imxrt_i2c->I2C, imxrt_i2c->msg[i].buf, imxrt_i2c->msg[i].len) != kStatus_Success)
-            {
-                i = 0;
-                break;
-            }
-
-            if (LPI2C_MasterWaitForTxFifoAllEmpty(imxrt_i2c->I2C) != kStatus_Success)
-            {
-                i = 0;
-                break;
-            }
+            LPI2C_MasterEnableInterrupts(imxrt_i2c->i2c_info->hi2c, kLPI2C_MasterTxReadyFlag);
         }
+
+        os_sem_wait(&imxrt_i2c->sem, OS_IPC_WAITING_FOREVER);
     }
 
-    if (LPI2C_MasterStop(imxrt_i2c->I2C) != kStatus_Success)
-    {
-        i = 0;
-    }
+    LPI2C_MasterStop(imxrt_i2c->i2c_info->hi2c);
 
     imxrt_i2c->msg = OS_NULL;
-    imxrt_i2c->msg_ptr = 0;
-    imxrt_i2c->msg_cnt = 0;
-    imxrt_i2c->dptr = 0;
+    imxrt_i2c->msg_pos = 0;
 
     return i;
 }
 
-static os_size_t imxrt_i2c_slv_xfer(struct rt_i2c_bus_device *bus,
-                                    struct rt_i2c_msg msgs[],
+static os_size_t imxrt_i2c_slv_xfer(struct os_i2c_bus_device *bus,
+                                    struct os_i2c_msg msgs[],
                                     os_uint32_t num)
 {
     return 0;
 }
-static os_err_t imxrt_i2c_bus_control(struct rt_i2c_bus_device *bus,
-                                      os_uint32_t cmd,
-                                      os_uint32_t arg)
+static os_err_t imxrt_i2c_bus_control(struct os_i2c_bus_device *bus, void *arg)
 {
     return OS_ERROR;
 }
 
-#endif
-
-int rt_hw_i2c_init(void)
+static const struct os_i2c_bus_device_ops imxrt_i2c_ops =
 {
-    lpi2c_master_config_t masterConfig = {0};
+    .i2c_transfer       = imxrt_i2c_mst_xfer,
+    .i2c_slave_transfer = imxrt_i2c_slv_xfer,
+    .i2c_bus_control    = imxrt_i2c_bus_control,
+};
 
-#if   defined(BSP_USING_I2C1)
-    LPI2C_MasterGetDefaultConfig(&masterConfig);
-#if   defined(HW_I2C1_BADURATE_400kHZ)
-    masterConfig.baudRate_Hz = 400000U;
-#elif defined(HW_I2C1_BADURATE_100kHZ)
-    masterConfig.baudRate_Hz = 100000U;
-#endif  /*HW_I2C1_BADURATE_400kHZ*/
-    imxrt_lpi2c_configure(&lpi2c1, &masterConfig);
-    rt_i2c_bus_device_register(&lpi2c1.parent, lpi2c1.device_name);
-#endif  /* BSP_USING_I2C1 */
+static int imxrt_i2c_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
+{
+    os_base_t   level;
+    os_err_t    result  = 0;
 
-#if   defined(BSP_USING_I2C2)
-    LPI2C_MasterGetDefaultConfig(&masterConfig);
-#if   defined(HW_I2C2_BADURATE_400kHZ)
-    masterConfig.baudRate_Hz = 400000U;
-#elif defined(HW_I2C2_BADURATE_100kHZ)
-    masterConfig.baudRate_Hz = 100000U;
-#endif  /* HW_I2C2_BADURATE_400kHZ */
-    imxrt_lpi2c_configure(&lpi2c2, &masterConfig);
-    rt_i2c_bus_device_register(&lpi2c2.parent, lpi2c2.device_name);
-#endif  /* BSP_USING_I2C2 */
+    struct nxp_lpi2c_info *i2c_info = (struct nxp_lpi2c_info *)dev->info;
+    struct imxrt_i2c *imxrt_i2c = os_calloc(1, sizeof(struct imxrt_i2c));
 
-#if !defined(MIMXRT1015_SERIES) /* imxrt1015 only have two i2c bus*/
+    OS_ASSERT(imxrt_i2c);
 
-#if   defined(BSP_USING_I2C3)
-    LPI2C_MasterGetDefaultConfig(&masterConfig);
-#if   defined(HW_I2C3_BADURATE_400kHZ)
-    masterConfig.baudRate_Hz = 400000U;
-#elif defined(HW_I2C3_BADURATE_100kHZ)
-    masterConfig.baudRate_Hz = 100000U;
-#endif  /* HW_I2C3_BADURATE_400kHZ */
-    imxrt_lpi2c_configure(&lpi2c3, &masterConfig);
-    rt_i2c_bus_device_register(&lpi2c3.parent, lpi2c3.device_name);
-#endif  /* BSP_USING_I2C3 */
+    char name[16] = "i2c_";
+    strcat(name, dev->name);
+    os_sem_init(&imxrt_i2c->sem, name, 0, OS_IPC_FLAG_FIFO);
 
-#if   defined(BSP_USING_I2C4)
-    LPI2C_MasterGetDefaultConfig(&masterConfig);
-#if   defined(HW_I2C4_BADURATE_400kHZ)
-    masterConfig.baudRate_Hz = 400000U;
-#elif defined(HW_I2C4_BADURATE_100kHZ)
-    masterConfig.baudRate_Hz = 100000U;
-#endif  /* HW_I2C4_BADURATE_400kHZ */
-    imxrt_lpi2c_configure(&lpi2c4, &masterConfig);
-    rt_i2c_bus_device_register(&lpi2c4.parent, lpi2c4.device_name);
-#endif /* BSP_USING_I2C4 */
+    /*Clock setting for LPI2C*/
+    CLOCK_SetMux(kCLOCK_Lpi2cMux, LPI2C_CLOCK_SOURCE_SELECT);
+    CLOCK_SetDiv(kCLOCK_Lpi2cDiv, LPI2C_CLOCK_SOURCE_DIVIDER);
 
-#endif /* MIMXRT1015_SERIES */
+    imxrt_i2c->i2c_info = i2c_info;
 
-    return 0;
+    struct os_i2c_bus_device *dev_i2c = &imxrt_i2c->i2c;
+
+    dev_i2c->ops = &imxrt_i2c_ops;
+
+    level = os_hw_interrupt_disable();
+    os_list_add_tail(&imxrt_i2c_list, &imxrt_i2c->list);
+    os_hw_interrupt_enable(level);
+   
+    result = os_i2c_bus_device_register(dev_i2c,
+                                        dev->name,
+                                        OS_DEVICE_FLAG_RDWR,
+                                        dev_i2c);
+    
+    OS_ASSERT(result == OS_EOK);
+    
+    return result;
 }
 
-INIT_DEVICE_EXPORT(rt_hw_i2c_init);
+OS_DRIVER_INFO imxrt_i2c_driver = {
+    .name   = "LPI2C_Type",
+    .probe  = imxrt_i2c_probe,
+};
 
-#endif /* BSP_USING_I2C */
+OS_DRIVER_DEFINE(imxrt_i2c_driver, "2");
+

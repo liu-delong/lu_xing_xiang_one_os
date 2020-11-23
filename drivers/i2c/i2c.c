@@ -310,7 +310,7 @@ static os_size_t i2c_bus_device_read(os_device_t *dev, os_off_t pos, void *buffe
     OS_ASSERT(bus != OS_NULL);
     OS_ASSERT(buffer != OS_NULL);
 
-    LOG_EXT_D("I2C bus dev [%s] reading %u bytes.", dev->parent.name, count);
+    LOG_EXT_D("I2C bus dev [%s] reading %u bytes.", device_name(dev), count);
 
     addr  = pos & 0xffff;
     flags = (pos >> 16) & 0xffff;
@@ -328,7 +328,7 @@ static os_size_t i2c_bus_device_write(os_device_t *dev, os_off_t pos, const void
     OS_ASSERT(bus != OS_NULL);
     OS_ASSERT(buffer != OS_NULL);
 
-    LOG_EXT_D("I2C bus dev [%s] writing %u bytes.", dev->parent.name, count);
+    LOG_EXT_D("I2C bus dev [%s] writing %u bytes.", device_name(dev), count);
 
     addr  = pos & 0xffff;
     flags = (pos >> 16) & 0xffff;
@@ -390,7 +390,6 @@ struct os_i2c_bus_device *os_i2c_bus_device_find(const char *bus_name)
     return bus;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops i2c_ops = {
     OS_NULL, 
     OS_NULL,
@@ -399,7 +398,6 @@ const static struct os_device_ops i2c_ops = {
     i2c_bus_device_write,
     i2c_bus_device_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -424,16 +422,7 @@ os_err_t os_i2c_bus_device_register(struct os_i2c_bus_device *device, const char
     /* set device type */
     device->parent.type = OS_DEVICE_TYPE_I2CBUS;
     /* initialize device interface */
-#ifdef OS_USING_DEVICE_OPS
-    device->ops = &i2c_ops;
-#else
-    device->parent.init    = OS_NULL;
-    device->parent.open    = OS_NULL;
-    device->parent.close   = OS_NULL;
-    device->parent.read    = i2c_bus_device_read;
-    device->parent.write   = i2c_bus_device_write;
-    device->parent.control = i2c_bus_device_control;
-#endif
+    device->parent.ops = &i2c_ops;
     device->parent.user_data = data;
 
     os_mutex_init(&device->lock, "i2c_bus_lock", OS_IPC_FLAG_FIFO, OS_FALSE);

@@ -5,4 +5,5 @@ menu "Thirdparty"
     source "$OS_ROOT/thirdparty/webclient-v2.0.0/Kconfig"    
     source "$OS_ROOT/thirdparty/Aliiotkit-v3.1.0/Kconfig"
     source "$OS_ROOT/thirdparty/MicroPython/Kconfig"
+	source "$OS_ROOT/thirdparty/AWSIoT-v4.0.0/Kconfig"
 endmenu

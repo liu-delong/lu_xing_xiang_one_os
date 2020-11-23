@@ -23,9 +23,6 @@
  */
 #include <oneos_config.h>
 
-#ifdef OS_USING_SHELL
-
-#include <shell.h>
 #include <os_task.h>
 #include <os_clock.h>
 #include <os_hw.h>
@@ -34,6 +31,7 @@
 #include <board.h>
 #include <os_module.h>
 #include <os_stddef.h>
+#include <resource_monitor.h>
 
 #ifdef OS_USING_CPU_USAGE
 
@@ -162,6 +160,11 @@ os_err_t cpu_usage_get(os_uint8_t *major, os_uint8_t *minor)
 
 EXPORT_SYMBOL(cpu_usage_get);
 
+
+#ifdef OS_USING_SHELL
+
+#include <shell.h>
+
 /**
  ***********************************************************************************************************************
  * @brief           Show the cpu usage.
@@ -194,6 +197,7 @@ static os_err_t sh_list_cpu(os_int32_t argc, char **argv)
 
 SH_CMD_EXPORT(list_cpu, sh_list_cpu, "list cpu usage");
 
+#endif 
 /**
  ***********************************************************************************************************************
  * @brief           This function calculate the cpu uage.
@@ -279,6 +283,7 @@ EXPORT_SYMBOL(cpu_usage_calc);
 
 #ifdef OS_USING_TASK_MONITOR
 
+#ifdef OS_USING_TASK_PERIOD_MONITOR
 #include <os_task.h>
 #include <string.h>
 #include <os_stddef.h>
@@ -314,7 +319,7 @@ static task_monitor_t      gs_monitor[TASK_MONITOR_MAX_RECORD];
  * @return          Will only return OS_EOK
  ***********************************************************************************************************************
  */
- static void task_monitor_timeout_handler(void *parameter)
+static void task_monitor_timeout_handler(void *parameter)
 {
     os_uint32_t  i;
     os_task_t   *task_arr[TASK_MONITOR_MAX_TASK];
@@ -342,9 +347,9 @@ static task_monitor_t      gs_monitor[TASK_MONITOR_MAX_RECORD];
 
 /**
  ***********************************************************************************************************************
- * @brief           Initialization of stask monitor.
+ * @brief           Initialization of task monitor.
  *
- * @param[in]       parameter           parameter of timeout handler of task monitor.
+ * @param[in]       None.
  *
  * @return          Will only return OS_EOK
  ***********************************************************************************************************************
@@ -364,6 +369,10 @@ static os_err_t task_monitor_init(void)
     return OS_EOK;
 }
 OS_PREV_INIT(task_monitor_init);
+
+#ifdef OS_USING_SHELL
+
+#include <shell.h>
 
 /**
  ***********************************************************************************************************************
@@ -433,7 +442,219 @@ static void sh_task_monitor(void)
 }
 
 SH_CMD_EXPORT(list_task_monitor, sh_task_monitor, "list current system running load information")
+#endif /* OS_USING_SHELL */
 
+#endif  /* OS_USING_TASK_PERIOD_MONITOR */
+
+#ifdef OS_USING_TASK_SWITCH_MONITOR
+#include <string.h>
+
+static task_switch_monitor_info_t gs_switch_info;
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Record task switching information.This function is registered to the task switch hook function
+ *
+ * @param[in]       from           The task of switch from.
+ * @param[in]       to             The task of switch to.
+ *
+ * @return          Will only return OS_EOK
+ ***********************************************************************************************************************
+ */
+void task_switch_monitor(os_task_t *from, os_task_t *to)
+{
+    if ((0 == gs_switch_info.index) && (0 == gs_switch_info.is_full))
+    {
+        gs_switch_info.info[gs_switch_info.index++] = from;
+        gs_switch_info.info[gs_switch_info.index++] = to;
+    }
+    else
+    {
+        gs_switch_info.info[gs_switch_info.index++] = to;
+    }
+
+    if (gs_switch_info.index >= OS_TASK_SWITCH_INFO_COUNT)
+    {
+        gs_switch_info.index = 0;
+        gs_switch_info.is_full = 1;
+    }
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Initialization of task switch monitor.
+ *
+ * @param[in]       parameter           parameter of timeout handler of task monitor.
+ *
+ * @return          Will only return OS_EOK
+ ***********************************************************************************************************************
+ */
+os_err_t task_switch_monitor_init(void)
+{
+    memset(&gs_switch_info, sizeof(gs_switch_info), 0);
+    
+#ifdef OS_USING_HOOK
+    os_scheduler_set_hook(task_switch_monitor); 
 #endif
 
-#endif
+    return OS_EOK;
+}
+OS_PREV_INIT(task_switch_monitor_init);
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Process task switching information.
+ *
+ * @details         This function will process task switching information.It includes the following two steps:
+ *                  1. Sort by task switching order.
+ *                  2. Remove duplicate tasks from the information of sorted tasks.
+ *
+ * @param[in]       None.
+ * 
+ * @return          None.
+ ***********************************************************************************************************************
+ */
+void task_switch_info_unique(void)
+{
+    os_uint8_t i;
+    os_uint8_t j;
+
+    if (1 == gs_switch_info.is_full)
+    {
+        gs_switch_info.sort_total = OS_TASK_SWITCH_INFO_COUNT;
+    }
+    else
+    {
+        gs_switch_info.sort_total = gs_switch_info.index;
+    }
+
+    if(gs_switch_info.sort_total < 1)
+    {
+        return ;
+    }
+
+    /* Sort by task switching time. */    
+    j = gs_switch_info.index;
+    for (i = 0; i < gs_switch_info.sort_total; i++)
+    {
+        if (0 == j)
+        {
+            j = OS_TASK_SWITCH_INFO_COUNT;
+        }
+        gs_switch_info.sort_info[i] =  gs_switch_info.info[--j]; 
+    }
+
+    for (i = 0; i < gs_switch_info.sort_total; i++)
+    {
+        os_kprintf("gs_switch_info.sort_info[%d] = 0x%x\r\n",  i, gs_switch_info.sort_info[i]);
+    }
+
+    /* Remove duplicate tasks. */
+    gs_switch_info.unique_total = 0;
+    gs_switch_info.unique_info[gs_switch_info.unique_total++] = gs_switch_info.sort_info[0];
+    for (i = 1; i < gs_switch_info.sort_total; i++)
+    {
+        for (j = 0; j < gs_switch_info.unique_total; j++)
+        {
+            if(gs_switch_info.unique_info[j] == gs_switch_info.sort_info[i])
+            {
+                break;
+            }
+        }
+
+        if (j == gs_switch_info.unique_total)
+        {
+            gs_switch_info.unique_info[gs_switch_info.unique_total++] = gs_switch_info.sort_info[i];
+        }
+    }
+    
+    for (i = 0; i < gs_switch_info.unique_total; i++)
+    {
+        os_kprintf("gs_switch_info.unique_info[%d] = 0x%x\r\n", i, gs_switch_info.unique_info[i]);
+    }
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Show task switching information.
+ *
+ * @details         This function will process task switching information and then show them.
+ *
+ * @param[in]       context 1:the exception context 0:other context
+ * 
+ * @return          None.
+ ***********************************************************************************************************************
+ */
+void task_switch_info_show(os_uint32_t context)
+{
+    os_int32_t i= 0;
+
+    os_enter_critical();
+    
+    task_switch_info_unique();
+
+    os_kprintf("The task switching sequence is as follows(the first is the current task):\r\n");
+    for (i = 0; i < gs_switch_info.sort_total; i++)
+    {   
+        os_kprintf("(TID 0x%x",gs_switch_info.sort_info[i]);
+        if (OS_EOK == os_task_id_verify(gs_switch_info.sort_info[i]))
+        {
+            os_kprintf(" TNAME \"%s\")\r\n",gs_switch_info.sort_info[i]->parent.name);
+        }
+        else
+        {
+            os_kprintf(")\r\n");
+        }
+    }
+
+    #ifdef  STACK_TRACE_EN
+    #include <exc.h>
+    for (i = 0; i < gs_switch_info.unique_total; i++)
+    {   
+        if (OS_EOK == os_task_id_verify(gs_switch_info.unique_info[i]))
+        {
+            if(0 == context)
+            {
+                task_stack_show(gs_switch_info.unique_info[i]->parent.name);
+            }
+            else
+            {
+                task_stack_show_exc(gs_switch_info.unique_info[i]->parent.name);
+            }
+        }
+    }
+    
+    #endif
+
+    os_exit_critical();
+}
+
+
+#ifdef OS_USING_SHELL
+
+#include <shell.h>
+/**
+***********************************************************************************************************************
+* @brief           Show the information of task switch.
+*
+* @param[in]       argc                argment count
+* @param[in]       argv                argment list
+*
+* @return          Will only return OS_EOK     
+***********************************************************************************************************************
+*/
+os_err_t sh_task_switch_info_show(os_int32_t argc, char **argv)
+{
+    task_switch_info_show(0);
+
+    return OS_EOK;
+}
+
+SH_CMD_EXPORT(show_task_switch, sh_task_switch_info_show, "show task switch information");
+
+#endif  /* OS_USING_SHELL */
+
+#endif  /* OS_USING_TASK_SWITCH_MONITOR */
+
+#endif  /* OS_USING_TASK_MONITOR */
+

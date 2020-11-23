@@ -72,7 +72,7 @@ static void gt9147_entry(void *parameter)
     }
 }
 
-static os_err_t rx_callback(os_device_t *dev, os_size_t size)
+static os_err_t rx_callback(os_device_t *dev, struct os_device_cb_info *info)
 {
     os_sem_post(gt9147_sem);
     os_device_control(dev, OS_TOUCH_CTRL_DISABLE_INT, OS_NULL);
@@ -109,7 +109,15 @@ int gt9147_sample(const char *name, os_uint16_t x, os_uint16_t y)
     os_kprintf("range_y = %d \n", (*(struct os_touch_info *)id).range_y);
     os_kprintf("point_num = %d \n", (*(struct os_touch_info *)id).point_num);
     os_free(id);
-    os_device_set_rx_indicate(dev, rx_callback);
+
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .cb   = rx_callback,
+    };
+
+    os_device_control(dev, IOC_SET_CB, &cb_info);
+    
     gt9147_sem = os_sem_create("dsem", 0, OS_IPC_FLAG_FIFO);
 
     if (gt9147_sem == OS_NULL)

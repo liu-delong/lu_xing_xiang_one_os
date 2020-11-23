@@ -60,7 +60,9 @@ struct soft_i2c_bus
 
 #define SOFT_I2C_BUS_TIMEOUT_MS (100)
 
-#define SOFT_I2C_BUS_DELAY_US   (100)
+#ifndef SOFT_I2C_BUS_DELAY_US
+#define SOFT_I2C_BUS_DELAY_US   (10)
+#endif
 
 static void soft_i2c_delay(os_uint32_t us)
 {

@@ -187,6 +187,7 @@
     }
 
 #define UNPACK_SAVE_DATA_TYPE1_END_NUMBER(TYPE)                     \
+    (void) valuestring;                                             \
     *value = cJSON_GetObjectItem(dp_item, "value")->value##TYPE;	\
     cJSON_Delete(json_obj);                                         \
     return 0;                                                       \
@@ -214,6 +215,7 @@
 	memcpy((char*)(*ds_id), json_child->string, len);		\
 
 #define UNPACK_SAVE_DATA_TYPE23_END_NUMBER(TYPE)    \
+    (void) valuestring;                             \
     *value = json_child->value##TYPE;               \
     cJSON_Delete(json_obj);                         \
            return 0;								\

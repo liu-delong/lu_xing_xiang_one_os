@@ -35,14 +35,12 @@
 
 #define PROTOCOL_TYPE_TCP (6)
 #define PROTOCOL_TYPE_UDP (17)
-
 #define SEND_DATA_MAX_SIZE (1358)
+#define BC28_CONN_ID_NULL  (-1)
 
 #ifndef BC28_DATA_QUEUE_SIZE
 #define BC28_DATA_QUEUE_SIZE (5)
 #endif
-
-#define BC28_CONN_ID_NULL  (-1)
 
 #ifdef BC28_USING_NETCONN_OPS
 
@@ -64,6 +62,10 @@ static mo_netconn_t *bc28_netconn_alloc(mo_object_t *module)
     {
         if (NETCONN_STAT_NULL == bc28->netconn[i].stat)
         {
+            /* TODO: Remove after adding the API of setting local port  */
+            /* NOTE: BC28 module dosen't support auto allocate udp port */
+            bc28->netconn[i].local_port = i + 1;
+
             return &bc28->netconn[i];
         }
     }
@@ -100,15 +102,19 @@ os_err_t bc28_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
 
 mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 {
+    mo_bc28_t   *bc28   = os_container_of(module, mo_bc28_t, parent);
+    at_parser_t *parser = &module->parser;
+    os_err_t     result = OS_EOK;
+
+    bc28_lock(&bc28->netconn_lock);
+
     mo_netconn_t *netconn = bc28_netconn_alloc(module);
 
     if (OS_NULL == netconn)
     {
+        bc28_unlock(&bc28->netconn_lock);
         return OS_NULL;
     }
-
-    at_parser_t *parser = &module->parser;
-    os_err_t     result = OS_EOK;
 
     char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
@@ -119,6 +125,7 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     if (OS_EOK != result)
     {
         LOG_EXT_E("Module %s set enable netconn urc autorecv data failed", module->name);
+        bc28_unlock(&bc28->netconn_lock);
         return OS_NULL;
     }
     
@@ -128,8 +135,7 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
         result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=STREAM,%d,0,1", PROTOCOL_TYPE_TCP);
         break;
     case NETCONN_TYPE_UDP:
-        /* BC28 shown that can only create 1 UDP socket */
-        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=DGRAM,%d,0,1", PROTOCOL_TYPE_UDP);
+        result = at_parser_exec_cmd(parser, &resp, "AT+NSOCR=DGRAM,%d,%hu,1", PROTOCOL_TYPE_UDP, netconn->local_port);
         break;
     default:
         result = OS_ERROR;
@@ -139,12 +145,14 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     if (result != OS_EOK)
     {
         LOG_EXT_E("Module %s create %s netconn failed", module->name, (type == NETCONN_TYPE_TCP) ? "TCP" : "UDP");
+        bc28_unlock(&bc28->netconn_lock);
         return OS_NULL;
     }
 
     if (at_resp_get_data_by_line(&resp, 2, "%d", &netconn->connect_id) <= 0)
     {
         LOG_EXT_E("Module %s get %s netconn id failed", module->name, (type == NETCONN_TYPE_TCP) ? "TCP" : "UDP");
+        bc28_unlock(&bc28->netconn_lock);
         return OS_NULL;
     }
 
@@ -153,6 +161,7 @@ mo_netconn_t *bc28_netconn_create(mo_object_t *module, mo_netconn_type_t type)
     netconn->stat = NETCONN_STAT_INIT;
     netconn->type = type;
 
+    bc28_unlock(&bc28->netconn_lock);
     return netconn;
 }
 
@@ -186,15 +195,19 @@ os_err_t bc28_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
         break;
     }
 
-    if (netconn->data_queue.queue != OS_NULL)
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        os_data_queue_deinit(&netconn->data_queue);
+        mo_netconn_data_queue_deinit(&netconn->data_queue);
     }
-    connid              = netconn->connect_id;
-    netconn->connect_id = BC28_CONN_ID_NULL;
-    netconn->stat       = NETCONN_STAT_NULL;
-    netconn->type       = NETCONN_TYPE_NULL;
     
+    connid               = netconn->connect_id;
+    netconn->connect_id  = BC28_CONN_ID_NULL;
+    netconn->stat        = NETCONN_STAT_NULL;
+    netconn->type        = NETCONN_TYPE_NULL;
+    netconn->remote_port = 0;
+    netconn->local_port  = 0;
+    inet_aton("0.0.0.0", &netconn->remote_ip);
+
     LOG_EXT_I("Module %s netconnn_id: %d destroyed", module->name, connid);
 
     return OS_EOK;
@@ -204,7 +217,7 @@ os_err_t bc28_netconn_gethostbyname(mo_object_t *self, const char *domain_name, 
 {
     at_parser_t *parser = &self->parser;
 
-	char recvip[IPADDR_MAX_STR_LEN] = {0};
+	char recvip[IPADDR_MAX_STR_LEN + 1] = {0};
 	
     char resp_buff[256] = {0};
 
@@ -214,9 +227,9 @@ os_err_t bc28_netconn_gethostbyname(mo_object_t *self, const char *domain_name, 
                       .timeout   = 20 * OS_TICK_PER_SECOND};
 
     os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+QDNS=0,\"%s\"", domain_name);
-    if (result < 0)
+    if (OS_EOK != result)
     {
-        result = OS_ERROR;
+        LOG_EXT_E("BC28 domain resolve: execute error, host: %s", domain_name);
         goto __exit;
     }
 
@@ -258,27 +271,11 @@ __exit:
 
 static os_err_t bc28_tcp_connect(at_parser_t *parser, os_int32_t connect_id, char *ip_addr, os_uint16_t port)
 {
-    /* TODO */
-	// char buf[16] = {0};
-	
-    // at_parser_set_resp(parser, 128, 4, os_tick_from_ms(20000));
     char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
 
-    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+NSOCO=%d,%s,%d", connect_id, ip_addr, port);
-//     if (result != OS_EOK)
-//     {
-//         goto __exit;
-//     }
-
-//     if (at_parser_get_data_by_kw(parser, "CONNECT", "CONNECT %s", buf) <= 0)
-//     {
-//         result = OS_ERROR;
-//         goto __exit;
-//     }
-
-// __exit:
+    os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+NSOCO=%d,%s,%hu", connect_id, ip_addr, port);
 
     return result;
 }
@@ -307,7 +304,7 @@ os_err_t bc28_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_add
 
     if (result != OS_EOK)
     {
-        LOG_EXT_E("Module %s connect to %s:%d failed!", module->name, remote_ip, port);
+        LOG_EXT_E("Module %s connect to %s:%u failed!", module->name, remote_ip, port);
         return result;
     }
 
@@ -315,7 +312,7 @@ os_err_t bc28_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_add
     netconn->remote_port = port;
     netconn->stat        = NETCONN_STAT_CONNECT;
 
-    LOG_EXT_D("Module %s connect to %s:%d successfully!", module->name, remote_ip, port);
+    LOG_EXT_D("Module %s connect to %s:%u successfully!", module->name, remote_ip, port);
 
     return OS_EOK;
 }
@@ -328,23 +325,115 @@ static os_size_t bc28_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, const
     os_int32_t connect_id   = BC28_CONN_ID_NULL;
     os_size_t  cnt          = 0;
 
-    char send_cmd[30] = {0};
+    char send_cmd[30]                     = {0};
     char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
     at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
 
     while (sent_size < size)
     {
-        if (size - sent_size < SEND_DATA_MAX_SIZE)
+        if (size - sent_size < SEND_DATA_MAX_SIZE * 2)
         {
             cur_pkt_size = size - sent_size;
         }
         else
         {
-            cur_pkt_size = SEND_DATA_MAX_SIZE;
+            cur_pkt_size = SEND_DATA_MAX_SIZE * 2;
         }
 
         snprintf(send_cmd, sizeof(send_cmd), "AT+NSOSD=%d,%d,", netconn->connect_id, (int)cur_pkt_size / 2);
+
+        at_parser_exec_lock(parser);
+        
+        if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
+        {
+            result = OS_ERROR;
+            goto __exit;
+        }
+
+        if (at_parser_send(parser, data + sent_size, cur_pkt_size) <= 0)
+        {
+            result = OS_ERROR;
+            goto __exit;
+        }
+
+        result = at_parser_exec_cmd(parser, &resp, "");
+        if (result != OS_EOK)
+        {
+            goto __exit;
+        }
+
+        result = OS_ERROR;
+        for (int i = 1; i <= resp.line_counts; i++)
+        {
+            if (at_resp_get_data_by_line(&resp, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
+            {
+                result = OS_EOK;
+                break;
+            }
+        }
+
+        if (OS_ERROR == result)
+        {
+            goto __exit;
+        }
+
+        at_parser_exec_unlock(parser);
+    
+        sent_size += cur_pkt_size;
+    }
+
+__exit:
+
+    if (result != OS_EOK)
+    {
+        LOG_EXT_E("Module %s netconn %d send %d bytes data failed!",
+                  parser->name,
+                  netconn->connect_id,
+                  cur_pkt_size / 2);
+                  
+        at_parser_exec_unlock(parser);
+    }
+    
+    return sent_size / 2;
+}
+
+static os_size_t bc28_udp_send(at_parser_t *parser, mo_netconn_t *netconn, const char *data, os_size_t size)
+{
+    os_err_t   result       = OS_EOK;
+    os_size_t  sent_size    = 0;
+    os_size_t  cur_pkt_size = 0;
+    os_int32_t connect_id   = BC28_CONN_ID_NULL;
+    os_size_t  cnt          = 0;
+
+    char send_cmd[40]                      = {0};
+    char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
+    char resp_buff[AT_RESP_BUFF_SIZE_DEF]  = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
+
+    strncpy(remote_ip, inet_ntoa(netconn->remote_ip), IPADDR_MAX_STR_LEN);
+
+    while (sent_size < size)
+    {
+        if (size - sent_size < SEND_DATA_MAX_SIZE * 2)
+        {
+            cur_pkt_size = size - sent_size;
+        }
+        else
+        {
+            cur_pkt_size = SEND_DATA_MAX_SIZE * 2;
+        }
+
+        snprintf(send_cmd,
+                 sizeof(send_cmd),
+                 "AT+NSOST=%d,%s,%d,%hu,",
+                 netconn->connect_id,
+                 remote_ip,
+                 netconn->remote_port,
+                 (int)cur_pkt_size / 2);
+
+        at_parser_exec_lock(parser);
 
         if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
         {
@@ -379,103 +468,23 @@ static os_size_t bc28_tcp_send(at_parser_t *parser, mo_netconn_t *netconn, const
             goto __exit;
         }
 
+        at_parser_exec_unlock(parser);
+
         sent_size += cur_pkt_size;
     }
 
 __exit:
-
     if (result != OS_EOK)
     {
         LOG_EXT_E("Module %s netconn %d send %d bytes data failed!",
                   parser->name,
                   netconn->connect_id,
                   cur_pkt_size / 2);
+
+        at_parser_exec_unlock(parser);
     }
 
     return sent_size / 2;
-}
-
-static os_size_t bc28_udp_send(at_parser_t *parser, mo_netconn_t *netconn, const char *data, os_size_t size)
-{
-    os_err_t   result       = OS_EOK;
-    os_size_t  sent_size    = 0;
-    os_size_t  cur_pkt_size = 0;
-    os_int32_t connect_id   = BC28_CONN_ID_NULL;
-    os_size_t  cnt          = 0;
-
-    char send_cmd[40]                      = {0};
-    char remote_ip[IPADDR_MAX_STR_LEN + 1] = {0};
-    char resp_buff[AT_RESP_BUFF_SIZE_DEF]  = {0};
-
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
-
-    strncpy(remote_ip, inet_ntoa(netconn->remote_ip), IPADDR_MAX_STR_LEN);
-
-    while (sent_size < size)
-    {
-        if (size - sent_size < SEND_DATA_MAX_SIZE)
-        {
-            cur_pkt_size = size - sent_size;
-        }
-        else
-        {
-            cur_pkt_size = SEND_DATA_MAX_SIZE;
-        }
-
-        snprintf(send_cmd,
-                 sizeof(send_cmd),
-                 "AT+NSOST=%d,%s,%d,%d,",
-                 netconn->connect_id,
-                 remote_ip,
-                 netconn->remote_port,
-                 (int)cur_pkt_size / 2);
-
-        if (at_parser_send(parser, send_cmd, strlen(send_cmd)) <= 0)
-        {
-            result = OS_ERROR;
-            goto __exit;
-        }
-
-        if (at_parser_send(parser, data + sent_size, cur_pkt_size) <= 0)
-        {
-            result = OS_ERROR;
-            goto __exit;
-        }
-
-        result = at_parser_exec_cmd(parser, &resp, "");
-        if (result != OS_EOK)
-        {
-            goto __exit;
-        }
-
-                result = OS_ERROR;
-        for (int i = 1; i <= resp.line_counts; i++)
-        {
-            if (at_resp_get_data_by_line(&resp, i, "%d,%d", &connect_id, &cnt) > 0 && cnt == cur_pkt_size / 2)
-            {
-                result = OS_EOK;
-                break;
-            }
-        }
-
-        if (OS_ERROR == result)
-        {
-            goto __exit;
-        }
-
-        sent_size += cur_pkt_size;
-    }
-
-__exit:
-    if (result != OS_EOK)
-    {
-        LOG_EXT_E("Module %s netconn %d send %d bytes data failed!",
-                  parser->name,
-                  netconn->connect_id,
-                  cur_pkt_size / 2);
-    }
-
-    return sent_size;
 }
 
 os_size_t bc28_netconn_send(mo_object_t *module, mo_netconn_t *netconn, const char *data, os_size_t size)
@@ -573,8 +582,9 @@ static void urc_recv_func(struct at_parser *parser, const char *data, os_size_t 
             LOG_EXT_E("Calloc recv buff %d bytes fail, no enough memory", data_size * 2 + 1);
             return;
         }
-        /* Get receive data to receive buffer */
+
         /* Alert! if using sscanf stores strings, be rember allocating enouth memory! */
+        /* Get receive data to receive buffer */
         sscanf(data, "+NSONMI:%*d,%*[^,],%*d,%*d,%s", recv_buff);
 
         char *recv_str = calloc(1, data_size + 1);

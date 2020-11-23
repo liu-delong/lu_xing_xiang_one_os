@@ -31,7 +31,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <shell.h>
-#include <drivers.h>
+#include <os_drivers.h>
 #include <can/can.h>
 
 #define CAN_DATA_DUMP
@@ -46,7 +46,7 @@ static int tx_count = 0;
 static uint16_t tx_crc = 0;
 static uint16_t rx_crc = 0;
 
-static os_err_t can_rx_call(os_device_t *dev, os_size_t size)
+static os_err_t can_rx_call(os_device_t *dev, struct os_device_cb_info *info)
 {
     os_sem_post(&rx_sem);
     rx_count++;
@@ -58,7 +58,13 @@ static void can_rx_task(void *parameter)
 {
     struct os_can_msg rxmsg = {0};
 
-    os_device_set_rx_indicate(can_dev, can_rx_call);
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .cb   = can_rx_call,
+    };
+
+    os_device_control(can_dev, IOC_SET_CB, &cb_info);
     
     while (1)
     {
@@ -136,7 +142,7 @@ int can_start(int argc, char *argv[])
 }
 SH_CMD_EXPORT(can_start, can_start, "can device sample");
 
-static os_err_t can_tx_done(os_device_t *uart, void *buffer)
+static os_err_t can_tx_done(os_device_t *uart, struct os_device_cb_info *info)
 {
     //os_kprintf("<%d>tx done\r\n", os_tick_get());
     tx_count++;
@@ -166,7 +172,13 @@ void can_send(int argc, char *argv[])
 
     tx_count = 0;
 
-    os_device_set_tx_complete(can_dev, can_tx_done);
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_TX,
+        .cb   = can_tx_done,
+    };
+
+    os_device_control(can_dev, IOC_SET_CB, &cb_info);
 
     while (loops--)
     {

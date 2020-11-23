@@ -39,7 +39,6 @@
 #define DBG_COLOR
 #define DBG_SECTION_NAME "WM8978"
 
-#define TX_FIFO_SIZE         (2048)
 
 struct wm8978_dev
 {
@@ -51,10 +50,9 @@ struct wm8978_player_device
 {    
     struct            os_audio_device audio;
     struct            os_audio_configure replay_config;
-    os_uint8_t        *tx_fifo;
     os_uint8_t         volume;  
-    os_device_sai_t    *sai;
-
+    os_device_t     *cfg_bus;
+    os_device_t     *data_bus;
     struct wm8978_dev wm8978;
 };
  
@@ -438,13 +436,9 @@ static os_err_t audio_wm8978_config(struct os_audio_device *audio, struct os_aud
 
         case AUDIO_PARAM_CMD:
         {
-            /* set samplerate */
-            os_sai_frequency_set(aduio_dev->sai,caps->udata.config.samplerate);
-               
-            /* set channels */
-            os_sai_channel_set(aduio_dev->sai,caps->udata.config.channels);
+            os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_FRQ, &caps->udata.config.samplerate);
+            os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_CHANNEL, &caps->udata.config.channels);
 
-            /* save configs */
             aduio_dev->replay_config.samplerate = caps->udata.config.samplerate;
             aduio_dev->replay_config.channels   = caps->udata.config.channels;
             aduio_dev->replay_config.samplebits = caps->udata.config.samplebits;
@@ -473,9 +467,8 @@ static os_err_t audio_wm8978_init(struct os_audio_device *audio)
     wm8978_HPvol_Set(&aduio_dev->wm8978, 20, 20);   /* headset volume */
     wm8978_SPKvol_Set(&aduio_dev->wm8978, 20);      /* speaker volume */
 
-    /* set default params */ 
-    os_sai_frequency_set(aduio_dev->sai, aduio_dev->replay_config.samplerate);
-    os_sai_channel_set(aduio_dev->sai, aduio_dev->replay_config.channels);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_FRQ, &aduio_dev->replay_config.samplerate);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_CHANNEL, &aduio_dev->replay_config.channels);
 
     return result;
 }
@@ -487,15 +480,13 @@ static os_err_t audio_wm8978_start(struct os_audio_device *audio)
     OS_ASSERT(audio != OS_NULL);
     aduio_dev = (struct wm8978_player_device *)audio->parent.user_data;
 
-    os_sai_info(aduio_dev->sai, aduio_dev->tx_fifo, &aduio_dev->audio.replay->queue, &audio->replay->cmp, &audio->replay->event);
-
     wm8978_ADDA_Cfg(&aduio_dev->wm8978, 1, 0);          /* enable dac */
     wm8978_Input_Cfg(&aduio_dev->wm8978, 0, 0, 0);      /* disable input */
     wm8978_Output_Cfg(&aduio_dev->wm8978, 1, 0);        /* start dac */
     
     LOG_EXT_D("open sound device");
     
-    os_sai_transimit(aduio_dev->sai,aduio_dev->tx_fifo, TX_FIFO_SIZE / 2);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_ENABLE, OS_NULL);
     
     return OS_EOK;
 }
@@ -507,7 +498,7 @@ static os_err_t audio_wm8978_stop(struct os_audio_device *audio)
     OS_ASSERT(audio != OS_NULL);
     aduio_dev = (struct wm8978_player_device *)audio->parent.user_data;
 
-    os_sai_stop(aduio_dev->sai);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_DISABLE, OS_NULL);
 
     wm8978_ADDA_Cfg(&aduio_dev->wm8978, 0, 0);          /* disable dac */
     wm8978_Input_Cfg(&aduio_dev->wm8978, 0, 0, 0);      /* disable input */
@@ -518,36 +509,51 @@ static os_err_t audio_wm8978_stop(struct os_audio_device *audio)
     return OS_EOK;
 }
 
-static void player_buffer_info(struct os_audio_device *audio, struct os_audio_buf_info *info)
+os_size_t audio_wm8978_transmit(struct os_audio_device *audio, const void *writeBuf, os_size_t size)
 {
     struct wm8978_player_device *aduio_dev;
+    
+    OS_ASSERT(audio != OS_NULL);
+    
+    aduio_dev = (struct wm8978_player_device *)audio->parent.user_data;
 
+    return os_device_write(aduio_dev->data_bus, 0, (os_uint8_t *)writeBuf, size);
+}
+
+os_size_t audio_wm8978_receive(struct os_audio_device *audio, void *readBuf, os_size_t size)
+{
+    struct wm8978_player_device *aduio_dev;
+    
     OS_ASSERT(audio != OS_NULL);
     
     aduio_dev = (struct wm8978_player_device *)audio->parent.user_data;
     
-    info->buffer      = aduio_dev->tx_fifo;  
-    info->total_size  = TX_FIFO_SIZE;
-    info->block_size  = TX_FIFO_SIZE / 2;
-    info->block_count = 2;
+    return os_device_read(aduio_dev->data_bus, 0, (os_uint8_t *)readBuf, size);
+}
+
+os_err_t audio_wm8978_data_tx_done(os_device_t *dev, struct os_device_cb_info *info)
+{
+    if (dev->user_data != OS_NULL)
+    {
+        struct wm8978_player_device *wm8978_player_dev = dev->user_data;
+        return wm8978_player_dev->audio.parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb((os_device_t *)wm8978_player_dev, info);
+    }
+    return OS_ENOSYS;
 }
 
 static struct os_audio_ops wm8978_player_ops =
 {
-    .getcaps     = OS_NULL, 
-    .configure   = audio_wm8978_config,
-    .init        = audio_wm8978_init,
-    .start       = audio_wm8978_start,
-    .stop        = audio_wm8978_stop,
-    .transmit    = OS_NULL, 
-    .buffer_info = player_buffer_info,
-    .frame_tx_complete = &os_audio_tx_complete,
+    .getcaps            = OS_NULL, 
+    .configure          = audio_wm8978_config,
+    .init               = audio_wm8978_init,
+    .start              = audio_wm8978_start,
+    .stop               = audio_wm8978_stop,
+    .transmit           = audio_wm8978_transmit, 
+    .receive            = audio_wm8978_receive,
 };
 
 int os_hw_audio_player_init(void)
 {
-    os_uint8_t *tx_fifo;
-
     struct wm8978_player_device *wm8978_player;
     struct wm8978_dev *wm8978;
 
@@ -556,38 +562,35 @@ int os_hw_audio_player_init(void)
     
     wm8978 = &wm8978_player->wm8978;
 
-    tx_fifo = os_malloc(TX_FIFO_SIZE);
-    if (tx_fifo == OS_NULL)
-        return OS_ENOMEM;
-    memset(tx_fifo, 0, TX_FIFO_SIZE);
-    wm8978_player->tx_fifo = tx_fifo;
-
-    /* init default configuration */
-    {
-        wm8978_player->replay_config.samplerate = 44100;
-        wm8978_player->replay_config.channels   = 2;
-        wm8978_player->replay_config.samplebits = 16;
-        wm8978_player->volume                   = 50;
-    }
+    wm8978_player->replay_config.samplerate = 44100;
+    wm8978_player->replay_config.channels   = 2;
+    wm8978_player->replay_config.samplebits = 16;
+    wm8978_player->volume                   = 50;
 
     /* register sound device */
     wm8978_player->audio.ops = &wm8978_player_ops;
     
-    wm8978_player->sai = (os_device_sai_t *)os_device_find(BSP_SAI_BLOCK);
-    if (wm8978_player->sai == OS_NULL)
+    wm8978_player->cfg_bus = os_device_find(BSP_WM8978_I2C_BUS);
+    if (wm8978_player->cfg_bus == OS_NULL)
     {
-        os_kprintf("can not find the sai device!\n");
+        LOG_EXT_E("can not find the config device!\n");
         return OS_ERROR;
     }
-
-    /* wm8978 device */
-    wm8978->i2c.bus = os_i2c_bus_device_find(BSP_WM8978_I2C_BUS);
-    if (wm8978->i2c.bus == NULL)
+    
+    wm8978_player->data_bus = os_device_find(BSP_WM8978_DATA_BUS);
+    if (wm8978_player->data_bus == OS_NULL)
     {
-        LOG_EXT_E("wm8978 i2c invalid.");
-        os_free(wm8978_player);
-        return -1;
+        LOG_EXT_E("can not find the data device!\n");
+        return OS_ERROR;
     }
+    wm8978_player->data_bus->user_data = wm8978_player;
+    os_device_open(wm8978_player->data_bus, OS_DEVICE_OFLAG_RDWR);
+    struct os_device_cb_info *info = os_calloc(1, sizeof(struct os_device_cb_info));
+    info->type = OS_DEVICE_CB_TYPE_TX;
+    info->cb = audio_wm8978_data_tx_done;
+    os_device_control(wm8978_player->data_bus, IOC_SET_CB, info);
+    
+    wm8978->i2c.bus = (struct os_i2c_bus_device *)wm8978_player->cfg_bus;
 
     wm8978->i2c.client_addr = BSP_WM8978_I2C_ADDR;
     wm8978->power_pin = BSP_WM8978_POWER_PIN;

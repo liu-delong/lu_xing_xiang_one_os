@@ -38,7 +38,8 @@ os_err_t ec200x_get_imsi(mo_object_t *self, char *value, os_size_t len);
 os_err_t ec200x_get_iccid(mo_object_t *self, char *value, os_size_t len);
 os_err_t ec200x_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl);
 os_err_t ec200x_set_cfun(mo_object_t *self, os_uint8_t fun_lvl);
-os_err_t ec200x_set_echo(mo_object_t *self, os_bool_t is_echo);
+os_err_t ec200x_get_firmware_version(mo_object_t *self, mo_firmware_version_t *version);
+
 #endif /* EC200X_USING_GENERAL_OPS */
 
 #ifdef __cplusplus

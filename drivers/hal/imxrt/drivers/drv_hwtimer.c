@@ -1,22 +1,33 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
-* Change Logs:
-* Date           Author       Notes
-* 2018-04-17     WangBing     the first version.
-* 2019-04-22     tyustli      add imxrt series support
-*
-*/
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_hwtimer.c
+ *
+ * @brief       This file implements hwtimer driver for imxrt.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-09-01   OneOS Team      First Version
+ ***********************************************************************************************************************
+ */
+ 
 #include <os_task.h>
-
-#ifdef BSP_USING_HWTIMER
 
 #define LOG_TAG             "drv.hwtimer"
 #include <drv_log.h>
 
 #include <os_device.h>
+#include <os_memory.h>
 #include "drv_hwtimer.h"
 #include "fsl_gpt.h"
 
@@ -31,168 +42,23 @@
 /* Get source clock for GPT driver (GPT prescaler = 6) */
 #define EXAMPLE_GPT_CLK_FREQ (CLOCK_GetFreq(kCLOCK_IpgClk) / (EXAMPLE_GPT_CLOCK_DIVIDER_SELECT + 1U))
 
-static void NVIC_Configuration(void)
+struct imxrt_gpt
 {
-#ifdef BSP_USING_HWTIMER1
-    EnableIRQ(GPT1_IRQn);
-#endif
-
-#ifdef BSP_USING_HWTIMER2
-    EnableIRQ(GPT2_IRQn);
-#endif
-}
-
-static os_err_t imxrt_hwtimer_control(rt_hwtimer_t *timer, os_uint32_t cmd, void *args)
-{
-    os_err_t err = OS_EOK;
-    GPT_Type *hwtimer_dev;
-    hwtimer_dev = (GPT_Type *)timer->parent.user_data;
-
-    OS_ASSERT(timer != OS_NULL);
-
-    switch (cmd)
-    {
-    case HWTIMER_CTRL_FREQ_SET:
-    {
-        uint32_t clk;
-        uint32_t pre;
-        clk = EXAMPLE_GPT_CLK_FREQ;
-        pre = clk / *((uint32_t *)args) - 1;
-        GPT_SetClockDivider(hwtimer_dev, pre);
-    }
-    break;
-    default:
-        err = -OS_ENOSYS;
-        break;
-    }
-    return err;
-}
-
-static os_uint32_t imxrt_hwtimer_count_get(rt_hwtimer_t *timer)
-{
-    os_uint32_t CurrentTimer_Count;
-    GPT_Type *hwtimer_dev;
-    hwtimer_dev = (GPT_Type *)timer->parent.user_data;
-
-    OS_ASSERT(timer != OS_NULL);
-
-    CurrentTimer_Count = GPT_GetCurrentTimerCount(hwtimer_dev);
-
-    return CurrentTimer_Count;
-}
-
-static void imxrt_hwtimer_init(rt_hwtimer_t *timer, os_uint32_t state)
-{
-    GPT_Type *hwtimer_dev;
-    gpt_config_t gptConfig;
-    hwtimer_dev = (GPT_Type *)timer->parent.user_data;
-
-    OS_ASSERT(timer != OS_NULL);
-
-    if (state == 1)
-    {
-        /*Clock setting for GPT*/
-        CLOCK_SetMux(kCLOCK_PerclkMux, EXAMPLE_GPT_CLOCK_SOURCE_SELECT);
-        CLOCK_SetDiv(kCLOCK_PerclkDiv, EXAMPLE_GPT_CLOCK_DIVIDER_SELECT);
-
-        /* Initialize GPT module by default config */
-        GPT_GetDefaultConfig(&gptConfig);
-        GPT_Init(hwtimer_dev, &gptConfig);
-    }
-}
-
-static os_err_t imxrt_hwtimer_start(rt_hwtimer_t *timer, os_uint32_t cnt, rt_hwtimer_mode_t mode)
-{
-    GPT_Type *hwtimer_dev;
-    hwtimer_dev = (GPT_Type *)timer->parent.user_data;
-
-    OS_ASSERT(timer != OS_NULL);
-
-    hwtimer_dev->CR |= (mode != HWTIMER_MODE_PERIOD) ? GPT_CR_FRR_MASK : 0U;
-
-    GPT_SetOutputCompareValue(hwtimer_dev, kGPT_OutputCompare_Channel1, cnt);
-
-    GPT_EnableInterrupts(hwtimer_dev, kGPT_OutputCompare1InterruptEnable);
-
-    NVIC_Configuration();
-
-    GPT_StartTimer(hwtimer_dev);
-
-    return OS_EOK;
-}
-
-static void imxrt_hwtimer_stop(rt_hwtimer_t *timer)
-{
-    GPT_Type *hwtimer_dev;
-    hwtimer_dev = (GPT_Type *)timer->parent.user_data;
-
-    OS_ASSERT(timer != OS_NULL);
-
-    GPT_StopTimer(hwtimer_dev);
-}
-
-static const struct rt_hwtimer_ops imxrt_hwtimer_ops =
-{
-    .init = imxrt_hwtimer_init,
-    .start = imxrt_hwtimer_start,
-    .stop = imxrt_hwtimer_stop,
-    .count_get = imxrt_hwtimer_count_get,
-    .control = imxrt_hwtimer_control,
+    os_clockevent_t ce;
+    struct nxp_gpt_info *info;
+    os_list_node_t list;
 };
 
-static const struct rt_hwtimer_info imxrt_hwtimer_info =
+static os_list_node_t imxrt_gpt_list = OS_LIST_INIT(imxrt_gpt_list);
+
+static void gpt_irq_callback(struct imxrt_gpt *imxrt_gpt)
 {
-    25000000,           /* the maximum count frequency can be set */
-    6103,               /* the minimum count frequency can be set */
-    0xFFFFFFFF,
-    HWTIMER_CNTMODE_UP,
-};
+    GPT_Type *base = imxrt_gpt->info->gpt_base;
 
-#ifdef BSP_USING_HWTIMER1
-static rt_hwtimer_t GPT_timer1;
-#endif /*BSP_USING_HWTIMER1*/
-
-#ifdef BSP_USING_HWTIMER2
-static rt_hwtimer_t GPT_timer2;
-#endif
-
-int rt_hw_hwtimer_init(void)
-{
-    int ret = OS_EOK;
-
-#ifdef BSP_USING_HWTIMER1
-    GPT_timer1.info = &imxrt_hwtimer_info;
-    GPT_timer1.ops  = &imxrt_hwtimer_ops;
-    ret = rt_device_hwtimer_register(&GPT_timer1, "gpt1", GPT1);
-
-    if (ret != OS_EOK)
+    if (GPT_GetStatusFlags(base, kGPT_OutputCompare1Flag) != 0)
     {
-        LOG_E("gpt1 register failed\n");
-    }
-#endif
-
-#ifdef BSP_USING_HWTIMER2
-    GPT_timer2.info = &imxrt_hwtimer_info;
-    GPT_timer2.ops = &imxrt_hwtimer_ops;
-    ret = rt_device_hwtimer_register(&GPT_timer2, "gpt2", GPT2);
-
-    if (ret != OS_EOK)
-    {
-        LOG_E("gpt1 register failed\n");
-    }
-#endif
-
-    return ret;
-}
-
-#ifdef BSP_USING_HWTIMER1
-
-void GPT1_IRQHandler(void)
-{
-    if (GPT_GetStatusFlags(GPT1, kGPT_OutputCompare1Flag) != 0)
-    {
-        GPT_ClearStatusFlags(GPT1, kGPT_OutputCompare1Flag);
-        rt_device_hwtimer_isr(&GPT_timer1);
+        GPT_ClearStatusFlags(base, kGPT_OutputCompare1Flag);
+        os_clockevent_isr((os_clockevent_t *)imxrt_gpt);
     }
 
     /* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
@@ -202,26 +68,137 @@ void GPT1_IRQHandler(void)
 #endif
 }
 
-#endif /*BSP_USING_HWTIMER1*/
-
-#ifdef BSP_USING_HWTIMER2
-
-void GPT2_IRQHandler(void)
-{
-    if (GPT_GetStatusFlags(GPT2, kGPT_OutputCompare1Flag) != 0)
-    {
-        GPT_ClearStatusFlags(GPT2, kGPT_OutputCompare1Flag);
-        rt_device_hwtimer_isr(&GPT_timer2);
-    }
-
-    /* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
-      exception return operation might vector to incorrect interrupt */
-#if defined __CORTEX_M && (__CORTEX_M == 4U || __CORTEX_M == 7U)
-    __DSB();
-#endif
+#define GPT_IRQHandler_DEFINE(__index)                                        \
+void GPT##__index##_IRQHandler(void)                                          \
+{                                                                               \
+    struct imxrt_gpt *imxrt_gpt;                                                \
+                                                                                \
+    os_list_for_each_entry(imxrt_gpt, &imxrt_gpt_list, struct imxrt_gpt, list)  \
+    {                                                                           \
+        if (imxrt_gpt->info->gpt_base == GPT##__index)                        \
+        {                                                                       \
+            break;                                                              \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    if (imxrt_gpt->info->gpt_base == GPT##__index)                            \
+        gpt_irq_callback(imxrt_gpt);                                            \
 }
-#endif /*BSP_USING_HWTIMER2*/
 
-INIT_DEVICE_EXPORT(rt_hw_hwtimer_init);
+GPT_IRQHandler_DEFINE(1);
+GPT_IRQHandler_DEFINE(2);
 
-#endif /* BSP_USING_HWTIMER */
+static os_uint64_t imxr_timer_read(void *clock)
+{
+    struct imxrt_gpt *timer;
+
+    timer = (struct imxrt_gpt *)clock;
+
+    return GPT_GetCurrentTimerCount(timer->info->gpt_base);
+}
+
+static void imxr_timer_start(os_clockevent_t *ce, os_uint32_t prescaler, os_uint64_t count)
+{
+    struct imxrt_gpt *timer;
+    GPT_Type *gpt_base;
+
+    OS_ASSERT(ce != OS_NULL);
+    OS_ASSERT(prescaler != 0);
+    OS_ASSERT(count != 0);
+
+    timer = (struct imxrt_gpt *)ce;
+    
+    gpt_base = timer->info->gpt_base;
+
+    OS_ASSERT(timer != OS_NULL);
+
+    /* period */
+    //gpt_base->CR |= GPT_CR_FRR_MASK;
+
+    GPT_SetOutputCompareValue(gpt_base, kGPT_OutputCompare_Channel1, count);
+
+    GPT_EnableInterrupts(gpt_base, kGPT_OutputCompare1InterruptEnable);
+
+    GPT_StartTimer(gpt_base);
+}
+
+static void imxr_timer_stop(os_clockevent_t *ce)
+{
+    struct imxrt_gpt *timer;
+
+    OS_ASSERT(ce != OS_NULL);
+
+    timer = (struct imxrt_gpt *)ce;
+
+    GPT_StopTimer(timer->info->gpt_base);
+}
+
+static const struct os_clockevent_ops imxrt_tim_ops =
+{
+    .start = imxr_timer_start,
+    .stop  = imxr_timer_stop,
+    .read  = imxr_timer_read,
+};
+
+static os_uint32_t imxrt_clock_freq(struct nxp_gpt_info *info)
+{
+    GPT_Type *gpt_base = info->gpt_base;
+
+#ifdef GPT1_PERIPHERAL
+    if (gpt_base == GPT1_PERIPHERAL)
+        return GPT1_CLOCK_SOURCE / info->config->divider;
+#endif
+
+#ifdef GPT2_PERIPHERAL
+    if (gpt_base == GPT2_PERIPHERAL)
+        return GPT2_CLOCK_SOURCE / info->config->divider;
+#endif
+
+    return 0;
+}
+
+static int imxrt_gpt_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
+{
+    os_base_t   level;
+    os_err_t    result  = 0;
+
+    struct nxp_gpt_info *info = (struct nxp_gpt_info *)dev->info;
+    struct imxrt_gpt *imxrt_gpt = os_calloc(1, sizeof(struct imxrt_gpt));
+
+    OS_ASSERT(imxrt_gpt);
+
+    imxrt_gpt->info = info;
+
+    os_clockevent_t *ce = &imxrt_gpt->ce;
+   
+    ce->rating  = 320;
+    ce->freq    = imxrt_clock_freq(info);
+    ce->mask    = 0xffffffffull;
+    
+    ce->prescaler_mask = 0xfffful;
+    ce->prescaler_bits = 16;
+
+    ce->count_mask = 0xfffffffful;
+    ce->count_bits = 32;
+
+    ce->feature    = OS_CLOCKEVENT_FEATURE_PERIOD;
+
+    ce->min_nsec = NSEC_PER_SEC / ce->freq;
+    
+    ce->ops     = &imxrt_tim_ops;
+    os_clockevent_register(dev->name, ce);
+
+    level = os_hw_interrupt_disable();
+    os_list_add_tail(&imxrt_gpt_list, &imxrt_gpt->list);
+    os_hw_interrupt_enable(level);
+    
+    return result;
+}
+
+OS_DRIVER_INFO imxrt_gpt_driver = {
+    .name   = "GPT_Type",
+    .probe  = imxrt_gpt_probe,
+};
+
+OS_DRIVER_DEFINE(imxrt_gpt_driver, "1");
+

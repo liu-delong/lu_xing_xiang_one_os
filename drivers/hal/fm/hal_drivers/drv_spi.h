@@ -30,7 +30,7 @@
 #include <drv_common.h>
 #ifdef OS_USING_SPI
 
-os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_uint16_t pin_num);
+os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t pin_num);
 
 struct fm_hw_spi_cs
 {

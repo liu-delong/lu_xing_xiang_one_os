@@ -1,3 +1,26 @@
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_flash_l1xx.c
+ *
+ * @brief       The file of flash drv for hc32l1xx
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-02-20   OneOS Team      First Version
+ ***********************************************************************************************************************
+ */
+
 #include "board.h"
 #include "hc_flash.h"
 
@@ -8,9 +31,11 @@
 #include "fal.h"
 #endif
 
-/// use Flash_WriteByte/Flash_SectorErase from bootloader
-PTR_WRITE pfun_write = (PTR_WRITE)0x1001;
-PTR_ERASE pfun_read = (PTR_ERASE)0x2001;
+/* Use Flash_WriteByte/Flash_SectorErase function from bootloader */
+#ifdef OS_USE_BOOTLOADER
+extern PTR_WRITE pfun_write;
+extern PTR_ERASE pfun_erase;
+#endif
 
 /**
  * Read data from flash.
@@ -22,7 +47,7 @@ PTR_ERASE pfun_read = (PTR_ERASE)0x2001;
  *
  * @return result
  */
-int hc32_flash_read(os_uint32_t addr, os_uint8_t *buf, size_t size)
+int hc32_flash_read(os_uint32_t addr, os_uint8_t *buf, os_size_t size)
 {
     size_t i;
 
@@ -52,7 +77,7 @@ int hc32_flash_read(os_uint32_t addr, os_uint8_t *buf, size_t size)
  * @return result
  */
 
-int hc32_flash_write(os_uint32_t addr, const uint8_t *buf, size_t size)
+int hc32_flash_write(os_uint32_t addr, const uint8_t *buf, os_size_t size)
 {
     size_t i;
     uint8_t *p = (uint8_t *)buf;
@@ -93,7 +118,7 @@ int hc32_flash_write(os_uint32_t addr, const uint8_t *buf, size_t size)
  *
  * @return result
  */
-int hc32_flash_erase(os_uint32_t addr, size_t size)
+int hc32_flash_erase(os_uint32_t addr, os_size_t size)
 {
     os_uint16_t sector_start = 0;
     os_uint16_t sector_end = 0;
@@ -111,7 +136,7 @@ int hc32_flash_erase(os_uint32_t addr, size_t size)
     for (sector_cnt = 0; sector_cnt < (sector_end - sector_start); sector_cnt++)
     {
 #ifdef OS_USE_BOOTLOADER
-        pfun_read((sector_start + sector_cnt) * HC32_SECTOR_SIZE);
+        pfun_erase((sector_start + sector_cnt) * HC32_SECTOR_SIZE);
 #else
         Flash_SectorErase((sector_start + sector_cnt) * HC32_SECTOR_SIZE);
 #endif

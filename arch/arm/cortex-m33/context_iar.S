@@ -13,7 +13,7 @@
  ;*
  ;* @file        context_iar.S
  ;*
- ;* @brief       This file provides context switch functions related to the ARM M4 architecture.
+ ;* @brief       This file provides context switch functions related to the ARM M33 architecture.
  ;*
  ;* @revision
  ;* Date         Author          Notes

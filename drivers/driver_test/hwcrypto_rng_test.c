@@ -24,7 +24,7 @@
 #include <os_task.h>
 #include <os_device.h>
 #include <os_errno.h>
-#include <drivers.h>
+#include <os_drivers.h>
 #include <hwcrypto/hwcrypto.h>
 #include <hwcrypto/hw_rng.h>
 #include <shell.h>
@@ -35,7 +35,7 @@ static void hwcrypto_rng_test(int argc, char *argv[])
     int result_table[10];
     os_uint32_t result = 0;
 
-    os_kprintf("hwcrypto_crc_test:\r\n");
+    os_kprintf("hwcrypto_rng_test:\r\n");
 
     for (i = 0; i < ARRAY_SIZE(result_table); i++)
         result_table[i] = 0;

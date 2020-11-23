@@ -41,6 +41,12 @@ typedef enum mo_ops_type
 #ifdef MOLINK_USING_NETSERV_OPS
     MODULE_OPS_NETSERV,
 #endif
+#ifdef MOLINK_USING_PING_OPS
+    MODULE_OPS_PING,
+#endif
+#ifdef MOLINK_USING_IFCONFIG_OPS
+    MODULE_OPS_IFCONFIG,
+#endif
 #ifdef MOLINK_USING_NETCONN_OPS
     MODULE_OPS_NETCONN,
 #endif
@@ -56,26 +62,51 @@ typedef enum mo_ops_type
 typedef enum mo_type
 {
     MODULE_TYPE_NULL = -1,
+
+/********* Type of NB-IoT modules *********/
 #ifdef MOLINK_USING_M5310A
     MODULE_TYPE_M5310A,
 #endif
 #ifdef MOLINK_USING_M5311
     MODULE_TYPE_M5311,
 #endif
-#ifdef MOLINK_USING_EC200X
-    MODULE_TYPE_EC200X,
-#endif
-#ifdef MOLINK_USING_ESP8266
-    MODULE_TYPE_ESP8266,
-#endif
-#ifdef MOLINK_USING_ML302
-    MODULE_TYPE_ML302,
-#endif
 #ifdef MOLINK_USING_BC95
     MODULE_TYPE_BC95,
 #endif
 #ifdef MOLINK_USING_BC28
     MODULE_TYPE_BC28,
+#endif
+#ifdef MOLINK_USING_SIM7020
+    MODULE_TYPE_SIM7020,
+#endif
+
+/********* Type of 4G cat1 modules ********/
+#ifdef MOLINK_USING_EC200X
+    MODULE_TYPE_EC200X,
+#endif
+#ifdef MOLINK_USING_ML302
+    MODULE_TYPE_ML302,
+#endif
+#ifdef MOLINK_USING_GM190
+    MODULE_TYPE_GM190,
+#endif
+#ifdef MOLINK_USING_A7600X
+    MODULE_TYPE_A7600X,
+#endif
+#ifdef MOLINK_USING_L610
+    MODULE_TYPE_L610,
+#endif
+/********* Type of 4G cat4 modules ********/
+#ifdef MOLINK_USING_GM510
+    MODULE_TYPE_GM510,
+#endif
+
+/********* Type of wifi modules ***********/
+#ifdef MOLINK_USING_ESP8266
+    MODULE_TYPE_ESP8266,
+#endif
+#ifdef MOLINK_USING_ESP32
+    MODULE_TYPE_ESP32,
 #endif
     MODULE_TYPE_MAX,
 } mo_type_t;

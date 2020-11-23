@@ -227,6 +227,7 @@ static uint32_t get_rom_api_version(void)
  */
 status_t FLASH_Init(flash_config_t *config)
 {
+    bootloader_tree_t *bootloader_nxp = BOOTLOADER_API_TREE_POINTER;
     /* Initialize the clock to 96MHz */
     config->modeConfig.sysFreqInMHz = (uint32_t)kSysToFlashFreq_defaultInMHz;
     if (get_rom_api_version() == 1u)

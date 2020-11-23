@@ -1,6 +1,6 @@
 menu "Sensors"
     config OS_USING_SENSOR
-        bool "Using SENSOR device drivers"
+        bool "Using sensor device drivers"
         default n
 
     if OS_USING_SENSOR

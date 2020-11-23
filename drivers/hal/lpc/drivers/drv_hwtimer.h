@@ -1,20 +1,38 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
-* Change Logs:
-* Date           Author       Notes
-* 2018-04-17     WangBing     the first version.
-*/
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_hwtimer.h
+ *
+ * @brief       This file implements hwtimer driver for nxp.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-09-01   OneOS Team      First Version
+ ***********************************************************************************************************************
+ */
 
-#ifndef DRV_HWTIMER_H__
-#define DRV_HWTIMER_H__
+#ifndef __DRV_HWTIMER_H__
+#define __DRV_HWTIMER_H__
 
-#include <rtthread.h>
-#include <rtdevice.h>
+#include <board.h>
+#include <os_task.h>
+#include <timer/clocksource.h>
+#include <timer/clockevent.h>
+#include "peripherals.h"
 
-int rt_hw_wdt_init(void);
+struct nxp_ctimer_info {
+    CTIMER_Type *ctimer_base;
+    const ctimer_config_t *config;
+};
 
 #endif
-

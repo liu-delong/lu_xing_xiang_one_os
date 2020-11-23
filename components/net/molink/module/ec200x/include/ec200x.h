@@ -34,6 +34,14 @@
 #include "ec200x_netserv.h"
 #endif
 
+#ifdef EC200X_USING_PING_OPS
+#include "ec200x_ping.h"
+#endif
+
+#ifdef EC200X_USING_IFCONFIG_OPS
+#include "ec200x_ifconfig.h"
+#endif
+
 #ifdef EC200X_USING_NETCONN_OPS
 #include "ec200x_netconn.h"
 #endif
@@ -73,7 +81,7 @@ typedef struct mo_ec200x
 #endif /* EC200X_USING_NETCONN_OPS */
 } mo_ec200x_t;
 
-mo_object_t *module_ec200x_create(const char *name, os_device_t *device, os_size_t recv_len);
+mo_object_t *module_ec200x_create(const char *name, void *parser_config);
 os_err_t     module_ec200x_destroy(mo_object_t *self);
 
 #endif /* MOLINK_USING_EC200X */

@@ -25,7 +25,38 @@
 				default y
 
 		endif
-		
+	menu "Select I2C port"
+		depends on OS_USING_I2C
+		config BSP_USING_I2C0
+			bool "Enable I2C0"
+			default y
+
+		config BSP_USING_I2C1
+			bool "Enable I2C1"
+			default n
+	endmenu
+    menu "Select SPI port"
+        depends on OS_USING_SPI
+        config BSP_USING_SPI0
+                bool "Enable SPI0"
+                default y
+
+        config BSP_USING_SPI1
+                bool "Enable SPI1"
+                default n
+    endmenu
+
+    menu "Select LPTIMER port"
+        depends on OS_USING_HRTIMER
+        config BSP_USING_LPTIM0
+                bool "Enable LPTIM0"
+                default y
+
+        config BSP_USING_LPTIM1
+                bool "Enable LPTIM1"
+                default n
+    endmenu
+
 	config BSP_USING_ON_CHIP_FLASH
         bool "Enable on-chip FLASH"
         select OS_USING_FAL

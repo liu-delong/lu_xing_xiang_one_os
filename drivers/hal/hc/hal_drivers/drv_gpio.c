@@ -149,6 +149,29 @@ static struct pin_index *get_pin(os_uint8_t pin)
     return index;
 };
 
+en_gpio_port_t PIN_BASE(os_base_t pin)
+{
+	struct pin_index *index;
+
+	index = get_pin(pin);
+
+	OS_ASSERT(index != OS_NULL);
+
+	return index->port;
+}
+
+en_gpio_pin_t PIN_OFFSET(os_base_t pin)
+{
+	struct pin_index *index;
+
+	index = get_pin(pin);
+
+	OS_ASSERT(index != OS_NULL);
+
+	return index->pin;
+}
+
+
 static void hc32_pin_write(struct os_device *dev, os_base_t pin, os_base_t value)
 {
     struct pin_index *index;

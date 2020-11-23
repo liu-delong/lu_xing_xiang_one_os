@@ -9,13 +9,22 @@ config NET_USING_TOOLS
 
         config MODULE_USING_IFCONFIG
             bool "Enable module ifconfig features"
+            depends on MOLINK_USING_IFCONFIG_OPS
             default y
 
         config MODULE_USING_PING
+            depends on MOLINK_USING_PING_OPS && MOLINK_USING_IFCONFIG_OPS
             bool "Enable module ping features"
             default y
 
+        if MODULE_USING_PING
+            config MO_PING_MAX_TIMES_CONFIG
+            int "The maximum times of module ping cmd config"
+            default 50
+        endif 
+
         config MODULE_USING_SOCKETSTAT
+            depends on MOLINK_USING_SOCKETS_OPS
             bool "Enable module socket stat features"
             default y
 

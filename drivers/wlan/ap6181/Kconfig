@@ -18,11 +18,5 @@ config BSP_USING_WIFI_AP6181
         config BSP_AP6181_IRQ_PIN
             int "AP6181 interrupt pin"
             default 37
-        config BSP_AP6181_THREAD_INIT
-            bool "Using Thread Initialize WiFi"
-            default n
-        config BSP_AP6181_AUTO_INIT
-            bool "Using WiFi Automatically Initialization"
-            default y
     endif
     

@@ -1,0 +1,68 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+pwd     = PresentDir()
+src     = []
+
+if IsDefined(['OS_KEY_DEMO']):
+    src += ['key_test.c']
+
+if IsDefined(['OS_RTC_DEMO']):
+    src += ['rtc_test.c']
+
+if IsDefined(['OS_WDG_DEMO']):
+    src += ['wdg_test.c']
+
+if IsDefined(['OS_WWDG_DEMO']):
+    src += ['wwdg_test.c']
+
+if IsDefined(['OS_CLOCK_DEMO']):
+    if IsDefined(['OS_USING_CLOCKSOURCE']):
+        src += ['clocksource_test.c']
+
+    if IsDefined(['OS_USING_CLOCKEVENT']):
+        src += ['clockevent_test.c']
+
+    if IsDefined(['OS_USING_HRTIMER']):
+        src += ['hrtimer_test.c']
+
+if IsDefined(['OS_ADC_DEMO']):
+    src += ['adc_test.c']
+
+if IsDefined(['OS_DAC_DEMO']):
+    src += ['dac_test.c']
+
+if IsDefined(['OS_PWM_DEMO']):
+    src += ['pwm_test.c']
+
+if IsDefined(['OS_PULSE_ENCODER_DEMO']):
+    src += ['pulse_encoder_test.c']
+
+if IsDefined(['OS_UART_DEMO']):
+    src += ['serial_test.c']
+
+if IsDefined(['OS_SENSORS_DEMO']):
+    src += ['sensor_acce_test.c']
+    src += ['sensor_alti_test.c']
+    src += ['sensor_baro_test.c']
+    src += ['sensor_gyro_test.c']
+    src += ['sensor_humi_test.c']
+    src += ['sensor_light_test.c']
+    src += ['sensor_temp_test.c']
+
+if IsDefined(['OS_INFRARED_DEMO']):
+    src += ['infrared_test.c']
+
+if IsDefined(['OS_FAL_TEST_DEMO']):
+    src += ['fal_test.c']
+
+if IsDefined(['OS_REQUSR_LPMGR_DEMO']):
+    src += ['lpmgr_requst_test.c']
+    
+if IsDefined(['OS_GUI_DEMO']):
+    src += ['gui_test.c']
+    
+group = AddCodeGroup('driver_test', src, depend = ['OS_USING_DRIVERS_SAMPLES'], CPPPATH = [pwd])
+
+Return('group')

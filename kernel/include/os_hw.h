@@ -26,6 +26,8 @@
 
 #include <oneos_config.h>
 #include <os_types.h>
+#include <os_task.h>
+
 
 #ifdef __cplusplus
 extern "C" {

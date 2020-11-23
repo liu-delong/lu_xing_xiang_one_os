@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2020 NXP
  * All rights reserved.
- * 
+ *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
@@ -23,8 +23,8 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief FlexIO SPI driver version 2.1.3. */
-#define FSL_FLEXIO_SPI_DRIVER_VERSION (MAKE_VERSION(2, 1, 3))
+/*! @brief FlexIO SPI driver version 2.2.0. */
+#define FSL_FLEXIO_SPI_DRIVER_VERSION (MAKE_VERSION(2, 2, 0))
 /*@}*/
 
 #ifndef FLEXIO_SPI_DUMMYDATA
@@ -32,21 +32,28 @@
 #define FLEXIO_SPI_DUMMYDATA (0xFFFFU)
 #endif
 
+/*! @brief Retry times for waiting flag. */
+#ifndef SPI_RETRY_TIMES
+#define SPI_RETRY_TIMES 0U /* Define to zero means keep waiting until the flag is assert/deassert. */
+#endif
+
 /*! @brief Error codes for the FlexIO SPI driver. */
-enum _flexio_spi_status
+enum
 {
-    kStatus_FLEXIO_SPI_Busy = MAKE_STATUS(kStatusGroup_FLEXIO_SPI, 1),  /*!< FlexIO SPI is busy. */
-    kStatus_FLEXIO_SPI_Idle = MAKE_STATUS(kStatusGroup_FLEXIO_SPI, 2),  /*!< SPI is idle */
+    kStatus_FLEXIO_SPI_Busy  = MAKE_STATUS(kStatusGroup_FLEXIO_SPI, 1), /*!< FlexIO SPI is busy. */
+    kStatus_FLEXIO_SPI_Idle  = MAKE_STATUS(kStatusGroup_FLEXIO_SPI, 2), /*!< SPI is idle */
     kStatus_FLEXIO_SPI_Error = MAKE_STATUS(kStatusGroup_FLEXIO_SPI, 3), /*!< FlexIO SPI error. */
+    kStatus_FLEXIO_SPI_Timeout =
+        MAKE_STATUS(kStatusGroup_FLEXIO_SPI, 4), /*!< FlexIO SPI timeout polling status flags. */
 };
 
 /*! @brief FlexIO SPI clock phase configuration. */
 typedef enum _flexio_spi_clock_phase
 {
     kFLEXIO_SPI_ClockPhaseFirstEdge = 0x0U,  /*!< First edge on SPSCK occurs at the middle of the first
-                                   *   cycle of a data transfer. */
+                                              *   cycle of a data transfer. */
     kFLEXIO_SPI_ClockPhaseSecondEdge = 0x1U, /*!< First edge on SPSCK occurs at the start of the
-                                   *   first cycle of a data transfer. */
+                                              *   first cycle of a data transfer. */
 } flexio_spi_clock_phase_t;
 
 /*! @brief FlexIO SPI data shifter direction options. */
@@ -59,7 +66,7 @@ typedef enum _flexio_spi_shift_direction
 /*! @brief FlexIO SPI data length mode options. */
 typedef enum _flexio_spi_data_bitcount_mode
 {
-    kFLEXIO_SPI_8BitMode = 0x08U,  /*!< 8-bit data transmission mode. */
+    kFLEXIO_SPI_8BitMode  = 0x08U, /*!< 8-bit data transmission mode. */
     kFLEXIO_SPI_16BitMode = 0x10U, /*!< 16-bit data transmission mode. */
 } flexio_spi_data_bitcount_mode_t;
 
@@ -67,29 +74,29 @@ typedef enum _flexio_spi_data_bitcount_mode
 enum _flexio_spi_interrupt_enable
 {
     kFLEXIO_SPI_TxEmptyInterruptEnable = 0x1U, /*!< Transmit buffer empty interrupt enable. */
-    kFLEXIO_SPI_RxFullInterruptEnable = 0x2U,  /*!< Receive buffer full interrupt enable. */
+    kFLEXIO_SPI_RxFullInterruptEnable  = 0x2U, /*!< Receive buffer full interrupt enable. */
 };
 
 /*! @brief Define FlexIO SPI status mask. */
 enum _flexio_spi_status_flags
 {
     kFLEXIO_SPI_TxBufferEmptyFlag = 0x1U, /*!< Transmit buffer empty flag. */
-    kFLEXIO_SPI_RxBufferFullFlag = 0x2U,  /*!< Receive buffer full flag. */
+    kFLEXIO_SPI_RxBufferFullFlag  = 0x2U, /*!< Receive buffer full flag. */
 };
 
 /*! @brief Define FlexIO SPI DMA mask. */
 enum _flexio_spi_dma_enable
 {
-    kFLEXIO_SPI_TxDmaEnable = 0x1U,  /*!< Tx DMA request source */
-    kFLEXIO_SPI_RxDmaEnable = 0x2U,  /*!< Rx DMA request source */
+    kFLEXIO_SPI_TxDmaEnable  = 0x1U, /*!< Tx DMA request source */
+    kFLEXIO_SPI_RxDmaEnable  = 0x2U, /*!< Rx DMA request source */
     kFLEXIO_SPI_DmaAllEnable = 0x3U, /*!< All DMA request source*/
 };
 
 /*! @brief Define FlexIO SPI transfer flags. */
 enum _flexio_spi_transfer_flags
 {
-    kFLEXIO_SPI_8bitMsb = 0x1U,  /*!< FlexIO SPI 8-bit MSB first */
-    kFLEXIO_SPI_8bitLsb = 0x2U,  /*!< FlexIO SPI 8-bit LSB first */
+    kFLEXIO_SPI_8bitMsb  = 0x1U, /*!< FlexIO SPI 8-bit MSB first */
+    kFLEXIO_SPI_8bitLsb  = 0x2U, /*!< FlexIO SPI 8-bit LSB first */
     kFLEXIO_SPI_16bitMsb = 0x9U, /*!< FlexIO SPI 16-bit MSB first */
     kFLEXIO_SPI_16bitLsb = 0xaU, /*!< FlexIO SPI 16-bit LSB first */
 };
@@ -194,7 +201,11 @@ extern "C" {
  * configuration structure can be filled by the user, or be set with default values
  * by the FLEXIO_SPI_MasterGetDefaultConfig().
  *
- * @note FlexIO SPI master only support CPOL = 0, which means clock inactive low.
+ * @note 1.FlexIO SPI master only support CPOL = 0, which means clock inactive low.
+ *      2.For FlexIO SPI master, the input valid time is 1.5 clock cycles, for slave the output valid time
+ *        is 2.5 clock cycles. So if FlexIO SPI master communicates with other spi IPs, the maximum baud
+ *        rate is FlexIO clock frequency divided by 2*2=4. If FlexIO SPI master communicates with FlexIO
+ *        SPI slave, the maximum baud rate is FlexIO clock frequency divided by (1.5+2.5)*2=8.
  *
  * Example
    @code
@@ -230,7 +241,7 @@ void FLEXIO_SPI_MasterInit(FLEXIO_SPI_Type *base, flexio_spi_master_config_t *ma
  * @brief Resets the FlexIO SPI timer and shifter config.
  *
  * @param base Pointer to the FLEXIO_SPI_Type.
-*/
+ */
 void FLEXIO_SPI_MasterDeinit(FLEXIO_SPI_Type *base);
 
 /*!
@@ -251,8 +262,12 @@ void FLEXIO_SPI_MasterGetDefaultConfig(flexio_spi_master_config_t *masterConfig)
  * configuration structure can be filled by the user, or be set with default values
  * by the FLEXIO_SPI_SlaveGetDefaultConfig().
  *
- * @note Only one timer is needed in the FlexIO SPI slave. As a result, the second timer index is ignored.
- * FlexIO SPI slave only support CPOL = 0, which means clock inactive low.
+ * @note 1.Only one timer is needed in the FlexIO SPI slave. As a result, the second timer index is ignored.
+ *      2.FlexIO SPI slave only support CPOL = 0, which means clock inactive low.
+ *      3.For FlexIO SPI master, the input valid time is 1.5 clock cycles, for slave the output valid time
+ *        is 2.5 clock cycles. So if FlexIO SPI slave communicates with other spi IPs, the maximum baud
+ *        rate is FlexIO clock frequency divided by 3*2=6. If FlexIO SPI slave communicates with FlexIO
+ *        SPI master, the maximum baud rate is FlexIO clock frequency divided by (1.5+2.5)*2=8.
  * Example
    @code
    FLEXIO_SPI_Type spiDev = {
@@ -284,7 +299,7 @@ void FLEXIO_SPI_SlaveInit(FLEXIO_SPI_Type *base, flexio_spi_slave_config_t *slav
  * @brief Gates the FlexIO clock.
  *
  * @param base Pointer to the FLEXIO_SPI_Type.
-*/
+ */
 void FLEXIO_SPI_SlaveDeinit(FLEXIO_SPI_Type *base);
 
 /*!
@@ -313,7 +328,7 @@ void FLEXIO_SPI_SlaveGetDefaultConfig(flexio_spi_slave_config_t *slaveConfig);
  * @return status flag; Use the status flag to AND the following flag mask and get the status.
  *          @arg kFLEXIO_SPI_TxEmptyFlag
  *          @arg kFLEXIO_SPI_RxEmptyFlag
-*/
+ */
 
 uint32_t FLEXIO_SPI_GetStatusFlags(FLEXIO_SPI_Type *base);
 
@@ -325,7 +340,7 @@ uint32_t FLEXIO_SPI_GetStatusFlags(FLEXIO_SPI_Type *base);
  *      The parameter can be any combination of the following values:
  *          @arg kFLEXIO_SPI_TxEmptyFlag
  *          @arg kFLEXIO_SPI_RxEmptyFlag
-*/
+ */
 
 void FLEXIO_SPI_ClearStatusFlags(FLEXIO_SPI_Type *base, uint32_t mask);
 
@@ -435,7 +450,7 @@ static inline uint32_t FLEXIO_SPI_GetRxDataRegisterAddress(FLEXIO_SPI_Type *base
  *
  * @param base Pointer to the FLEXIO_SPI_Type.
  * @param enable True to enable, false does not have any effect.
-*/
+ */
 static inline void FLEXIO_SPI_Enable(FLEXIO_SPI_Type *base, bool enable)
 {
     if (enable)
@@ -490,11 +505,11 @@ static inline uint16_t FLEXIO_SPI_ReadData(FLEXIO_SPI_Type *base, flexio_spi_shi
 {
     if (direction == kFLEXIO_SPI_MsbFirst)
     {
-        return base->flexioBase->SHIFTBUFBIS[base->shifterIndex[1]];
+        return (uint16_t)(base->flexioBase->SHIFTBUFBIS[base->shifterIndex[1]]);
     }
     else
     {
-        return base->flexioBase->SHIFTBUFBYS[base->shifterIndex[1]];
+        return (uint16_t)(base->flexioBase->SHIFTBUFBYS[base->shifterIndex[1]]);
     }
 }
 
@@ -507,11 +522,13 @@ static inline uint16_t FLEXIO_SPI_ReadData(FLEXIO_SPI_Type *base, flexio_spi_shi
  * @param direction Shift direction of MSB first or LSB first.
  * @param buffer The data bytes to send.
  * @param size The number of data bytes to send.
+ * @retval kStatus_Success Successfully create the handle.
+ * @retval kStatus_FLEXIO_SPI_Timeout The transfer timed out and was aborted.
  */
-void FLEXIO_SPI_WriteBlocking(FLEXIO_SPI_Type *base,
-                              flexio_spi_shift_direction_t direction,
-                              const uint8_t *buffer,
-                              size_t size);
+status_t FLEXIO_SPI_WriteBlocking(FLEXIO_SPI_Type *base,
+                                  flexio_spi_shift_direction_t direction,
+                                  const uint8_t *buffer,
+                                  size_t size);
 
 /*!
  * @brief Receives a buffer of bytes.
@@ -523,11 +540,13 @@ void FLEXIO_SPI_WriteBlocking(FLEXIO_SPI_Type *base,
  * @param buffer The buffer to store the received bytes.
  * @param size The number of data bytes to be received.
  * @param direction Shift direction of MSB first or LSB first.
+ * @retval kStatus_Success Successfully create the handle.
+ * @retval kStatus_FLEXIO_SPI_Timeout The transfer timed out and was aborted.
  */
-void FLEXIO_SPI_ReadBlocking(FLEXIO_SPI_Type *base,
-                             flexio_spi_shift_direction_t direction,
-                             uint8_t *buffer,
-                             size_t size);
+status_t FLEXIO_SPI_ReadBlocking(FLEXIO_SPI_Type *base,
+                                 flexio_spi_shift_direction_t direction,
+                                 uint8_t *buffer,
+                                 size_t size);
 
 /*!
  * @brief Receives a buffer of bytes.
@@ -536,8 +555,10 @@ void FLEXIO_SPI_ReadBlocking(FLEXIO_SPI_Type *base,
  *
  * @param base pointer to FLEXIO_SPI_Type structure
  * @param xfer FlexIO SPI transfer structure, see #flexio_spi_transfer_t.
+ * @retval kStatus_Success Successfully create the handle.
+ * @retval kStatus_FLEXIO_SPI_Timeout The transfer timed out and was aborted.
  */
-void FLEXIO_SPI_MasterTransferBlocking(FLEXIO_SPI_Type *base, flexio_spi_transfer_t *xfer);
+status_t FLEXIO_SPI_MasterTransferBlocking(FLEXIO_SPI_Type *base, flexio_spi_transfer_t *xfer);
 
 /*Transactional APIs*/
 

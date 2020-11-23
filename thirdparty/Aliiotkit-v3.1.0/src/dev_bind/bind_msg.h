@@ -4,7 +4,7 @@
 
 #ifndef __BIND_MSG_H__
 #define __BIND_MSG_H__
-#include <memory.h>
+#include <os_memory.h>
 #include "bind_utils.h"
 
 #define BIND_NOTIFY_PORT           5683

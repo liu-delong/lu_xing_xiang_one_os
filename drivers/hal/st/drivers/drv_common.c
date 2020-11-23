@@ -28,43 +28,35 @@
 #include <os_clock.h>
 #include <os_hw.h>
 #include <os_memory.h>
+#include <os_dma.h>
 #include "drv_common.h"
 #include "board.h"
 #include "drv_gpio.h"
 #include "drv_sdram.h"
+
+#ifdef OS_USING_CLOCKSOURCE
 #include <timer/clocksource.h>
 #include <timer/clocksource_cortexm.h>
+#endif
+
 #include <timer/hrtimer.h>
 #ifdef OS_USING_FAL
 #include <fal_cfg.h>
 #endif
 
-static os_bool_t hardware_init_done = OS_FALSE;
+static volatile os_bool_t hardware_init_done = OS_FALSE;
+
+static uint32_t mult_systick2msec = 1;
+static uint32_t shift_systick2msec = 0;
 
 extern __IO uint32_t uwTick;
 
 uint32_t HAL_GetTick(void)
 {
-    if (hardware_init_done)
-    {
-        return os_clocksource_gettime() / NSEC_PER_MSEC;
-    }
-    else
-    {
-        return uwTick;
-    }
+    return (os_uint64_t)uwTick * mult_systick2msec >> shift_systick2msec;
 }
 
-#ifndef OS_USING_HRTIMER_FOR_SYSTICK
-static void os_tick_handler(void)
-{
-    os_interrupt_enter();
-    os_tick_increase();
-    os_clocksource_update();
-    os_interrupt_leave();
-}
-
-void cortexm_systick_init(void)
+OS_WEAK void cortexm_systick_init(void)
 {
     /* systick for kernel tick */
     SysTick->LOAD  = SystemCoreClock / OS_TICK_PER_SECOND;      /* set reload register */
@@ -72,16 +64,25 @@ void cortexm_systick_init(void)
     SysTick->CTRL |= 3;
 }
 
+void os_tick_handler(void)
+{
+    uwTick++;
+    os_interrupt_enter();
+    os_tick_increase();
+#ifdef OS_USING_CLOCKSOURCE
+    os_clocksource_update();
 #endif
+    os_interrupt_leave();
+}
 
 void HAL_IncTick(void)
 {
-    uwTick++;
-    
-#ifndef OS_USING_HRTIMER_FOR_SYSTICK
-    os_tick_handler();
-#else
+#ifdef OS_USING_HRTIMER_FOR_SYSTICK
+    if (!hardware_init_done)
+        uwTick++;
     cortexm_systick_isr();
+#else
+    os_tick_handler();
 #endif
 }
 
@@ -92,6 +93,11 @@ void _Error_Handler(char *s, int num)
 }
 
 int hardware_init(void);
+
+static void cacl_systick2msec(void)
+{
+    calc_mult_shift(&mult_systick2msec, &shift_systick2msec, OS_TICK_PER_SECOND, 1000, 1);
+}
 
 /**
  ***********************************************************************************************************************
@@ -129,6 +135,8 @@ void os_hw_board_init()
 
     hardware_init_done = OS_FALSE;
 
+    cacl_systick2msec();
+
     os_hw_interrupt_enable(0);
 
     hardware_init();
@@ -136,8 +144,6 @@ void os_hw_board_init()
     HAL_SuspendTick();
 
     os_hw_interrupt_disable();
-
-    hardware_init_done = OS_TRUE;
 
     /* hardware init end, disable irq */
 
@@ -155,6 +161,8 @@ void os_hw_board_init()
     os_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
 #endif
 
+    os_dma_mem_init();
+
 #if defined(OS_USING_CLOCKSOURCE_CORTEXM) && defined(DWT)
     cortexm_dwt_init();
 #endif
@@ -162,5 +170,7 @@ void os_hw_board_init()
     os_board_auto_init();
 
     cortexm_systick_init();
+    
+    hardware_init_done = OS_TRUE;
 }
 

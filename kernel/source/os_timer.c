@@ -894,7 +894,7 @@ os_err_t sh_list_timer(os_int32_t argc, char **argv)
     return sh_list_timer_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_timer, sh_list_timer, "list timer");
+SH_CMD_EXPORT(timer, sh_list_timer, "show timer information");
 
 #endif
 

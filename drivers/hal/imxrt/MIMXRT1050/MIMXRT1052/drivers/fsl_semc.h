@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2019 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -20,25 +20,26 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief SEMC driver version 2.0.4. */
-#define FSL_SEMC_DRIVER_VERSION (MAKE_VERSION(2, 0, 4))
+/*! @brief SEMC driver version 2.1.0. */
+#define FSL_SEMC_DRIVER_VERSION (MAKE_VERSION(2, 1, 0))
 /*@}*/
 
 /*! @brief SEMC status. */
-enum _semc_status
+enum
 {
-    kStatus_SEMC_InvalidDeviceType = MAKE_STATUS(kStatusGroup_SEMC, 0),
-    kStatus_SEMC_IpCommandExecutionError = MAKE_STATUS(kStatusGroup_SEMC, 1),
-    kStatus_SEMC_AxiCommandExecutionError = MAKE_STATUS(kStatusGroup_SEMC, 2),
-    kStatus_SEMC_InvalidMemorySize = MAKE_STATUS(kStatusGroup_SEMC, 3),
-    kStatus_SEMC_InvalidIpcmdDataSize = MAKE_STATUS(kStatusGroup_SEMC, 4),
-    kStatus_SEMC_InvalidAddressPortWidth = MAKE_STATUS(kStatusGroup_SEMC, 5),
-    kStatus_SEMC_InvalidDataPortWidth = MAKE_STATUS(kStatusGroup_SEMC, 6),
-    kStatus_SEMC_InvalidSwPinmuxSelection = MAKE_STATUS(kStatusGroup_SEMC, 7),
-    kStatus_SEMC_InvalidBurstLength = MAKE_STATUS(kStatusGroup_SEMC, 8),
-    kStatus_SEMC_InvalidColumnAddressBitWidth = MAKE_STATUS(kStatusGroup_SEMC, 9),
-    kStatus_SEMC_InvalidBaseAddress = MAKE_STATUS(kStatusGroup_SEMC, 10),
-    kStatus_SEMC_InvalidTimerSetting = MAKE_STATUS(kStatusGroup_SEMC, 11),
+    kStatus_SEMC_InvalidDeviceType        = MAKE_STATUS(kStatusGroup_SEMC, 0), /*!< Invalid device type. */
+    kStatus_SEMC_IpCommandExecutionError  = MAKE_STATUS(kStatusGroup_SEMC, 1), /*!< IP command execution error. */
+    kStatus_SEMC_AxiCommandExecutionError = MAKE_STATUS(kStatusGroup_SEMC, 2), /*!< Axi command execution error. */
+    kStatus_SEMC_InvalidMemorySize        = MAKE_STATUS(kStatusGroup_SEMC, 3), /*!< Invalid memory size. */
+    kStatus_SEMC_InvalidIpcmdDataSize     = MAKE_STATUS(kStatusGroup_SEMC, 4), /*!< Invalid IP command data size. */
+    kStatus_SEMC_InvalidAddressPortWidth  = MAKE_STATUS(kStatusGroup_SEMC, 5), /*!< Invalid address port width. */
+    kStatus_SEMC_InvalidDataPortWidth     = MAKE_STATUS(kStatusGroup_SEMC, 6), /*!< Invalid data port width. */
+    kStatus_SEMC_InvalidSwPinmuxSelection = MAKE_STATUS(kStatusGroup_SEMC, 7), /*!< Invalid SW pin mux selection. */
+    kStatus_SEMC_InvalidBurstLength       = MAKE_STATUS(kStatusGroup_SEMC, 8), /*!< Invalid burst length. */
+    kStatus_SEMC_InvalidColumnAddressBitWidth =
+        MAKE_STATUS(kStatusGroup_SEMC, 9),                                 /*!< Invalid column address bit width. */
+    kStatus_SEMC_InvalidBaseAddress  = MAKE_STATUS(kStatusGroup_SEMC, 10), /*!< Invalid base address. */
+    kStatus_SEMC_InvalidTimerSetting = MAKE_STATUS(kStatusGroup_SEMC, 11), /*!< Invalid timer setting. */
 };
 
 /*! @brief SEMC memory device type. */
@@ -78,7 +79,7 @@ typedef enum _semc_nand_access_type
 typedef enum _semc_interrupt_enable
 {
     kSEMC_IPCmdDoneInterrupt = SEMC_INTEN_IPCMDDONEEN_MASK, /*!< Ip command done interrupt. */
-    kSEMC_IPCmdErrInterrupt = SEMC_INTEN_IPCMDERREN_MASK,   /*!< Ip command error interrupt. */
+    kSEMC_IPCmdErrInterrupt  = SEMC_INTEN_IPCMDERREN_MASK,  /*!< Ip command error interrupt. */
     kSEMC_AXICmdErrInterrupt = SEMC_INTEN_AXICMDERREN_MASK, /*!< AXI command error interrupt. */
     kSEMC_AXIBusErrInterrupt = SEMC_INTEN_AXIBUSERREN_MASK  /*!< AXI bus error interrupt. */
 } semc_interrupt_enable_t;
@@ -210,20 +211,20 @@ typedef enum _semc_dbi_burst_len
 /*! @brief SEMC IOMUXC. */
 typedef enum _semc_iomux_pin
 {
-    kSEMC_MUXA8 = SEMC_IOCR_MUX_A8_SHIFT,     /*!< MUX A8 pin. */
+    kSEMC_MUXA8   = SEMC_IOCR_MUX_A8_SHIFT,   /*!< MUX A8 pin. */
     kSEMC_MUXCSX0 = SEMC_IOCR_MUX_CSX0_SHIFT, /*!< MUX CSX0 pin */
     kSEMC_MUXCSX1 = SEMC_IOCR_MUX_CSX1_SHIFT, /*!< MUX CSX1 Pin.*/
     kSEMC_MUXCSX2 = SEMC_IOCR_MUX_CSX2_SHIFT, /*!< MUX CSX2 Pin. */
     kSEMC_MUXCSX3 = SEMC_IOCR_MUX_CSX3_SHIFT, /*!< MUX CSX3 Pin. */
-    kSEMC_MUXRDY = SEMC_IOCR_MUX_RDY_SHIFT    /*!< MUX RDY pin. */
+    kSEMC_MUXRDY  = SEMC_IOCR_MUX_RDY_SHIFT   /*!< MUX RDY pin. */
 } semc_iomux_pin;
 
 /*! @brief SEMC NOR/PSRAM Address bit 27 A27. */
 typedef enum _semc_iomux_nora27_pin
 {
-    kSEMC_MORA27_NONE = 0,                           /*!< No NOR/SRAM A27 pin. */
+    kSEMC_MORA27_NONE    = 0,                        /*!< No NOR/SRAM A27 pin. */
     kSEMC_NORA27_MUXCSX3 = SEMC_IOCR_MUX_CSX3_SHIFT, /*!< MUX CSX3 Pin. */
-    kSEMC_NORA27_MUXRDY = SEMC_IOCR_MUX_RDY_SHIFT    /*!< MUX RDY pin. */
+    kSEMC_NORA27_MUXRDY  = SEMC_IOCR_MUX_RDY_SHIFT   /*!< MUX RDY pin. */
 } semc_iomux_nora27_pin;
 
 /*! @brief SEMC port size. */
@@ -700,7 +701,7 @@ static inline void SEMC_DisableInterrupts(SEMC_Type *base, uint32_t mask)
  */
 static inline bool SEMC_GetStatusFlag(SEMC_Type *base)
 {
-    return base->INTR;
+    return (base->INTR == 0x00U) ? false : true;
 }
 
 /*!
@@ -731,7 +732,7 @@ static inline void SEMC_ClearStatusFlags(SEMC_Type *base, uint32_t mask)
  */
 static inline bool SEMC_IsInIdle(SEMC_Type *base)
 {
-    return (base->STS0 & SEMC_STS0_IDLE_MASK) ? true : false;
+    return ((base->STS0 & SEMC_STS0_IDLE_MASK) != 0x00U) ? true : false;
 }
 
 /*!
@@ -749,7 +750,7 @@ static inline bool SEMC_IsInIdle(SEMC_Type *base)
  * @param read   Data pointer for read data out.
  */
 status_t SEMC_SendIPCommand(
-    SEMC_Type *base, semc_mem_type_t type, uint32_t address, uint16_t command, uint32_t write, uint32_t *read);
+    SEMC_Type *base, semc_mem_type_t type, uint32_t address, uint32_t command, uint32_t write, uint32_t *read);
 
 /*!
  * @brief Build SEMC IP command for NAND.
@@ -765,7 +766,7 @@ static inline uint16_t SEMC_BuildNandIPCommand(uint8_t userCommand,
                                                semc_ipcmd_nand_addrmode_t addrMode,
                                                semc_ipcmd_nand_cmdmode_t cmdMode)
 {
-    return (uint16_t)((uint16_t)userCommand << 8) | (uint16_t)(addrMode << 4) | ((uint8_t)cmdMode & 0x0Fu);
+    return ((uint16_t)userCommand << 8U) | ((uint16_t)addrMode << 4U) | ((uint16_t)cmdMode & 0x000FU);
 }
 
 /*!
@@ -776,7 +777,7 @@ static inline uint16_t SEMC_BuildNandIPCommand(uint8_t userCommand,
  */
 static inline bool SEMC_IsNandReady(SEMC_Type *base)
 {
-    return (base->STS0 & SEMC_STS0_NARDY_MASK) ? true : false;
+    return ((base->STS0 & SEMC_STS0_NARDY_MASK) != 0x00U) ? true : false;
 }
 
 /*!

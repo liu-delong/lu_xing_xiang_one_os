@@ -1,0 +1,36 @@
+import os
+import osconfig
+from build_tools import *
+
+sys.path.append(Env['OS_ROOT'] + '/drivers/hal/gd/scripts/')
+
+pwd = PresentDir()
+LIBS    = []
+LIBPATH = []
+
+# add general drivers
+src = Split('''
+board.c
+CubeMX_Config/Src/gd32f30x_it.c
+CubeMX_Config/Src/system_gd32f30x.c
+''')
+
+# path   include path in project
+path =  [pwd]
+path += [pwd + '/ports']
+path += [pwd + '/../../../drivers/hal/gd/GD32F30x_HAL/GD32F30x_standard_peripheral/Include']
+path += [pwd + '/../../../drivers/hal/gd/GD32F30x_HAL/CMSIS/GD/GD32F30x/Include']
+path += [pwd + '/CubeMX_Config/Inc']
+path += [pwd + '/../../../drivers/hal/gd/GD32F30x_HAL/CMSIS']
+
+if osconfig.CROSS_TOOL == 'gcc':
+    src += [pwd + '/startup/startup_gd32f30x_hd_gcc.s']
+elif osconfig.CROSS_TOOL == 'keil':
+    src += [pwd + '/startup/startup_gd32f30x_hd_arm.s']
+elif osconfig.CROSS_TOOL == 'iar':
+    src += [pwd + '/startup/startup_gd32f30x_hd_iar.s']
+
+CPPDEFINES = ['GD32F30X_HD'] 
+group = AddCodeGroup('bsp', src, depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

@@ -80,10 +80,8 @@ struct os_audio_ops
     os_err_t (*init)(struct os_audio_device *audio);
     os_err_t (*start)(struct os_audio_device *audio);
     os_err_t (*stop)(struct os_audio_device *audio);
-    os_size_t (*transmit)(struct os_audio_device *audio, const void *writeBuf, void *readBuf, os_size_t size);
-    /* get page size of codec or private buffer's info */
-    void (*buffer_info)(struct os_audio_device *audio, struct os_audio_buf_info *info);
-    void (*frame_tx_complete)(struct os_audio_device *audio);
+    os_size_t (*transmit)(struct os_audio_device *audio, const void *writeBuf, os_size_t size);
+    os_size_t (*receive)(struct os_audio_device *audio, void *readBuf, os_size_t size);
 };
 
 struct os_audio_configure
@@ -107,15 +105,8 @@ struct os_audio_caps
 struct os_audio_replay
 {
     struct os_mempool *mp;
-    struct os_data_queue queue;
     struct os_mutex lock;
-    struct os_completion cmp;
-    struct os_audio_buf_info buf_info;
     os_uint8_t *write_data;
-    os_uint16_t write_index;
-    os_uint16_t read_index;
-    os_uint32_t pos;
-    os_uint8_t event;
     os_bool_t activated;
 };
 
@@ -135,7 +126,7 @@ struct os_audio_device
 
 os_err_t    os_audio_player_register(struct os_audio_device *audio, const char *name, os_uint32_t flag, void *data);
 os_err_t    os_audio_recorder_register(struct os_audio_device *audio, const char *name, os_uint32_t flag, void *data);
-void        os_audio_tx_complete(struct os_audio_device *audio);
+os_err_t    os_audio_tx_complete(struct os_audio_device *audio);
 void        os_audio_rx_done(struct os_audio_device *audio, os_uint8_t *pbuf, os_size_t len);
 
 #define CODEC_STANDARD                0x04
@@ -144,8 +135,16 @@ void        os_audio_rx_done(struct os_audio_device *audio, os_uint8_t *pbuf, os
 #define CODEC_VOLUME_MAX            (63)
 
 /* Device Memory Information */
-#define OS_AUDIO_REPLAY_MP_BLOCK_SIZE 4096
-#define OS_AUDIO_REPLAY_MP_BLOCK_COUNT 2
+#ifndef OS_AUDIO_REPLAY_MP_BLOCK_SIZE
+#define OS_AUDIO_REPLAY_MP_BLOCK_SIZE 2048
+#endif
+
+#ifndef OS_AUDIO_REPLAY_MP_BLOCK_COUNT
+#define OS_AUDIO_REPLAY_MP_BLOCK_COUNT 4
+#endif
+
+#ifndef OS_AUDIO_RECORD_PIPE_SIZE
 #define OS_AUDIO_RECORD_PIPE_SIZE 2048
+#endif
 
 #endif /* __AUDIO_H__ */

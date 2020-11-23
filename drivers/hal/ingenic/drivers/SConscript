@@ -1,0 +1,22 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+pwd = PresentDir()
+
+# add the general drivers.
+src = Split("""
+""")
+
+src += ['drv_common.c']
+src += ['drv_clock.c']
+src += ['drv_ost.c']
+
+if IsDefined(['OS_USING_SERIAL']):
+    src += ['drv_usart.c']
+
+path =  [pwd]
+
+group = AddCodeGroup('hal/drivers', src, depend = ['SOC_INGENIC_X1000E'], CPPPATH = path)
+
+Return('group')

@@ -38,25 +38,25 @@ static os_err_t os_graphic_control(os_device_t *device, int cmd, void *args)
     graphic = (os_device_graphic_t *)device;
 
     switch (cmd)
-    {
+    {        
     case OS_GRAPHIC_CTRL_RECT_UPDATE:
         if (graphic->ops->update)
         {
-            graphic->ops->update((struct os_device_rect_info *)args);
+            graphic->ops->update(device, (struct os_device_rect_info *)args);
         }
         break;
 
     case OS_GRAPHIC_CTRL_POWERON:
         if (graphic->ops->display_on)
         {
-            graphic->ops->display_on(OS_TRUE);
+            graphic->ops->display_on(device, OS_TRUE);
         }
         break;
 
     case OS_GRAPHIC_CTRL_POWEROFF:
         if (graphic->ops->display_on)
         {
-            graphic->ops->display_on(OS_FALSE);
+            graphic->ops->display_on(device, OS_FALSE);
         }
         break;
 
@@ -69,18 +69,42 @@ static os_err_t os_graphic_control(os_device_t *device, int cmd, void *args)
 
     case OS_GRAPHIC_CTRL_GET_EXT:
         break;
+
+    case OS_GRAPHIC_CTRL_SET_PIXEL:
+        if (graphic->ops->set_pixel)
+        {
+            struct os_graphic_pixel *pixel = (struct os_graphic_pixel *)args;
+            graphic->ops->set_pixel(device, pixel->pixel, pixel->x, pixel->y);
+        }
+        break;
+
+    case OS_GRAPHIC_CTRL_FILL:
+        if (graphic->ops->fill)
+        {
+            graphic->ops->fill(device, (struct os_device_rect_info *)args);
+        }
+        break;
     }
 
     return OS_EOK;
 }
+
+const static struct os_device_ops graphic_ops = {
+    OS_NULL,
+    OS_NULL,
+    OS_NULL,
+    OS_NULL,
+    OS_NULL,
+    os_graphic_control,
+};
 
 void os_graphic_register(const char *name, os_device_graphic_t *graphic)
 {
     OS_ASSERT(graphic != OS_NULL);
     OS_ASSERT(graphic->ops != OS_NULL);
 
-    graphic->parent.type  = OS_DEVICE_TYPE_GRAPHIC;
-    graphic->parent.control = os_graphic_control;
+    graphic->parent.type = OS_DEVICE_TYPE_GRAPHIC;
+    graphic->parent.ops  = &graphic_ops;
     os_device_register(&graphic->parent, name, OS_DEVICE_FLAG_STANDALONE);
 }
 
@@ -88,108 +112,120 @@ void os_graphic_register(const char *name, os_device_graphic_t *graphic)
 
 #include <shell.h>
 
+static int graphic_fill(os_device_graphic_t *graphic, os_int32_t color)
+{
+    int i, y;
+    os_int8_t  *line_buff;
+    os_int8_t  *line_buff_8;
+    os_int16_t *line_buff_16;
+    os_int32_t *line_buff_32;
+
+    line_buff = os_malloc((graphic->info.bits_per_pixel / 8) * graphic->info.width);
+    if (line_buff == OS_NULL)
+    {
+        os_kprintf("graphic test malloc failed\r\n");
+        return -1;
+    }
+
+    line_buff_8  = (os_int8_t  *)line_buff;
+    line_buff_16 = (os_int16_t *)line_buff;
+    line_buff_32 = (os_int32_t *)line_buff;
+
+    if (graphic->info.bits_per_pixel == 32)
+    {
+        for (i = 0; i < graphic->info.width; i++)
+            *line_buff_32++ = color;
+    }
+    else if (graphic->info.bits_per_pixel == 16)
+    {
+        for (i = 0; i < graphic->info.width; i++)
+            *line_buff_16++ = color;
+    }
+    else if (graphic->info.bits_per_pixel == 8)
+    {
+        memset(line_buff_8, color, graphic->info.width);
+    }
+    else
+    {
+        os_kprintf("graphic test invalid pixel %d.\r\n", graphic->info.bits_per_pixel);
+        os_free(line_buff);
+        return -1;
+    }
+        
+    for (y = 0; y < graphic->info.height; y++)
+    {
+        struct os_device_rect_info rect;
+
+        rect.x = 0;
+        rect.width = graphic->info.width;
+        rect.y = y;
+        rect.height = 1;
+        rect.color = (char *)line_buff;
+                        
+        os_device_control(&graphic->parent, OS_GRAPHIC_CTRL_FILL, &rect);
+    }
+
+    os_free(line_buff);
+    return 0;
+}
+
 static int graphic_test_888(os_device_graphic_t *graphic)
 {
     /* red */
     os_kprintf("red\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size; i += 4)
-    {
-        *(volatile uint32_t *)(graphic->info.framebuffer + i) = 0xffff0000;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0xffff0000);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* green */
     os_kprintf("green\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size; i += 4)
-    {
-        *(volatile uint32_t *)(graphic->info.framebuffer + i) = 0xff00ff00;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0xff00ff00);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* blue */
     os_kprintf("blue\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size; i += 4)
-    {
-        *(volatile uint32_t *)(graphic->info.framebuffer + i) = 0xff0000ff;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0xff0000ff);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* black */
     os_kprintf("black\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size; i += 4)
-    {
-        *(volatile uint32_t *)(graphic->info.framebuffer + i) = 0;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0x00000000);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* white */
     os_kprintf("white\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size; i += 4)
-    {
-        *(volatile uint32_t *)(graphic->info.framebuffer + i) = 0xffffffff;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0xffffffff);
     os_task_delay(OS_TICK_PER_SECOND);
-
+    
     return 0;
 }
 
 static int graphic_test_565(os_device_graphic_t *graphic)
-{
+{    
     /* red */
     os_kprintf("red\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size / 2; i++)
-    {
-        graphic->info.framebuffer[2 * i]     = 0x00;
-        graphic->info.framebuffer[2 * i + 1] = 0xF8;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0xf800);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* green */
     os_kprintf("green\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size / 2; i++)
-    {
-        graphic->info.framebuffer[2 * i]     = 0xE0;
-        graphic->info.framebuffer[2 * i + 1] = 0x07;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0x07e0);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* blue */
     os_kprintf("blue\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size / 2; i++)
-    {
-        graphic->info.framebuffer[2 * i]     = 0x1F;
-        graphic->info.framebuffer[2 * i + 1] = 0x00;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0x001f);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* black */
     os_kprintf("black\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size / 2; i++)
-    {
-        graphic->info.framebuffer[2 * i]     = 0;
-        graphic->info.framebuffer[2 * i + 1] = 0;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0x0000);
     os_task_delay(OS_TICK_PER_SECOND);
 
     /* white */
     os_kprintf("white\r\n");
-    for (int i = 0; i < graphic->info.framebuffer_size / 2; i++)
-    {
-        graphic->info.framebuffer[2 * i]     = 0xff;
-        graphic->info.framebuffer[2 * i + 1] = 0xff;
-    }
-    graphic->parent.control(&graphic->parent, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    graphic_fill(graphic, 0xffff);
     os_task_delay(OS_TICK_PER_SECOND);
-
+    
     return 0;
 }
 

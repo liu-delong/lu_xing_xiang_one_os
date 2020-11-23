@@ -386,6 +386,7 @@ os_object_t *os_object_find(const char *name, os_uint8_t type)
  */
 os_int32_t os_object_name_maxlen(const char *type_name, os_list_node_t *list)
 {
+    os_base_t       level;
     os_int32_t      max_length;
     os_int32_t      length;
     os_object_t    *object;
@@ -393,8 +394,8 @@ os_int32_t os_object_name_maxlen(const char *type_name, os_list_node_t *list)
 
     max_length = os_strlen(type_name);
 
-    os_enter_critical();
-    
+    level = os_hw_interrupt_disable();
+
     for (node = list->next; node != list; node = node->next)
     {
         object = os_list_entry(node, os_object_t, list);
@@ -405,7 +406,7 @@ os_int32_t os_object_name_maxlen(const char *type_name, os_list_node_t *list)
         }
     }
     
-    os_exit_critical();
+    os_hw_interrupt_enable(level);
 
     if ((max_length > OS_NAME_MAX) || (0 == max_length))
     {

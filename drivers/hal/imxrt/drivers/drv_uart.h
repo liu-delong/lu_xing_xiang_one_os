@@ -24,10 +24,11 @@
 #ifndef DRV_UART_H__
 #define DRV_UART_H__
 
-struct imxrt_uart_info {
-    char *name;
+#include "peripherals.h"
+
+struct nxp_lpuart_info {
     LPUART_Type *uart_base;
-    IRQn_Type irqn;
+    const lpuart_config_t *config;
 };
 
 #endif

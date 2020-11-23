@@ -25,6 +25,7 @@
  */
 
 #include "middle/include/spi.h"
+#if (MICROPY_PY_MACHINE_SPI && MICROPY_PY_MACHINE_PIN)
 
 int mp_soft_spi_ioctl(void *self_in, uint32_t cmd) {
     mp_soft_spi_obj_t *self = (mp_soft_spi_obj_t*)self_in;
@@ -103,3 +104,4 @@ const mp_spi_proto_t mp_soft_spi_proto = {
     .ioctl = mp_soft_spi_ioctl,
     .transfer = mp_soft_spi_transfer,
 };
+#endif

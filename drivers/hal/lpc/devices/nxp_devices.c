@@ -13,7 +13,7 @@
  *
  * @file        drv_usart.c
  *
- * @brief       This file implements usart driver for stm32
+ * @brief       This file implements usart driver for nxp
  *
  * @revision
  * Date         Author          Notes
@@ -25,13 +25,5 @@
 #include "drv_cfg.h"
 #include "drv_common.h"
 
-#define OS_HALL_DEVICE_DEFINE(drv_name, dev_name, instance)   \
-OS_DEVICE_INFO instance##_info = {                          \
-    .name   = dev_name,                                     \
-    .driver = drv_name,                                     \
-    .info   = &instance,                                    \
-}
-
-#include "peripherals.h"
 #include "devices.c"
 

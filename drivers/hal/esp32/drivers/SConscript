@@ -1,0 +1,19 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+pwd = PresentDir()
+
+# add the general drivers.
+src = Split("""
+""")
+path  = [pwd]
+
+if IsDefined(['OS_USING_SERIAL']):
+    src += ['esp32_drv_uart.c']
+
+src += ['esp32_drv_common.c']
+
+group = AddCodeGroup('hal/drivers', src, depend = ['SOC_FAMILY_ESP32'], CPPPATH = path)
+
+Return('group')

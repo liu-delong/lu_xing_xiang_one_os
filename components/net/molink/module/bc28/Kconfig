@@ -9,7 +9,7 @@ menu "BC28 Config"
 
         config BC28_DEVICE_NAME
             string "BC28 Interface Device Name"
-            default "uart1"
+            default "uart2"
 
         config BC28_DEVICE_RATE
             int "BC28 Interface Device Rate"
@@ -29,6 +29,19 @@ menu "BC28 Config"
     config BC28_USING_NETSERV_OPS
         bool "Enable BC28 Module Network Service Operates"
         select MOLINK_USING_NETSERV_OPS
+        default y
+
+    config BC28_USING_PING_OPS
+        bool "Enable BC28 Module Ping Operates"
+        select MOLINK_USING_NETSERV_OPS
+        select MOLINK_USING_PING_OPS
+        default y
+
+    config BC28_USING_IFCONFIG_OPS
+        bool "Enable BC28 Module Ifconfig Operates"
+        select MOLINK_USING_IFCONFIG_OPS
+        select BC28_USING_GENERAL_OPS
+        select BC28_USING_NETSERV_OPS
         default y
 
     config BC28_USING_NETCONN_OPS

@@ -20,29 +20,21 @@ struct lvgl_device {
 #endif    
 };
 
-static void set_pixel(struct os_device_graphic_info *disp_info, int32_t x, int32_t y, lv_color_t color_p)
-{
-    unsigned long framebuffer = (unsigned long)disp_info->framebuffer;
-    framebuffer += disp_info->bits_per_pixel / 8 * (y * disp_info->width + x);
-
-    *(volatile lv_color_t*)(framebuffer) = color_p;
-}
-
 static void lvgl_disp_flush(struct _disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p)
 {
     struct lvgl_device *device = disp_drv->user_data;
 
-    int32_t x, y;
-    for(y = area->y1; y <= area->y2; y++) {
-        for(x = area->x1; x <= area->x2; x++) {
-            set_pixel(&device->disp_info, x, y, *color_p);  /* Put a pixel to the display.*/
-            color_p++;
-        }
-    }
+    struct os_device_rect_info rect;
 
-    device->disp_device->control(device->disp_device, OS_GRAPHIC_CTRL_RECT_UPDATE, OS_NULL);
+    rect.x = area->x1;
+    rect.width = area->x2 - area->x1 + 1;
+    rect.y = area->y1;
+    rect.height = area->y2 - area->y1 + 1;
+    rect.color = (char *)color_p;
+                    
+    os_device_control(device->disp_device, OS_GRAPHIC_CTRL_FILL, &rect);
 
-    lv_disp_flush_ready(disp_drv);         /* Indicate you are ready with the flushing*/
+    lv_disp_flush_ready(disp_drv);
 }
 
 #ifdef OS_USING_TOUCH
@@ -86,8 +78,8 @@ static void disp_init(struct lvgl_device *lvgl_dev)
     lvgl_dev->disp_device = disp_device;
     os_device_open(disp_device, OS_DEVICE_FLAG_RDWR);
     
-    disp_device->control(disp_device, OS_GRAPHIC_CTRL_GET_INFO, (void *)&lvgl_dev->disp_info);
-    OS_ASSERT(lvgl_dev->disp_info.framebuffer);
+    os_device_control(disp_device, OS_GRAPHIC_CTRL_GET_INFO, (void *)&lvgl_dev->disp_info);
+    //OS_ASSERT(lvgl_dev->disp_info.framebuffer);
     os_kprintf("LCD size: %dX%d\n", lvgl_dev->disp_info.width, lvgl_dev->disp_info.height);
 
     /* gui display buffer */
@@ -163,11 +155,10 @@ static int os_gui_init(void)
     input_init(lvgl_dev);
 
     /* gui thread */
-    os_task_t *task = os_task_create("gui", gui_thread, NULL, 4096, 3, 5);
+    os_task_t *task = os_task_create("gui", gui_thread, NULL, 4096, OS_TASK_PRIORITY_MAX - 3, 20);
     OS_ASSERT(task);
     os_task_startup(task);
 
     return 0;
 }
-OS_CMPOENT_INIT(os_gui_init);
-
+OS_ENV_INIT(os_gui_init);

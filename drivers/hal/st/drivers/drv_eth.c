@@ -27,6 +27,7 @@
 #include "drv_eth.h"
 #include <os_irq.h>
 #include <os_memory.h>
+#include <os_dma.h>
 #include <string.h>
 #include <bus/bus.h>
 
@@ -224,6 +225,7 @@ static os_err_t os_stm32_eth_control(os_device_t *dev, int cmd, void *args)
  */
 os_err_t os_stm32_eth_tx(os_device_t *dev, struct pbuf *p)
 {
+    os_base_t level;
     os_err_t          ret = OS_ERROR;
     HAL_StatusTypeDef state;
     struct pbuf      *q;
@@ -295,10 +297,11 @@ os_err_t os_stm32_eth_tx(os_device_t *dev, struct pbuf *p)
     /* TODO Optimize data send speed*/
     LOG_EXT_D("transmit frame length :%d", framelength);
 
-    /* wait for unlocked */
-    while (EthHandle->Lock == HAL_LOCKED);
-
+    level = os_hw_interrupt_disable();
+    OS_ASSERT(EthHandle->Lock != HAL_LOCKED);
     state = HAL_ETH_TransmitFrame(EthHandle, framelength);
+    os_hw_interrupt_enable(level);
+    
     if (state != HAL_OK)
     {
         LOG_EXT_E("eth transmit frame faild: %d", state);
@@ -324,7 +327,7 @@ error:
 /* receive data */
 struct pbuf *os_stm32_eth_rx(os_device_t *dev)
 {
-
+    os_base_t level;
     struct pbuf      *p = NULL;
     struct pbuf      *q = NULL;
     HAL_StatusTypeDef state;
@@ -337,7 +340,11 @@ struct pbuf *os_stm32_eth_rx(os_device_t *dev)
     uint32_t                 i               = 0;
 
     /* Get received frame */
+    level = os_hw_interrupt_disable();
+    OS_ASSERT(EthHandle->Lock != HAL_LOCKED);
     state = HAL_ETH_GetReceivedFrame_IT(EthHandle);
+    os_hw_interrupt_enable(level);
+    
     if (state != HAL_OK)
     {
         LOG_EXT_D("receive frame faild");
@@ -582,6 +589,15 @@ static void phy_monitor_task_entry(void *parameter)
 #endif /* PHY_USING_INTERRUPT_MODE */
 }
 
+const static struct os_device_ops eth_ops = {
+    os_stm32_eth_init,
+    os_stm32_eth_open,
+    os_stm32_eth_close,
+    os_stm32_eth_read,
+    os_stm32_eth_write,
+    os_stm32_eth_control,
+};
+
 /**
  ***********************************************************************************************************************
  * @brief           os_hw_stm32_eth_init:init and register the EMAC device.
@@ -596,11 +612,12 @@ static void phy_monitor_task_entry(void *parameter)
 static int stm32_eth_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
 {
     os_err_t state = OS_EOK;
+    int align = 64; /* address align */
 
     EthHandle = (ETH_HandleTypeDef *)dev->info;
 
     /* Prepare receive and send buffers */
-    Rx_Buff = (os_uint8_t *)calloc(ETH_RXBUFNB, ETH_MAX_PACKET_SIZE);
+    Rx_Buff = (os_uint8_t *)os_dma_malloc_align(ETH_RXBUFNB* ETH_MAX_PACKET_SIZE, align);
     if (Rx_Buff == OS_NULL)
     {
         LOG_EXT_E("No memory");
@@ -608,7 +625,7 @@ static int stm32_eth_probe(const os_driver_info_t *drv, const os_device_info_t *
         goto __exit;
     }
 
-    Tx_Buff = (os_uint8_t *)calloc(ETH_TXBUFNB, ETH_MAX_PACKET_SIZE);
+    Tx_Buff = (os_uint8_t *)os_dma_malloc_align(ETH_TXBUFNB*ETH_MAX_PACKET_SIZE, align);
     if (Tx_Buff == OS_NULL)
     {
         LOG_EXT_E("No memory");
@@ -616,7 +633,7 @@ static int stm32_eth_probe(const os_driver_info_t *drv, const os_device_info_t *
         goto __exit;
     }
 
-    DMARxDscrTab = (ETH_DMADescTypeDef *)calloc(ETH_RXBUFNB, sizeof(ETH_DMADescTypeDef));
+    DMARxDscrTab = (ETH_DMADescTypeDef *)os_dma_malloc_align(ETH_RXBUFNB*sizeof(ETH_DMADescTypeDef), align);
     if (DMARxDscrTab == OS_NULL)
     {
         LOG_EXT_E("No memory");
@@ -624,7 +641,7 @@ static int stm32_eth_probe(const os_driver_info_t *drv, const os_device_info_t *
         goto __exit;
     }
 
-    DMATxDscrTab = (ETH_DMADescTypeDef *)calloc(ETH_TXBUFNB, sizeof(ETH_DMADescTypeDef));
+    DMATxDscrTab = (ETH_DMADescTypeDef *)os_dma_malloc_align(ETH_TXBUFNB*sizeof(ETH_DMADescTypeDef), align);
     if (DMATxDscrTab == OS_NULL)
     {
         LOG_EXT_E("No memory");
@@ -644,12 +661,7 @@ static int stm32_eth_probe(const os_driver_info_t *drv, const os_device_info_t *
     stm32_eth_device.dev_addr[4] = *(os_uint8_t *)(UID_BASE + 2);
     stm32_eth_device.dev_addr[5] = *(os_uint8_t *)(UID_BASE + 0);
 
-    stm32_eth_device.parent.parent.init      = os_stm32_eth_init;
-    stm32_eth_device.parent.parent.open      = os_stm32_eth_open;
-    stm32_eth_device.parent.parent.close     = os_stm32_eth_close;
-    stm32_eth_device.parent.parent.read      = os_stm32_eth_read;
-    stm32_eth_device.parent.parent.write     = os_stm32_eth_write;
-    stm32_eth_device.parent.parent.control   = os_stm32_eth_control;
+    stm32_eth_device.parent.parent.ops = &eth_ops;
     stm32_eth_device.parent.parent.user_data = OS_NULL;
 
     stm32_eth_device.parent.eth_rx = os_stm32_eth_rx;

@@ -7,52 +7,57 @@ CPPDEFINES = []
 
 pwd = PresentDir()
 
-if IsDefined('BSP_USING_GPIO'):
+if IsDefined(['OS_USING_PIN', 'BSP_USING_GPIO']):
     src += ['drv_gpio.c']
 
-if  IsDefined('BSP_USING_LPUART'):
+if  IsDefined(['OS_USING_SERIAL', 'BSP_USING_LPUART']):
     src += ['drv_uart.c']
 
-if  IsDefined('BSP_USING_HWTIMER'):
+if  IsDefined(['OS_USING_CLOCKEVENT', 'BSP_USING_GPT']):
     src += ['drv_hwtimer.c']
 
-if IsDefined('BSP_USING_RTC'):
+if IsDefined(['OS_USING_RTC', 'BSP_USING_RTC']) or IsDefined(['OS_USING_RTC', 'BSP_USING_RTC_LP']):
     src += ['drv_rtc.c']
 
-if  IsDefined('BSP_USING_SPI'):
+if  IsDefined(['OS_USING_SPI', 'BSP_USING_LPSPI']):
     src += ['drv_spi.c']
 
-if  IsDefined('BSP_USING_I2C'):
+if  IsDefined(['OS_USING_I2C', 'BSP_USING_LPI2C']):
     src += ['drv_i2c.c']
 
-if IsDefined('BSP_USING_WDT'):
-    src += ['drv_wdt.c']
+if IsDefined(['OS_USING_WDG', 'BSP_USING_WDOG']) or IsDefined(['OS_USING_WDG', 'BSP_USING_RTWDOG']):
+    src += ['drv_wdg.c']
 
-if IsDefined('BSP_USING_PWM'):
+if IsDefined('OS_USING_PWM'):
     src += ['drv_pwm.c']
 
-if IsDefined('BSP_USING_ADC'):
+if IsDefined(['OS_USING_ADC', 'BSP_USING_ADC']):
     src += ['drv_adc.c']
 
-if IsDefined('BSP_USING_CAN'):
+if IsDefined(['OS_USING_CAN', 'BSP_USING_CAN']):
     src += ['drv_can.c']
     
 if IsDefined('BSP_USING_SDRAM'):
     src += ['drv_sdram.c']
 
-if IsDefined('BSP_USING_LCD'):
+if IsDefined(['OS_USING_GRAPHIC', 'BSP_USING_LCD']):
     src += ['drv_lcd.c']
 
-if IsDefined('BSP_USING_ETH'):
+if IsDefined(['NET_USING_LWIP', 'BSP_USING_ETH']):
     src += ['drv_eth.c']
 
-if IsDefined('BSP_USING_USB_DEVICE'):
+if IsDefined(['OS_USING_USB_DEVICE', 'BSP_USING_USB_DEVICE']):
     src += ['drv_usbd.c']
     src += Glob('usb/device/*.c')
-
-if IsDefined('BSP_USING_USB_DEVICE'):
     src += Glob('usb/phy/*.c')
     CPPDEFINES += ['ENDIANNESS']
+    
+if IsDefined(['OS_USING_SAI', 'BSP_USING_SAI']):
+    src += ['drv_sai.c']
+    
+if IsDefined(['OS_USING_HWCRYPTO', 'BSP_USING_TRNG']):
+    src += ['drv_rng.c']    
+    
 src += ['drv_common.c']
 
 path =  [pwd,pwd + '/config']

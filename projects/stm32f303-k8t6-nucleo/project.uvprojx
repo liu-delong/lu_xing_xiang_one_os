@@ -336,7 +336,7 @@
               <MiscControls />
               <Define>USE_HAL_DRIVER, STM32F303x8, OS_USING_ARM_LIBC</Define>
               <Undefine />
-              <IncludePath>.;application;board;board\CubeMX_Config\Inc;board\ports;..\..\common\include;..\..\components\diagnose\include;..\..\components\dlog\include;..\..\drivers;..\..\drivers\bus;..\..\drivers\fal;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\serial;..\..\drivers\timer;..\..\drivers\watchdog;..\..\drivers\pin;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Device\ST\STM32F3xx\Include;..\..\drivers\hal\st\STM32F3xx_HAL\STM32F3xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Include;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\shell\include</IncludePath>
+              <IncludePath>.;application;board;board\CubeMX_Config\Inc;board\ports;..\..\common\include;..\..\arch\arm\common;..\..\arch\arm\cortex-m4;..\..\components\diagnose\include;..\..\components\dlog\include;..\..\drivers;..\..\drivers\bus;..\..\drivers\dma;..\..\drivers\fal;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\pin;..\..\drivers\serial;..\..\drivers\timer;..\..\drivers\watchdog;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Device\ST\STM32F3xx\Include;..\..\drivers\hal\st\STM32F3xx_HAL\STM32F3xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32F3xx_HAL\CMSIS\Include;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\shell\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -460,9 +460,23 @@
           <GroupName>cpu</GroupName>
           <Files>
             <File>
+              <FileName>cortexm_common.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\arch\arm\common\cortexm_common.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>cpuport.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\arch\arm\cortex-m4\cpuport.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>exc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\arch\arm\cortex-m4\exc.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -501,9 +515,16 @@
           <GroupName>drivers</GroupName>
           <Files>
             <File>
-              <FileName>drivers.c</FileName>
+              <FileName>os_drivers.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\drivers\drivers.c</FilePath>
+              <FilePath>..\..\drivers\os_drivers.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>os_device.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\os_device.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -511,6 +532,13 @@
               <FileName>bus.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\bus\bus.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>os_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\dma\os_dma.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -546,6 +574,13 @@
               <FileName>dac.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\misc\dac.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>pin.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\pin\pin.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -595,16 +630,6 @@
               <FileName>watchdog.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\watchdog\watchdog.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>drivers/pin</GroupName>
-          <Files>
-            <File>
-              <FileName>pin.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\pin\pin.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -911,13 +936,6 @@
               <FileName>os_clock.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\kernel\source\os_clock.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>os_device.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\kernel\source\os_device.c</FilePath>
             </File>
           </Files>
           <Files>

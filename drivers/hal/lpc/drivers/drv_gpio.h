@@ -15,7 +15,7 @@
 
 #include "board.h"
 
-#define GET_PINS(PORTx, PINx)      (32 * PORTx + PINx + 1)    /* PORTx:0,1, PINx:0,1...31 */
+#define GET_PIN(PORTx, PINx)      (32 * PORTx + PINx + 1)    /* PORTx:0,1, PINx:0,1...31 */
 
 extern int os_hw_pin_init(void);
 

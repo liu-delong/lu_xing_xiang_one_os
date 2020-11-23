@@ -44,7 +44,7 @@ static void uart_console_reconfig(void)
  * @return          None.
  ***********************************************************************************************************************
  */
-static void sleep(struct lpmgr *lpm, uint8_t mode)
+static int sleep(struct lpmgr *lpm, uint8_t mode)
 {
     switch (mode)
     {
@@ -89,6 +89,8 @@ static void sleep(struct lpmgr *lpm, uint8_t mode)
         OS_ASSERT(0);
         break;
     }
+
+    return OS_EOK;
 }
 
 static uint8_t run_speed[SYS_RUN_MODE_MAX][2] = {
@@ -187,6 +189,9 @@ static os_tick_t stm32l4_os_tick_from_lpm_tick(os_uint32_t tick)
     freq = lpce->freq;
     ret  = (tick * OS_TICK_PER_SECOND + os_tick_remain) / freq;
 
+    /* Tick compensation, lpm tick is converted to os tick, there will be a residual value, 
+   * which will be added to the next tick calculation 
+   */
     os_tick_remain += (tick * OS_TICK_PER_SECOND);
     os_tick_remain %= freq;
 

@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<settings>
+    <DebugChecksum>
+        <Checksum>1206360520</Checksum>
+    </DebugChecksum>
+    <CodeCoverage>
+        <Enabled>_ 0</Enabled>
+    </CodeCoverage>
+    <Stack>
+        <FillEnabled>0</FillEnabled>
+        <OverflowWarningsEnabled>1</OverflowWarningsEnabled>
+        <WarningThreshold>90</WarningThreshold>
+        <SpWarningsEnabled>1</SpWarningsEnabled>
+        <WarnLogOnly>1</WarnLogOnly>
+        <UseTrigger>1</UseTrigger>
+        <TriggerName>main</TriggerName>
+        <LimitSize>0</LimitSize>
+        <ByteLimit>50</ByteLimit>
+    </Stack>
+    <Disassembly>
+        <InstrCount>0</InstrCount>
+        <MixedMode>1</MixedMode>
+    </Disassembly>
+    <Exceptions>
+        <StopOnUncaught>_ 0</StopOnUncaught>
+        <StopOnThrow>_ 0</StopOnThrow>
+    </Exceptions>
+    <CallStack>
+        <ShowArgs>0</ShowArgs>
+    </CallStack>
+    <JLinkDriver>
+        <CStepIntDis>_ 0</CStepIntDis>
+        <LeaveTargetRunning>_ 0</LeaveTargetRunning>
+    </JLinkDriver>
+    <SWOTraceHWSettings>
+        <OverrideDefaultClocks>0</OverrideDefaultClocks>
+        <CpuClock>25000000</CpuClock>
+        <ClockAutoDetect>0</ClockAutoDetect>
+        <ClockWanted>2000000</ClockWanted>
+        <JtagSpeed>1935483</JtagSpeed>
+        <Prescaler>13</Prescaler>
+        <TimeStampPrescIndex>0</TimeStampPrescIndex>
+        <TimeStampPrescData>0</TimeStampPrescData>
+        <PcSampCYCTAP>1</PcSampCYCTAP>
+        <PcSampPOSTCNT>15</PcSampPOSTCNT>
+        <PcSampIndex>0</PcSampIndex>
+        <DataLogMode>0</DataLogMode>
+        <ITMportsEnable>0</ITMportsEnable>
+        <ITMportsTermIO>0</ITMportsTermIO>
+        <ITMportsLogFile>0</ITMportsLogFile>
+        <ITMlogFile>$PROJ_DIR$\ITM.log</ITMlogFile>
+    </SWOTraceHWSettings>
+    <Trace1>
+        <Enabled>0</Enabled>
+        <ShowSource>1</ShowSource>
+    </Trace1>
+    <Trace2>
+        <Enabled>0</Enabled>
+        <ShowSource>0</ShowSource>
+    </Trace2>
+    <SWOTraceWindow>
+        <PcSampling>0</PcSampling>
+        <InterruptLogs>0</InterruptLogs>
+        <ForcedTimeStamps>0</ForcedTimeStamps>
+        <EventCPI>0</EventCPI>
+        <EventEXC>0</EventEXC>
+        <EventFOLD>0</EventFOLD>
+        <EventLSU>0</EventLSU>
+        <EventSLEEP>0</EventSLEEP>
+    </SWOTraceWindow>
+    <PowerLog>
+        <Title_0>I0</Title_0>
+        <Symbol_0>0 4 0</Symbol_0>
+        <LogEnabled>0</LogEnabled>
+        <GraphEnabled>0</GraphEnabled>
+        <ShowTimeLog>1</ShowTimeLog>
+        <LiveEnabled>0</LiveEnabled>
+        <LiveFile>PowerLogLive.log</LiveFile>
+    </PowerLog>
+    <DataLog>
+        <LogEnabled>0</LogEnabled>
+        <GraphEnabled>0</GraphEnabled>
+        <ShowTimeLog>1</ShowTimeLog>
+        <SumEnabled>0</SumEnabled>
+        <ShowTimeSum>1</ShowTimeSum>
+    </DataLog>
+    <InterruptLog>
+        <LogEnabled>0</LogEnabled>
+        <GraphEnabled>0</GraphEnabled>
+        <ShowTimeLog>1</ShowTimeLog>
+        <SumEnabled>0</SumEnabled>
+        <ShowTimeSum>1</ShowTimeSum>
+        <SumSortOrder>0</SumSortOrder>
+    </InterruptLog>
+    <EventLog>
+        <Title_0>Ch3</Title_0>
+        <Symbol_0>0 0 1</Symbol_0>
+        <Title_1>Ch2</Title_1>
+        <Symbol_1>0 0 1</Symbol_1>
+        <Title_2>Ch1</Title_2>
+        <Symbol_2>0 0 1</Symbol_2>
+        <Title_3>Ch0</Title_3>
+        <Symbol_3>0 0 1</Symbol_3>
+        <LogEnabled>0</LogEnabled>
+        <GraphEnabled>0</GraphEnabled>
+        <ShowTimeLog>1</ShowTimeLog>
+        <SumEnabled>0</SumEnabled>
+        <ShowTimeSum>1</ShowTimeSum>
+        <SumSortOrder>0</SumSortOrder>
+    </EventLog>
+    <DisassembleMode>
+        <mode>0</mode>
+    </DisassembleMode>
+    <Breakpoints2>
+        <Bp0>_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\..\..\component\soc\realtek\8711b\cmsis\device\app_start.c}.78.9" 0 0 1 "" 0 "" 0</Bp0>
+        <Bp1>_ 0 "EMUL_CODE" "{$PROJ_DIR$\drivers\wlan\drv_wifi.c}.91.28" 0 0 1 "" 0 "" 0</Bp1>
+        <Bp2>_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\..\drivers\wlan\wlan_cmd.c}.269.5" 0 0 1 "" 0 "" 0</Bp2>
+        <Bp3>_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\..\drivers\wlan\wlan_lwip.c}.417.9" 0 0 1 "" 0 "" 0</Bp3>
+        <Bp4>_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\..\components\fal\src\fal_flash.c}.9.60" 0 0 1 "" 0 "" 0</Bp4>
+        <Count>5</Count>
+    </Breakpoints2>
+    <TermIOLog>
+        <LoggingEnabled>_ 0</LoggingEnabled>
+        <LogFile>_ ""</LogFile>
+    </TermIOLog>
+    <LogFile>
+        <LoggingEnabled>_ 0</LoggingEnabled>
+        <LogFile>_ ""</LogFile>
+        <Category>_ 0</Category>
+    </LogFile>
+    <Aliases>
+        <A0>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\include\rtw_mlme.h" ""</A0>
+        <A1>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\include\rtw_recv.h" ""</A1>
+        <A2>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\include\wifi.h" ""</A2>
+        <A3>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\core\rtw_cmd.c" ""</A3>
+        <A4>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\core\rtw_ieee80211.c" ""</A4>
+        <A5>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\core\rtw_intfs.c" ""</A5>
+        <A6>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\core\rtw_mlme.c" ""</A6>
+        <A7>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\core\rtw_promisc.c" ""</A7>
+        <A8>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\core\rtw_psk.c" ""</A8>
+        <A9>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\hal\rtl8711b\src\rtl8711b_firmware.c" ""</A9>
+        <A10>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\hci\hci_intfs.c" ""</A10>
+        <A11>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\hci\lxbus\lxbus_hci_intf.c" ""</A11>
+        <A12>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\osdep\freertos\freertos_intfs.c" ""</A12>
+        <A13>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\osdep\freertos\freertos_ioctl.c" ""</A13>
+        <A14>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\osdep\freertos\freertos_isr.c" ""</A14>
+        <A15>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\osdep\freertos\freertos_skbuff.c" ""</A15>
+        <A16>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\osdep\freertos\lxbus_intf.c" ""</A16>
+        <A17>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\common\drivers\wlan\realtek\src\osdep\freertos\rtk_wlan_if.c" ""</A17>
+        <A18>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\cmsis\core_cm4.h" ""</A18>
+        <A19>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\fwlib\include\rtl8710b_clk.h" ""</A19>
+        <A20>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\fwlib\ram_lib\rtl8710b_clk.c" ""</A20>
+        <A21>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\fwlib\ram_lib\rtl8710b_pinmap.c" ""</A21>
+        <A22>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\fwlib\ram_lib\rtl8710b_psm.c" ""</A22>
+        <A23>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\misc\rtl8710b_freertos_pmu.c" ""</A23>
+        <A24>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\swlib\std_lib\libc\ram\ram_libc.c" ""</A24>
+        <A25>_ "D:\_RTK\Ameba_Project\SVN_40B_MP\component\soc\realtek\8711b\swlib\std_lib\libgloss\rtl8195a\ram\ram_libgloss_retarget.c" ""</A25>
+        <Count>26</Count>
+        <SuppressDialog>0</SuppressDialog>
+    </Aliases>
+    <DriverProfiling>
+        <Enabled>0</Enabled>
+        <Mode>1</Mode>
+        <Graph>0</Graph>
+        <Symbiont>0</Symbiont>
+        <Exclusions />
+    </DriverProfiling>
+    <CallStackLog>
+        <Enabled>0</Enabled>
+    </CallStackLog>
+    <CallStackStripe>
+        <ShowTiming>1</ShowTiming>
+    </CallStackStripe>
+    <PowerProbe>
+        <Frequency>10000</Frequency>
+        <Probe0>I0</Probe0>
+        <ProbeSetup0>2 1 1 2 0 0</ProbeSetup0>
+    </PowerProbe>
+</settings>

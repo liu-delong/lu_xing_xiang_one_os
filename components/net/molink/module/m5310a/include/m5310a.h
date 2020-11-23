@@ -34,6 +34,14 @@
 #include "m5310a_netserv.h"
 #endif
 
+#ifdef M5310A_USING_PING_OPS
+#include "m5310a_ping.h"
+#endif
+
+#ifdef M5310A_USING_IFCONFIG_OPS
+#include "m5310a_ifconfig.h"
+#endif
+
 #ifdef M5310A_USING_NETCONN_OPS
 #include "m5310a_netconn.h"
 #endif
@@ -73,7 +81,7 @@ typedef struct mo_m5310a
 #endif /* M5310A_USING_NETCONN_OPS */
 } mo_m5310a_t;
 
-mo_object_t *module_m5310a_create(const char *name, os_device_t *device, os_size_t recv_len);
+mo_object_t *module_m5310a_create(const char *name, void *parser_config);
 os_err_t     module_m5310a_destroy(mo_object_t *self);
 
 #endif /* MOLINK_USING_M5310A */

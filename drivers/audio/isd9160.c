@@ -39,8 +39,6 @@
 #define DBG_COLOR
 #define DBG_SECTION_NAME "ISD9160"
 
-#define TX_FIFO_SIZE (2048)
-
 typedef enum {
     I2C_CMD_SLPRT = 0,
     I2C_CMD_UPGRADE,
@@ -62,10 +60,9 @@ struct isd9160_player_device
 {
     struct os_audio_device    audio;
     struct os_audio_configure replay_config;
-    os_uint8_t *              tx_fifo;
     os_uint8_t                volume;
-    os_device_sai_t *         sai;
-
+    os_device_t     *cfg_bus;
+    os_device_t     *data_bus;
     struct isd9160_dev isd9160;
 };
 
@@ -119,13 +116,9 @@ static os_err_t audio_isd9160_config(struct os_audio_device *audio, struct os_au
 
     case AUDIO_PARAM_CMD:
     {
-        /* set samplerate */
-        os_sai_frequency_set(aduio_dev->sai, caps->udata.config.samplerate);
+        os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_FRQ, &caps->udata.config.samplerate);
+        os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_CHANNEL, &caps->udata.config.channels);
 
-        /* set channels */
-        os_sai_channel_set(aduio_dev->sai, caps->udata.config.channels);
-
-        /* save configs */
         aduio_dev->replay_config.samplerate = caps->udata.config.samplerate;
         aduio_dev->replay_config.channels   = caps->udata.config.channels;
         aduio_dev->replay_config.samplebits = caps->udata.config.samplebits;
@@ -174,10 +167,9 @@ static os_err_t audio_isd9160_init(struct os_audio_device *audio)
     slprt_data[slprt_size] = 0;
 
     os_kprintf("slprt_data:\r\n%s\r\n", slprt_data);
-
-    /* set default params */
-    os_sai_frequency_set(aduio_dev->sai, aduio_dev->replay_config.samplerate);
-    os_sai_channel_set(aduio_dev->sai, aduio_dev->replay_config.channels);
+    
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_FRQ, &aduio_dev->replay_config.samplerate);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_CHANNEL, &aduio_dev->replay_config.channels);
 
     return result;
 }
@@ -189,18 +181,12 @@ static os_err_t audio_isd9160_start(struct os_audio_device *audio)
     OS_ASSERT(audio != OS_NULL);
     aduio_dev = (struct isd9160_player_device *)audio->parent.user_data;
 
-    os_sai_info(aduio_dev->sai,
-                aduio_dev->tx_fifo,
-                &aduio_dev->audio.replay->queue,
-                &audio->replay->cmp,
-                &audio->replay->event);
-
     os_i2c_client_write(&aduio_dev->isd9160.i2c, I2C_CMD_PLAYBACK, 1, OS_NULL, 0);
 
     LOG_EXT_D("open sound device");
 
-    os_sai_transimit(aduio_dev->sai, aduio_dev->tx_fifo, TX_FIFO_SIZE / 2);
-
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_ENABLE, OS_NULL);
+    
     return OS_EOK;
 }
 
@@ -211,7 +197,7 @@ static os_err_t audio_isd9160_stop(struct os_audio_device *audio)
     OS_ASSERT(audio != OS_NULL);
     aduio_dev = (struct isd9160_player_device *)audio->parent.user_data;
 
-    os_sai_stop(aduio_dev->sai);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_DISABLE, OS_NULL);
 
     os_i2c_client_write(&aduio_dev->isd9160.i2c, I2C_CMD_AUDIOSTOP, 1, OS_NULL, 0);
 
@@ -220,35 +206,50 @@ static os_err_t audio_isd9160_stop(struct os_audio_device *audio)
     return OS_EOK;
 }
 
-static void player_buffer_info(struct os_audio_device *audio, struct os_audio_buf_info *info)
+os_size_t audio_isd9160_transmit(struct os_audio_device *audio, const void *writeBuf, os_size_t size)
 {
     struct isd9160_player_device *aduio_dev;
-
+    
     OS_ASSERT(audio != OS_NULL);
-
+    
     aduio_dev = (struct isd9160_player_device *)audio->parent.user_data;
 
-    info->buffer      = aduio_dev->tx_fifo;
-    info->total_size  = TX_FIFO_SIZE;
-    info->block_size  = TX_FIFO_SIZE / 2;
-    info->block_count = 2;
+    return os_device_write(aduio_dev->data_bus, 0, (os_uint8_t *)writeBuf, size);
+}
+
+os_size_t audio_isd9160_receive(struct os_audio_device *audio, void *readBuf, os_size_t size)
+{
+    struct isd9160_player_device *aduio_dev;
+    
+    OS_ASSERT(audio != OS_NULL);
+    
+    aduio_dev = (struct isd9160_player_device *)audio->parent.user_data;
+    
+    return os_device_read(aduio_dev->data_bus, 0, (os_uint8_t *)readBuf, size);
+}
+
+os_err_t audio_isd9160_data_tx_done(os_device_t *dev, struct os_device_cb_info *info)
+{
+    if (dev->user_data != OS_NULL)
+    {
+        struct isd9160_player_device *isd9160_player_dev = dev->user_data;
+        return isd9160_player_dev->audio.parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb((os_device_t *)isd9160_player_dev, info);
+    }
+    return OS_ENOSYS;
 }
 
 static struct os_audio_ops isd9160_player_ops = {
-    .getcaps           = OS_NULL,
-    .configure         = audio_isd9160_config,
-    .init              = audio_isd9160_init,
-    .start             = audio_isd9160_start,
-    .stop              = audio_isd9160_stop,
-    .transmit          = OS_NULL,
-    .buffer_info       = player_buffer_info,
-    .frame_tx_complete = &os_audio_tx_complete,
+    .getcaps            = OS_NULL,
+    .configure          = audio_isd9160_config,
+    .init               = audio_isd9160_init,
+    .start              = audio_isd9160_start,
+    .stop               = audio_isd9160_stop,
+    .transmit           = audio_isd9160_transmit, 
+    .receive            = audio_isd9160_receive,
 };
 
 int os_hw_audio_player_init(void)
 {
-    os_uint8_t *tx_fifo;
-
     struct isd9160_player_device *isd9160_player;
     struct isd9160_dev *isd9160;
 
@@ -257,38 +258,35 @@ int os_hw_audio_player_init(void)
 
     isd9160 = &isd9160_player->isd9160;
 
-    tx_fifo = os_malloc(TX_FIFO_SIZE);
-    if (tx_fifo == OS_NULL)
-        return OS_ENOMEM;
-    memset(tx_fifo, 0, TX_FIFO_SIZE);
-    isd9160_player->tx_fifo = tx_fifo;
+    isd9160_player->replay_config.samplerate = 44100;
+    isd9160_player->replay_config.channels   = 2;
+    isd9160_player->replay_config.samplebits = 16;
+    isd9160_player->volume                   = 50;
 
-    /* init default configuration */
-    {
-        isd9160_player->replay_config.samplerate = 44100;
-        isd9160_player->replay_config.channels   = 2;
-        isd9160_player->replay_config.samplebits = 16;
-        isd9160_player->volume                   = 50;
-    }
-
-    /* register sound device */
     isd9160_player->audio.ops = &isd9160_player_ops;
 
-    isd9160_player->sai = (os_device_sai_t *)os_device_find(BSP_SAI_BLOCK);
-    if (isd9160_player->sai == OS_NULL)
+    isd9160_player->cfg_bus = os_device_find(BSP_ISD9160_I2C_BUS);
+    if (isd9160_player->cfg_bus == OS_NULL)
     {
-        os_kprintf("can not find the sai device!\n");
+        LOG_EXT_E("can not find the config device!\n");
         return OS_ERROR;
     }
-
-    /* isd9160 device */
-    isd9160->i2c.bus = os_i2c_bus_device_find(BSP_ISD9160_I2C_BUS);
-    if (isd9160->i2c.bus == NULL)
+    
+    isd9160_player->data_bus = os_device_find(BSP_ISD9160_DATA_BUS);
+    if (isd9160_player->data_bus == OS_NULL)
     {
-        LOG_EXT_E("isd9160 i2c invalid.");
-        os_free(isd9160_player);
-        return -1;
+        LOG_EXT_E("can not find the data device!\n");
+        return OS_ERROR;
     }
+    isd9160_player->data_bus->user_data = isd9160_player;
+    os_device_open(isd9160_player->data_bus, OS_DEVICE_OFLAG_RDWR);
+	
+    struct os_device_cb_info *info = os_calloc(1, sizeof(struct os_device_cb_info));
+    info->type = OS_DEVICE_CB_TYPE_TX;
+    info->cb = audio_isd9160_data_tx_done;
+    os_device_control(isd9160_player->data_bus, IOC_SET_CB, info);
+    
+    isd9160->i2c.bus = (struct os_i2c_bus_device *)isd9160_player->cfg_bus;
 
     isd9160->i2c.client_addr = BSP_ISD9160_I2C_ADDR;
     isd9160->rst_pin         = BSP_ISD9160_RST_PIN;

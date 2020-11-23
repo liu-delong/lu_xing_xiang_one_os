@@ -740,7 +740,7 @@ static os_err_t sh_list_mutex(os_int32_t argc, char **argv)
     return list_mutex_info(&info->object_list);
 }
 
-SH_CMD_EXPORT(list_mutex, sh_list_mutex, "list mutex in system");
+SH_CMD_EXPORT(mutex, sh_list_mutex, "show mutex information");
 #endif /* OS_USING_SHELL */
 
 #endif /* OS_USING_MUTEX */

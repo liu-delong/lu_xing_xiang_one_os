@@ -35,15 +35,16 @@ extern "C" {
 os_err_t bc28_set_attach(mo_object_t *self, os_uint8_t attach_stat);
 os_err_t bc28_get_attach(mo_object_t *self, os_uint8_t *attach_stat);
 os_err_t bc28_set_reg(mo_object_t *self, os_uint8_t reg_n);
-os_err_t bc28_get_reg(mo_object_t *self, os_uint8_t *reg_n, os_uint8_t *reg_stat);
+os_err_t bc28_get_reg(mo_object_t *self, eps_reg_info_t *info);
 os_err_t bc28_set_cgact(mo_object_t *self, os_uint8_t cid, os_uint8_t act_n);
 os_err_t bc28_get_cgact(mo_object_t *self, os_uint8_t *cid, os_uint8_t *act_stat);
 os_err_t bc28_get_csq(mo_object_t *self, os_uint8_t *rssi, os_uint8_t *ber);
 os_err_t bc28_get_radio(mo_object_t *self, radio_info_t *radio_info);
-os_err_t bc28_get_ipaddr(mo_object_t *self, char ip[]);
-os_err_t bc28_set_dnsserver(mo_object_t *self, dns_server_t dns);
-os_err_t bc28_get_dnsserver(mo_object_t *self, dns_server_t *dns);
-os_err_t bc28_ping(mo_object_t *self, const char *host, os_uint16_t len, os_uint16_t timeout, struct ping_resp *resp);
+os_err_t bc28_set_psm(mo_object_t *self, mo_psm_info_t info);
+os_err_t bc28_get_psm(mo_object_t *self, mo_psm_info_t *info);
+os_err_t bc28_set_edrx_cfg(mo_object_t *self, mo_edrx_cfg_t cfg);
+os_err_t bc28_get_edrx_cfg(mo_object_t *self, mo_edrx_t *edrx_local);
+os_err_t bc28_get_edrx_dynamic(mo_object_t *self, mo_edrx_t *edrx_dynamic);
 
 #endif /* BC28_USING_NETSERV_OPS */
 

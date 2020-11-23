@@ -36,8 +36,8 @@ os_err_t       esp8266_wifi_set_mode(mo_object_t *module, mo_wifi_mode_t mode);
 mo_wifi_mode_t esp8266_wifi_get_mode(mo_object_t *module);
 mo_wifi_stat_t esp8266_wifi_get_stat(mo_object_t *module);
 os_err_t       esp8266_wifi_scan_info(mo_object_t *module, char *ssid, mo_wifi_scan_result_t *scan_result);
-void           esp8266_wifi_scan_info_free(mo_wifi_scan_result_t *scan_result);
 os_err_t       esp8266_wifi_connect_ap(mo_object_t *module, const char *ssid, const char *password);
+os_err_t       esp8266_wifi_disconnect_ap(mo_object_t *module);
 
 #endif /* ESP8266_USING_WIFI_OPS */
 

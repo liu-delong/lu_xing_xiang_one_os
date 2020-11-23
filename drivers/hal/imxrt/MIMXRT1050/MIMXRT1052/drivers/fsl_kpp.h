@@ -1,7 +1,7 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017, 2019 NXP
  * All rights reserved.
- * 
+ *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 #ifndef _FSL_KPP_H_
@@ -25,22 +25,24 @@
 /*@}*/
 
 #define KPP_KEYPAD_COLUMNNUM_MAX (8U)
-#define KPP_KEYPAD_ROWNUM_MAX (8U)
+#define KPP_KEYPAD_ROWNUM_MAX    (8U)
 
 /*! @brief List of interrupts supported by the peripheral. This
  * enumeration uses one-bot encoding to allow a logical OR of multiple
  * members. Members usually map to interrupt enable bits in one or more
  * peripheral registers.
  */
-typedef enum _kpp_interrupt_enable {
+typedef enum _kpp_interrupt_enable
+{
     kKPP_keyDepressInterrupt = KPP_KPSR_KDIE_MASK, /*!< Keypad depress interrupt source */
     kKPP_keyReleaseInterrupt = KPP_KPSR_KRIE_MASK  /*!< Keypad release interrupt source */
 } kpp_interrupt_enable_t;
 
 /*! @brief Lists of KPP synchronize chain operation. */
-typedef enum _kpp_sync_operation {
+typedef enum _kpp_sync_operation
+{
     kKPP_ClearKeyDepressSyncChain = KPP_KPSR_KDSC_MASK, /*!< Keypad depress interrupt status. */
-    kKPP_SetKeyReleasesSyncChain = KPP_KPSR_KRSS_MASK,  /*!< Keypad release interrupt status. */
+    kKPP_SetKeyReleasesSyncChain  = KPP_KPSR_KRSS_MASK, /*!< Keypad release interrupt status. */
 } kpp_sync_operation_t;
 
 /*! @brief Lists of KPP status. */
@@ -60,9 +62,9 @@ extern "C" {
 #endif
 
 /*!
-  * @name Initialization and De-initialization
-  * @{
-  */
+ * @name Initialization and De-initialization
+ * @{
+ */
 
 /*!
  * @brief KPP initialize.
@@ -99,8 +101,8 @@ void KPP_Deinit(KPP_Type *base);
  */
 static inline void KPP_EnableInterrupts(KPP_Type *base, uint16_t mask)
 {
-    uint16_t data = base->KPSR & ~(KPP_KPSR_KPKR_MASK | KPP_KPSR_KPKD_MASK);
-    base->KPSR = data | mask;
+    uint16_t data = (uint16_t)(base->KPSR & ~(KPP_KPSR_KPKR_MASK | KPP_KPSR_KPKD_MASK));
+    base->KPSR    = data | mask;
 }
 
 /*!
@@ -149,7 +151,7 @@ static inline void KPP_ClearStatusFlag(KPP_Type *base, uint16_t mask)
 static inline void KPP_SetSynchronizeChain(KPP_Type *base, uint16_t mask)
 {
     uint16_t data = base->KPSR & (KPP_KPSR_KRSS_MASK | KPP_KPSR_KDSC_MASK | KPP_KPSR_KRIE_MASK | KPP_KPSR_KDIE_MASK);
-    base->KPSR = data | mask;
+    base->KPSR    = data | mask;
 }
 
 /*!
@@ -163,6 +165,7 @@ static inline void KPP_SetSynchronizeChain(KPP_Type *base, uint16_t mask)
  * length at least equal to KPP_KEYPAD_COLUMNNUM_MAX * KPP_KEYPAD_ROWNUM_MAX.
  * the data pointer is recommended to be a array like uint8_t data[KPP_KEYPAD_COLUMNNUM_MAX].
  * for example the data[2] = 4, that means in column 1 row 2 has a key press event.
+ * @param clockSrc_Hz Source clock.
  */
 void KPP_keyPressScanning(KPP_Type *base, uint8_t *data, uint32_t clockSrc_Hz);
 

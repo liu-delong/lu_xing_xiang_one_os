@@ -25,6 +25,7 @@
 #define __MO_ONENET_H__
 
 #include "mo_object.h"
+#include "mo_ipaddr.h"
 #include <oneos_config.h>
 
 #ifdef MOLINK_USING_ONENET_NB_OPS
@@ -33,15 +34,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#ifdef MOLINK_USING_IPV6
-#define NBCONFIG_IPADDR_MAX_STR_LEN     (63)
-#else
-#define NBCONFIG_IPADDR_MAX_STR_LEN     (15)
-#endif
-
-#define NBCONFIG_AUTHCODE_MAX_STR_LEN   (16)
-#define NBCONFIG_PSK_MAX_STR_LEN        (16)
-#define NBEVENT_TIME_STAMP_LEN          (15)
+#define NBCONFIG_AUTHCODE_MAX_LEN       (16)
+#define NBCONFIG_PSK_MAX_LEN            (16)
+#define NBEVENT_TIME_STAMP_MAX_LEN      (14)
+#define NBCONFIG_AUTHCODE_MAX_STR_LEN   (NBCONFIG_AUTHCODE_MAX_LEN + 3)
+#define NBCONFIG_PSK_MAX_STR_LEN        (NBCONFIG_PSK_MAX_LEN + 3)
+#define NBEVENT_TIME_STAMP_MAX_STR_LEN  (NBEVENT_TIME_STAMP_MAX_LEN + 1)
 
 /**
  ***********************************************************************************************************************
@@ -53,15 +51,15 @@ extern "C" {
 typedef struct mo_config_resp
 {
     os_int8_t   guide_mode_enable;                  /* Guide mode enable; -1:invalid */
-    os_int8_t   ip[NBCONFIG_IPADDR_MAX_STR_LEN + 1];/* Server ip */
+    os_int8_t   ip[IPADDR_MAX_STR_LEN + 1];         /* Server ip */
     os_uint16_t port;                               /* Server port; [0-15535] */
     os_uint8_t  rsp_timeout;                        /* Respond timeout; 0:invalid, range:[2-20](s) */
     os_int8_t   obs_autoack_enable;                 /* Obs autoack mode enable; -1:invalid */
     os_int8_t   auth_enable;                        /* Auth mode enable; -1:invalid */
-    os_int8_t   auth_code[NBCONFIG_AUTHCODE_MAX_STR_LEN + 3];
+    os_int8_t   auth_code[NBCONFIG_AUTHCODE_MAX_STR_LEN];
                                                     /* Auth code string with Double quotation marks */
     os_int8_t   dtls_enable;                        /* DTLS mode enable; -1:invalid */
-    os_int8_t   psk[NBCONFIG_PSK_MAX_STR_LEN + 3];  /* PSK string with Double quotation marks */
+    os_int8_t   psk[NBCONFIG_PSK_MAX_STR_LEN];      /* PSK string with Double quotation marks */
     os_int8_t   write_format;                       /* Write format; -1:invalid */
     os_int8_t   buf_cfg;                            /* Downlink data cache configuration; -1:invalid */
     os_int8_t   buf_urc_mode;                       /* Downlink data cache enabled indication;-1:invalid */
@@ -181,7 +179,8 @@ typedef struct mo_onenet_event
     os_uint8_t  evt_id;                             /* EventID; 0:invalid */
     os_int32_t  extend;                             /* Extend;                      (optional) -1:invalid */
     os_uint16_t ack_id;                             /* AckID;                       (optional)  0:invalid range:[1-65535] */
-    os_uint8_t  time_stamp[NBEVENT_TIME_STAMP_LEN]; /* Time stamp;                  (optional) YYYYMMDDHHmmSS */
+    os_uint8_t  time_stamp[NBEVENT_TIME_STAMP_MAX_STR_LEN]; 
+                                                    /* Time stamp;                  (optional) YYYYMMDDHHmmSS */
     os_int8_t   cache_command_flag;                 /* Cache command enable Flag;   (optional) -1:invalid */
 } mo_onenet_event_t;
 
@@ -192,15 +191,23 @@ typedef struct mo_onenet_event
  * @brief       Struct contains urc messages receiving callbacks (Now support Quectel platform only)
  ***********************************************************************************************************************
  */
+typedef void (*discover_notify_cb_t)  (mo_onenet_discover_t  *discover_notify);
+typedef void (*observe_notify_cb_t)   (mo_onenet_observe_t   *observe_notify);
+typedef void (*read_notify_cb_t)      (mo_onenet_read_t      *read_notify);
+typedef void (*write_notify_cb_t)     (mo_onenet_write_t     *write_notify, const char *value);
+typedef void (*execute_notify_cb_t)   (mo_onenet_execute_t   *execute_notify, const char *arguments);
+typedef void (*parameter_notify_cb_t) (mo_onenet_parameter_t *parameter_notify, const char *parameter);
+typedef void (*event_notify_cb_t)     (mo_onenet_event_t     *event_notify);
+
 typedef struct mo_onenetnb_cb
 {
-    void (*discover_notify_cb)  (mo_onenet_discover_t  *discover_notify);
-    void (*observe_notify_cb)   (mo_onenet_observe_t   *observe_notify);
-    void (*read_notify_cb)      (mo_onenet_read_t      *read_notify);
-    void (*write_notify_cb)     (mo_onenet_write_t     *write_notify, const char *value);
-    void (*execute_notify_cb)   (mo_onenet_execute_t   *execute_notify, const char *arguments);
-    void (*parameter_notify_cb) (mo_onenet_parameter_t *parameter_notify, const char *parameter);
-    void (*event_notify_cb)     (mo_onenet_event_t     *event_notify);
+    discover_notify_cb_t    discover_notify_cb;
+    observe_notify_cb_t     observe_notify_cb;
+    read_notify_cb_t        read_notify_cb;
+    write_notify_cb_t       write_notify_cb;
+    execute_notify_cb_t     execute_notify_cb;
+    parameter_notify_cb_t   parameter_notify_cb;
+    event_notify_cb_t       event_notify_cb;
 } mo_onenet_cb_t;
 
 /**

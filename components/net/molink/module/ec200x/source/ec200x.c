@@ -32,40 +32,55 @@
 
 #ifdef MOLINK_USING_EC200X
 
+#define EC200X_RETRY_TIMES (5)
+
 #ifdef EC200X_USING_GENERAL_OPS
 static const struct mo_general_ops gs_general_ops = {
-    .at_test   = ec200x_at_test,
-    .get_imei  = ec200x_get_imei,
-    .get_imsi  = ec200x_get_imsi,
-    .get_iccid = ec200x_get_iccid,
-    .get_cfun  = ec200x_get_cfun,
-    .set_cfun  = ec200x_set_cfun,
+    .at_test              = ec200x_at_test,
+    .get_imei             = ec200x_get_imei,
+    .get_imsi             = ec200x_get_imsi,
+    .get_iccid            = ec200x_get_iccid,
+    .get_cfun             = ec200x_get_cfun,
+    .set_cfun             = ec200x_set_cfun,
+    .get_firmware_version = ec200x_get_firmware_version,
 };
 #endif /* EC200X_USING_GENERAL_OPS */
 
 #ifdef EC200X_USING_NETSERV_OPS
 static const struct mo_netserv_ops gs_netserv_ops = {
-    .set_attach     = ec200x_set_attach,
-    .get_attach     = ec200x_get_attach,
-    .set_reg        = ec200x_set_reg,
-    .get_reg        = ec200x_get_reg,
-    .set_cgact      = ec200x_set_cgact,
-    .get_cgact      = ec200x_get_cgact,
-    .get_csq        = ec200x_get_csq,
-    .get_ipaddr     = ec200x_get_ipaddr,
-    .ping           = ec200x_ping,
+    .set_attach           = ec200x_set_attach,
+    .get_attach           = ec200x_get_attach,
+    .set_reg              = ec200x_set_reg,
+    .get_reg              = ec200x_get_reg,
+    .set_cgact            = ec200x_set_cgact,
+    .get_cgact            = ec200x_get_cgact,
+    .get_csq              = ec200x_get_csq,
 };
 #endif /* EC200X_USING_NETSERV_OPS */
+
+#ifdef EC200X_USING_PING_OPS
+static const struct mo_ping_ops gs_ping_ops = {
+    .ping                 = ec200x_ping,
+};
+#endif /* EC200X_USING_PING_OPS */
+
+#ifdef EC200X_USING_IFCONFIG_OPS
+static const struct mo_ifconfig_ops gs_ifconfig_ops = {
+    .ifconfig            = ec200x_ifconfig,
+    .get_ipaddr          = ec200x_get_ipaddr,
+};
+#endif /* EC200X_USING_IFCONFIG_OPS */
+
 #ifdef EC200X_USING_NETCONN_OPS
 extern void ec200x_netconn_init(mo_ec200x_t *module);
 
 static const struct mo_netconn_ops gs_netconn_ops = {
-    .create        = ec200x_netconn_create,
-    .destroy       = ec200x_netconn_destroy,
-    .gethostbyname = ec200x_netconn_gethostbyname,
-    .connect       = ec200x_netconn_connect,
-    .send          = ec200x_netconn_send,
-    .get_info      = ec200x_netconn_get_info,
+    .create              = ec200x_netconn_create,
+    .destroy             = ec200x_netconn_destroy,
+    .gethostbyname       = ec200x_netconn_gethostbyname,
+    .connect             = ec200x_netconn_connect,
+    .send                = ec200x_netconn_send,
+    .get_info            = ec200x_netconn_get_info,
 };
 #endif /* EC200X_USING_NETCONN_OPS */
 
@@ -78,31 +93,66 @@ static at_urc_t gs_urc_table[] = {
     {.prefix = "RDY", .suffix = "\r\n", .func = urc_ready_func},
 };
 
-mo_object_t *module_ec200x_create(const char *name, os_device_t *device, os_size_t recv_len)
+static os_err_t ec200x_at_init(mo_object_t *self)
 {
-    mo_ec200x_t *module = (mo_ec200x_t *)malloc(sizeof(mo_ec200x_t));
+    at_parser_t *parser = &self->parser;
 
-    os_err_t result = mo_object_init(&(module->parent), name, device, recv_len);
-	if (result != OS_EOK)
+    at_parser_set_urc_table(parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
+
+    os_err_t result = at_parser_connect(parser, EC200X_RETRY_TIMES);
+    if (result != OS_EOK)
     {
-        goto __exit;
+        LOG_EXT_E("Connect to %s module failed, please check whether the module connection is correct", self->name);
+        return result;
     }
 
-    at_parser_set_urc_table(&module->parent.parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
+    char resp_buff[32] = {0};
 
-#ifdef EC200X_USING_GENERAL_OPS
-    module->parent.ops_table[MODULE_OPS_GENERAL] = &gs_general_ops;
+    at_resp_t resp = {.buff = resp_buff,
+                      .buff_size = sizeof(resp_buff),
+                      .timeout = AT_RESP_TIMEOUT_DEF};
 
-    result = ec200x_set_echo(&module->parent, OS_FALSE);
+    return at_parser_exec_cmd(parser, &resp, "ATE0");
+}
+
+mo_object_t *module_ec200x_create(const char *name, void *parser_config)
+{
+    mo_ec200x_t *module = (mo_ec200x_t *)malloc(sizeof(mo_ec200x_t));
+    if (OS_NULL == module)
+    {
+        LOG_EXT_E("Create %s module instance failed, no enough memory.", name);
+        return OS_NULL;
+    }
+
+    os_err_t result = mo_object_init(&(module->parent), name, parser_config);
+    if (result != OS_EOK)
+    {
+        free(module);
+
+        return OS_NULL;
+    }
+
+    result = ec200x_at_init(&module->parent);
     if (result != OS_EOK)
     {
         goto __exit;
     }
+
+#ifdef EC200X_USING_GENERAL_OPS
+    module->parent.ops_table[MODULE_OPS_GENERAL] = &gs_general_ops;
 #endif /* EC200X_USING_GENERAL_OPS */
 
 #ifdef EC200X_USING_NETSERV_OPS
     module->parent.ops_table[MODULE_OPS_NETSERV] = &gs_netserv_ops;
 #endif /* EC200X_USING_NETSERV_OPS */
+
+#ifdef EC200X_USING_PING_OPS
+    module->parent.ops_table[MODULE_OPS_PING] = &gs_ping_ops;
+#endif /* EC200X_USING_PING_OPS */
+
+#ifdef EC200X_USING_IFCONFIG_OPS
+    module->parent.ops_table[MODULE_OPS_IFCONFIG] = &gs_ifconfig_ops;
+#endif /* EC200X_USING_IFCONFIG_OPS */
 
 #ifdef EC200X_USING_NETCONN_OPS
     module->parent.ops_table[MODULE_OPS_NETCONN] = &gs_netconn_ops;
@@ -168,7 +218,11 @@ int ec200x_auto_create(void)
 
     os_device_control(device, OS_DEVICE_CTRL_CONFIG, &uart_config);
 
-    mo_object_t *module = module_ec200x_create(EC200X_NAME, device, EC200X_RECV_BUFF_LEN);
+    mo_parser_config_t parser_config = {.parser_name   = EC200X_NAME,
+                                        .parser_device = device,
+                                        .recv_buff_len = EC200X_RECV_BUFF_LEN};
+
+    mo_object_t *module = module_ec200x_create(EC200X_NAME, &parser_config);
 
     if (OS_NULL == module)
     {

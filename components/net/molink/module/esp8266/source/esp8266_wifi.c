@@ -58,7 +58,7 @@ os_err_t esp8266_wifi_set_mode(mo_object_t *module, mo_wifi_mode_t mode)
         return OS_ERROR;
     }
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CWMODE_DEF=%d", mode_data);
+    return at_parser_exec_cmd(parser, &resp, "AT+CWMODE_DEF=%hhd", mode_data);
 }
 
 mo_wifi_mode_t esp8266_wifi_get_mode(mo_object_t *module)
@@ -78,7 +78,7 @@ mo_wifi_mode_t esp8266_wifi_get_mode(mo_object_t *module)
     }
     
 
-    if (at_resp_get_data_by_kw(&resp, "+CWMODE_DEF:", "+CWMODE_DEF:%d", &mode_data) < 0)
+    if (at_resp_get_data_by_kw(&resp, "+CWMODE_DEF:", "+CWMODE_DEF:%hhd", &mode_data) < 0)
     {
         result = OS_ERROR;
         goto __exit;
@@ -107,6 +107,50 @@ __exit:
 mo_wifi_stat_t esp8266_wifi_get_stat(mo_object_t *module)
 {
     mo_esp8266_t *esp8266 = os_container_of(module, mo_esp8266_t, parent);
+    at_parser_t  *parser  = &module->parser;
+
+    char *resp_buff = calloc(1, 384);
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = 384, .timeout = 5 * OS_TICK_PER_SECOND};
+
+    if (at_parser_exec_cmd(parser, &resp, "AT+CIPSTATUS") != OS_EOK)
+    {
+        esp8266->wifi_stat = MO_WIFI_STAT_NULL;
+
+        free(resp_buff);
+
+        return esp8266->wifi_stat;
+    }
+
+    os_uint8_t wifi_stat = 0;
+
+    if (at_resp_get_data_by_kw(&resp, "STATUS:", "STATUS:%hhu", &wifi_stat) <= 0)
+    {
+        LOG_EXT_E("Failed to check the status of module %s", module->name);
+
+        esp8266->wifi_stat = MO_WIFI_STAT_NULL;
+
+        free(resp_buff);
+
+        return esp8266->wifi_stat;
+    }
+
+    switch (wifi_stat)
+    {
+    case 5: /* Esp8266 station not connected to AP */
+        esp8266->wifi_stat = MO_WIFI_STAT_DISCONNECTED;
+        break;
+    case 2: /* Esp8266 station has connected to AP and obtained IP address */
+    case 3: /* Esp8266 station has established TCP or UDP transmission */
+    case 4: /* Esp8266 station is disconnected from the network */
+        esp8266->wifi_stat = MO_WIFI_STAT_CONNECTED;
+        break;
+    default:
+        LOG_EXT_E("Wrong status code");
+        break;
+    }
+
+    free(resp_buff);
 
     return esp8266->wifi_stat;
 }
@@ -238,14 +282,6 @@ __exit:
     return result;
 }
 
-void esp8266_wifi_scan_info_free(mo_wifi_scan_result_t *scan_result)
-{
-    if (scan_result->info_array != OS_NULL)
-    {
-        free(scan_result->info_array);
-    }
-}
-
 os_err_t esp8266_wifi_connect_ap(mo_object_t *module, const char *ssid, const char *password)
 {
     at_parser_t *parser = &module->parser;
@@ -261,6 +297,17 @@ os_err_t esp8266_wifi_connect_ap(mo_object_t *module, const char *ssid, const ch
     }
 
     return result;
+}
+
+os_err_t esp8266_wifi_disconnect_ap(mo_object_t *module)
+{
+    at_parser_t *parser = &module->parser;
+
+    char resp_buff[32] = {0};
+
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+
+    return at_parser_exec_cmd(parser, &resp, "AT+CWQAP");
 }
 
 static void urc_connect_func(struct at_parser *parser, const char *data, os_size_t size)

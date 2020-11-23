@@ -151,19 +151,25 @@ struct usb_os_function_comp_id_descriptor winusb_func_comp_id_desc =
 static os_err_t _ep_out_handler(ufunction_t func, os_size_t size)
 {
     winusb_device_t winusb_device = (winusb_device_t)func->user_data;
-    if (winusb_device->parent.rx_indicate != OS_NULL)
+
+    struct os_device_cb_info *info = &winusb_device->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+    if (info->cb != OS_NULL)
     {
-        winusb_device->parent.rx_indicate(&winusb_device->parent, size);
+        info->size = size;
+        info->cb(&winusb_device->parent, info);
     }
+
     return OS_EOK;
 }
 
 static os_err_t _ep_in_handler(ufunction_t func, os_size_t size)
 {
     winusb_device_t winusb_device = (winusb_device_t)func->user_data;
-    if (winusb_device->parent.tx_complete != OS_NULL)
+    struct os_device_cb_info *info = &winusb_device->parent.cb_table[OS_DEVICE_CB_TYPE_TX];
+    if (info->cb != OS_NULL)
     {
-        winusb_device->parent.tx_complete(&winusb_device->parent, winusb_device->ep_in->buffer);
+        info->data = winusb_device->ep_in->buffer;
+        info->cb(&winusb_device->parent, info);
     }
     return OS_EOK;
 }
@@ -280,7 +286,6 @@ static os_err_t win_usb_control(os_device_t *dev, int cmd, void *args)
     return OS_EOK;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops winusb_device_ops =
 {
     OS_NULL,
@@ -290,24 +295,12 @@ const static struct os_device_ops winusb_device_ops =
     win_usb_write,
     win_usb_control,
 };
-#endif
 
 static os_err_t os_usb_winusb_init(ufunction_t func)
 {
     winusb_device_t winusb_device = (winusb_device_t)func->user_data;
     winusb_device->parent.type    = OS_DEVICE_TYPE_MISCELLANEOUS;
-
-#ifdef OS_USING_DEVICE_OPS
-    winusb_device->parent.ops = &winusb_device_ops;
-#else
-    winusb_device->parent.init    = OS_NULL;
-    winusb_device->parent.open    = OS_NULL;
-    winusb_device->parent.close   = OS_NULL;
-    winusb_device->parent.read    = win_usb_read;
-    winusb_device->parent.write   = win_usb_write;
-    winusb_device->parent.control = win_usb_control;
-#endif
-
+    winusb_device->parent.ops     = &winusb_device_ops;
     winusb_device->parent.user_data = func;
 
     return os_device_register(&winusb_device->parent, "winusb", OS_DEVICE_FLAG_RDWR);

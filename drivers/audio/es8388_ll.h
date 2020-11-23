@@ -102,7 +102,7 @@ enum es8388_format
     ES_FMT_DSP    = 3,
 };
 
-os_err_t es8388_init(const char *i2c_name, os_uint16_t pin);
+os_err_t es8388_init(struct os_device *dev, os_uint16_t pin);
 os_err_t es8388_start(enum es8388_mode mode);
 os_err_t es8388_stop(enum es8388_mode mode);
 os_err_t es8388_fmt_set(enum es8388_mode mode, enum es8388_format fmt);

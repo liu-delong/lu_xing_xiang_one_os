@@ -46,6 +46,7 @@
 #define EVAL_COM0_RX_PIN                 GPIO_PIN_10
 #define EVAL_COM0_GPIO_PORT              GPIOA
 #define EVAL_COM0_GPIO_CLK               RCU_GPIOA
+#define EVAL_COM0_GPIO_AF_IDX            OS_NULL
 
 #define EVAL_COM1                        USART1
 #define EVAL_COM1_CLK                    RCU_USART1
@@ -53,6 +54,7 @@
 #define EVAL_COM1_RX_PIN                 GPIO_PIN_3
 #define EVAL_COM1_GPIO_PORT              GPIOA
 #define EVAL_COM1_GPIO_CLK               RCU_GPIOA
+#define EVAL_COM0_GPIO_AF_IDX            OS_NULL
 
 
 

@@ -32,9 +32,8 @@ extern "C" {
 
 #ifdef ESP8266_USING_GENERAL_OPS
 
-os_err_t esp8266_soft_reset(mo_object_t *self);
 os_err_t esp8266_at_test(mo_object_t *self);
-os_err_t esp8266_set_echo(mo_object_t *self, os_bool_t is_echo);
+os_err_t esp8266_get_firmware_version(mo_object_t *self, mo_firmware_version_t *version);
 
 #endif /* ESP8266_USING_GENERAL_OPS */
 

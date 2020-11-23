@@ -561,14 +561,14 @@ typedef struct ustorage_csw *ustorage_csw_t;
 
 #pragma pack()
 
-/* The stack size of USB thread */
-#ifndef OS_USBD_THREAD_STACK_SZ
-#define OS_USBD_THREAD_STACK_SZ 512
+/* The stack size of USB task */
+#ifndef OS_USBD_TASK_STACK_SZ
+#define OS_USBD_TASK_STACK_SZ 512
 #endif
 
-/* The priority of USB thread */
-#ifndef OS_USBD_THREAD_PRIO
-#define OS_USBD_THREAD_PRIO 8
+/* The priority of USB task */
+#ifndef OS_USBD_TASK_PRIO
+#define OS_USBD_TASK_PRIO 8
 #endif
 
 #define OS_DEBUG_LOG(type, message)                                                                                    \

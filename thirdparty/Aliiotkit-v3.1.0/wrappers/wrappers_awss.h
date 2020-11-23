@@ -1,10 +1,10 @@
 #ifndef _WRAPPERS_AWSS_H_
 #define _WRAPPERS_AWSS_H_
 
-#ifdef WIFI_PROVISION_ENABLED
-#include "infra_types.h"
-#include "infra_defs.h"
 
+#ifdef WIFI_PROVISION_ENABLED
+#include "infra_defs.h"
+#include "infra_types.h"
 /**
  * @brief   设置Wi-Fi网卡工作在监听(Monitor)模式, 并在收到802.11帧的时候调用被传入的回调函数
  *
@@ -148,6 +148,7 @@ int HAL_Awss_Close_Ap();
 * @return  指向缓冲区数组起始位置的字符指针
 */
 char *HAL_Wifi_Get_Mac(_OU_ char mac_str[HAL_MAC_LEN]);
+	
 #endif
 
 

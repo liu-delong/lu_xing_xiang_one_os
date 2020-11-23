@@ -171,7 +171,7 @@ os_err_t os_hwcrypto_hash_register(struct os_hwcrypto_device *device, const char
     if (hwcrypto_hash_device != OS_NULL)
     {
         os_kprintf("hwcrypto hash dev %s exist, %s register failed.\r\n",
-                   hwcrypto_hash_device->parent.parent.name, name);
+                   device_name(&hwcrypto_hash_device->parent), name);
         return OS_EFULL;
     }
 

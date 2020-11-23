@@ -1,0 +1,22 @@
+menu "BLE"
+
+    config OS_USING_BLE
+        bool "Enable BLE stack"
+        default n
+
+    if OS_USING_BLE
+        choice
+            prompt "BLE stack choose"
+            help
+                Select the BLE stack
+
+            config BLE_USING_NIMBLE
+                bool "NimBLE"
+        endchoice
+
+        if BLE_USING_NIMBLE
+            source "$OS_ROOT/components/ble/mynewt-nimble/nimble/Kconfig"
+        endif
+    endif
+
+endmenu

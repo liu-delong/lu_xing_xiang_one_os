@@ -1,45 +1,8 @@
 menu "NB-IoT kit"
 
 config OS_USING_ONENET_NBIOT
-    bool "Enable onenet nbiot-kit"
-    select BSP_USING_ONCHIP_RTC
-    select OS_USING_RTC
-    select NET_USING_BSD
+	bool "Enable onenet nbiot-kit ( Not open source, contact OneOS Team if necessary )"
+
 	default n
-    
-    if OS_USING_ONENET_NBIOT
-		
-		config ONENET_NBIOT_USING_AUTH_CODE
-            bool "Using nbiot-kit device auth code"
-            default n
-			
-			if ONENET_NBIOT_USING_AUTH_CODE
-				config NBIOT_DEVICE_AUTH_CODE
-				string "Input device auth code"
-				default ""
-			endif
-		
-		config ONENET_NBIOT_ENABLE_LOG
-            bool "Enable onenet nbiot-kit log"
-            default y  
-			
-            if ONENET_NBIOT_ENABLE_LOG
-                config ONENET_NBIOT_LOG_LEVEL
-                int "Log output level"
-                default 3
-				
-                config ONENET_NBIOT_LOG_BUFFER_SIZE
-                int "Log buffer size"
-                default 200
-            endif
-			
-        config ONENET_NBIOT_ENABLE_MEMTRACE
-            bool "Enable onenet nbiot-kit memtrace"
-            default n 
-			
-		config ONENET_NBIOT_USING_SAMPLE
-            bool "Enable onenet nbiot-kit sample"
-            default y 
-    endif
-	
+
 endmenu

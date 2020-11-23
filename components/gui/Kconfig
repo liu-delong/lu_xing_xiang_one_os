@@ -20,6 +20,10 @@ menu "GUI"
                 config OS_USING_GUI_LVGL_CONSOLE
                     bool "Enable LittlevGL console"
                     default n
+                    
+                config OS_USING_GUI_LVGL_GIF
+                    bool "Enable LittlevGL gif support"
+                    default n
             endif
     endif
 

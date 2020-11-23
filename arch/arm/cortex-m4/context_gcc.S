@@ -196,7 +196,7 @@ os_hw_context_switch_to:
     STR r0, [r1]
 
 #if defined (__VFP_FP__) && !defined(__SOFTFP__)
-    /* CLEAR CONTROL.FPCA */
+    /* CLEAR CONTROL.FPCA. */
     MRS     r2, CONTROL         /* Read. */
     BIC     r2, #0x04           /* Modify. */
     MSR     CONTROL, r2         /* Write-back. */

@@ -1,0 +1,34 @@
+import os
+import osconfig
+from build_tools import *
+
+
+
+pwd = PresentDir()
+
+# add general drivers
+src = Split('''
+board.c
+startup/system_FM33A0XX.c
+''')
+
+# path   include path in project
+path =  [pwd]
+path += ['../']
+path += [pwd + '/ports']
+
+if osconfig.CROSS_TOOL == 'gcc':
+    src += [pwd + '/startup/startup_FM33A0XX_gcc.s']
+elif osconfig.CROSS_TOOL == 'keil':
+    src += [pwd + '/startup/startup_FM33A0XX_arm.s']
+elif osconfig.CROSS_TOOL == 'iar':
+    src += [pwd + '/startup/startup_FM33A0XX_iar.s']
+
+CPPDEFINES = ['FM33A0xx'] 
+CPPDEFINES += ['__VTOR_PRESENT'] 
+CPPDEFINES += ['__A04'] 
+CPPDEFINES += ['__DEBUG'] 
+
+group = AddCodeGroup('bsp', src, depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

@@ -48,12 +48,11 @@
 #define OS_MEM_STATS
 /* end of Memory management */
 
-/* Kernel device object */
+/* Kernel console */
 
-#define OS_USING_DEVICE
 #define OS_USING_CONSOLE
 #define OS_CONSOLE_DEVICE_NAME "uart2"
-/* end of Kernel device object */
+/* end of Kernel console */
 
 /* Enable assert */
 
@@ -94,6 +93,8 @@
 /* end of Osal */
 
 /* Drivers */
+
+#define OS_USING_DEVICE
 
 /* HAL */
 
@@ -221,6 +222,10 @@
 #define ATEST_TASK_PRIORITY 20
 /* end of Atest */
 
+/* BLE */
+
+/* end of BLE */
+
 /* Cloud */
 
 /* OneNET */
@@ -286,6 +291,14 @@
 /* MQTT */
 
 /* end of MQTT */
+
+/* Websocket */
+
+/* end of Websocket */
+
+/* Httpclient */
+
+/* end of Httpclient */
 /* end of Protocols */
 
 /* Socket */
@@ -314,9 +327,9 @@
 #define SHELL_ARG_MAX 10
 /* end of Shell */
 
-/* Virtual file system */
+/* FileSystem */
 
-/* end of Virtual file system */
+/* end of FileSystem */
 
 /* GUI */
 
@@ -360,6 +373,10 @@
 /* MicroPython */
 
 /* end of MicroPython */
+
+/* Amazon-iot */
+
+/* end of Amazon-iot */
 /* end of Thirdparty */
 
 /* Boot Config */

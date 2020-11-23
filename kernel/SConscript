@@ -21,9 +21,6 @@ if IsDefined('OS_USING_MEM_POOL') == False:
 if IsDefined('OS_USING_MEM_HEAP') == False:
     DeleteSrcFile(src, ['source/os_mem_heap.c'])
 
-if IsDefined('OS_USING_DEVICE') == False:
-    DeleteSrcFile(src, ['source/os_device.c'])
-
 if IsDefined('OS_USING_SEMAPHORE') == False:
     DeleteSrcFile(src, ['source/os_sem.c'])
 

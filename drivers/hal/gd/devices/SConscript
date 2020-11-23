@@ -1,0 +1,15 @@
+Import('OS_ROOT')
+Import('osconfig')
+from build_tools import *
+
+pwd = PresentDir()
+
+src = []
+
+src += ['gd_devices.c']
+
+path =  [pwd]
+
+group = AddCodeGroup('hal/devices', src, depend = ['SOC_FAMILY_GD32'], CPPPATH = path)
+group = AddCodeGroup('hal/devices', src, depend = ['SOC_FAMILY_GD32F4XX'], CPPPATH = path)
+Return('group')

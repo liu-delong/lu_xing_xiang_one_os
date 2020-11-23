@@ -27,20 +27,40 @@
 #include <os_hw.h>
 #include <os_device.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "peripherals.h"
 
-void _Error_Handler(char *s, int num);
+#include <fsl_common.h>
+#include <fsl_gpio.h>
+#include <fsl_anactrl.h>
+#include <fsl_lpadc.h>
+#include <fsl_i2c.h>
+#include "fsl_i2c_dma.h"
+#include <fsl_i2s.h>
+#include "fsl_i2s_dma.h"
+#include <fsl_spi.h>
+#include "fsl_spi_dma.h"
+#include <fsl_usart.h>
+#include "fsl_usart_dma.h"
+#include <fsl_wwdt.h>
+#include <fsl_rtc.h>
+#include <fsl_crc.h>
+#include <fsl_utick.h>
+#include <fsl_ctimer.h>
 
-#ifndef Error_Handler
-#define Error_Handler() _Error_Handler(__FILE__, __LINE__)
-#endif
+#include <drv_gpio.h>
+#include <drv_adc.h>
+#include <drv_i2c.h>
+#include <drv_i2s.h>
+#include <drv_spi.h>
+#include <drv_usart.h>
+#include <drv_wwdt.h>
+#include <drv_rtc.h>
+#include <drv_crypto.h>
+#include <drv_utick.h>
+#include <drv_hwtimer.h>
 
-#define DMA_NOT_AVAILABLE ((DMA_INSTANCE_TYPE *)0xFFFFFFFFU)
-
-#ifdef __cplusplus
-}
+#if defined(OS_USING_USB_DEVICE)
+#include <drv_usbd.h>
 #endif
 
 #endif

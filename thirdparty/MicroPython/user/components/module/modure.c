@@ -391,13 +391,15 @@ STATIC mp_obj_t mod_re_compile(size_t n_args, const mp_obj_t *args) {
 	mp_obj_re_t *o;
     const char *re_str = mp_obj_str_get_str(args[0]);
     int size = re1_5_sizecode(re_str);
+    #if MICROPY_PY_URE_DEBUG
+    int flags = 0;
+	#endif
     if (size == -1) {
         goto compile_error;
     }
     o = m_new_obj_var(mp_obj_re_t, char, size);
     o->base.type = &re_type;
     #if MICROPY_PY_URE_DEBUG
-    int flags = 0;
     if (n_args > 1) {
         flags = mp_obj_get_int(args[1]);
     }

@@ -21,15 +21,15 @@
  ***********************************************************************************************************************
  */
 
+#include <stdio.h>
+#include <string.h>
 #include "m5311_general.h"
 
 #define DBG_EXT_TAG "m5311.general"
 #define DBG_EXT_LVL DBG_EXT_INFO
 #include <os_dbg_ext.h>
 
-#define M5311_IMEI_LEN  15
-#define M5311_IMSI_LEN  15
-#define M5311_ICCID_LEN 20
+#define M5311_PSM_QUOTES_LEN    (2)
 
 #ifdef M5311_USING_GENERAL_OPS
 
@@ -46,7 +46,7 @@ os_err_t m5311_at_test(mo_object_t *self)
 
 os_err_t m5311_get_imei(mo_object_t *self, char *value, os_size_t len)
 {
-    OS_ASSERT(len > M5311_IMEI_LEN);
+    OS_ASSERT(len > MO_IMEI_LEN);
 
     at_parser_t *parser = &self->parser;
     
@@ -66,7 +66,7 @@ os_err_t m5311_get_imei(mo_object_t *self, char *value, os_size_t len)
         return OS_ERROR;
     }
 
-    value[M5311_IMEI_LEN] = '\0';
+    value[MO_IMEI_LEN] = '\0';
 
     LOG_EXT_D("module %s imei:%s", value);
 
@@ -75,7 +75,7 @@ os_err_t m5311_get_imei(mo_object_t *self, char *value, os_size_t len)
 
 os_err_t m5311_get_imsi(mo_object_t *self, char *value, os_size_t len)
 {
-    OS_ASSERT(len > M5311_IMSI_LEN);
+    OS_ASSERT(len > MO_IMSI_LEN);
 
     at_parser_t *parser = &self->parser;
 
@@ -95,7 +95,7 @@ os_err_t m5311_get_imsi(mo_object_t *self, char *value, os_size_t len)
         return OS_ERROR;
     }
 
-    value[M5311_IMSI_LEN] = '\0';
+    value[MO_IMSI_LEN] = '\0';
 
     LOG_EXT_D("module %s imsi:%s", value);
 
@@ -104,7 +104,7 @@ os_err_t m5311_get_imsi(mo_object_t *self, char *value, os_size_t len)
 
 os_err_t m5311_get_iccid(mo_object_t *self, char *value, os_size_t len)
 {
-    OS_ASSERT(len > M5311_ICCID_LEN);
+    OS_ASSERT(len > MO_ICCID_LEN);
 
     at_parser_t *parser = &self->parser;
 
@@ -124,9 +124,9 @@ os_err_t m5311_get_iccid(mo_object_t *self, char *value, os_size_t len)
         return OS_ERROR;
     }
 
-    value[M5311_ICCID_LEN] = '\0';
+    value[MO_ICCID_LEN] = '\0';
 
-    LOG_EXT_D("module %s imsi:%s", value);
+    LOG_EXT_D("module %s iccid: %s", value);
 
     return OS_EOK;
 }
@@ -145,7 +145,7 @@ os_err_t m5311_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl)
         return OS_ERROR;
     }
 
-    if (at_resp_get_data_by_kw(&resp, "+CFUN:", "+CFUN:%d", fun_lvl) <= 0)
+    if (at_resp_get_data_by_kw(&resp, "+CFUN:", "+CFUN:%hhu", fun_lvl) <= 0)
     {
         LOG_EXT_E("Get %s module level of functionality failed", self->name);
         return OS_ERROR;
@@ -160,20 +160,9 @@ os_err_t m5311_set_cfun(mo_object_t *self, os_uint8_t fun_lvl)
 
     char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 10 * OS_TICK_PER_SECOND};
 
-    return at_parser_exec_cmd(parser, &resp, "AT+CFUN=%d", fun_lvl);
-}
-
-os_err_t m5311_set_echo(mo_object_t *self, os_bool_t is_echo)
-{
-    at_parser_t *parser = &self->parser;
-    
-    char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
-
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
-
-    return at_parser_exec_cmd(parser, &resp, "ATE%d", is_echo ? OS_TRUE : OS_FALSE);
+    return at_parser_exec_cmd(parser, &resp, "AT+CFUN=%hhu", fun_lvl);
 }
 
 #endif /* M5311_USING_GENERAL_OPS */

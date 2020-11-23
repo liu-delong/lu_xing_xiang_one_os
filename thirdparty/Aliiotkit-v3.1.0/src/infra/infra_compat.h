@@ -6,6 +6,7 @@
 #undef  being_deprecated
 #define being_deprecated
 
+
 typedef enum _IOT_LogLevel {
     IOT_LOG_NONE = 0,
     IOT_LOG_CRIT,

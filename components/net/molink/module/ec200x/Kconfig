@@ -30,6 +30,19 @@ menu "EC200X Config"
         select MOLINK_USING_NETSERV_OPS
         default y
 
+    config EC200X_USING_PING_OPS
+        bool "Enable EC200X Module Ping Operates"
+        select MOLINK_USING_NETSERV_OPS
+        select MOLINK_USING_PING_OPS
+        default y
+
+    config EC200X_USING_IFCONFIG_OPS
+        bool "Enable EC200X Module Ifconfig Operates"
+        select MOLINK_USING_IFCONFIG_OPS
+        select EC200X_USING_GENERAL_OPS
+        select EC200X_USING_NETSERV_OPS
+        default y
+
     config EC200X_USING_NETCONN_OPS
         bool "Enable EC200X Module Network TCP/IP Operates"
         select OS_USING_EVENT

@@ -179,9 +179,13 @@ int fal_part_read(fal_part_t *part, uint32_t offset, uint8_t *buf, size_t size)
         {            
             count = min(page_size - offset, remain);
             memcpy(buf, page_buff + offset, count);
+            page_addr++;
+        }
+        else
+        {
+            page_addr += remain >> page_shift;
         }
         
-        page_addr += (remain >> page_shift) ? (remain >> page_shift) : 1;
         buf    += count;
         remain -= count;
         offset += count;
@@ -266,7 +270,15 @@ write_loop:
             break;
         }
 
-        page_addr += (remain >> page_shift) ? (remain >> page_shift) : 1;
+        if (offset != 0 || remain < page_size)
+        {
+            page_addr++;
+        }
+        else
+        {
+            page_addr += remain >> page_shift;
+        }
+
         buf    += count;
         remain -= count;
         offset += count;

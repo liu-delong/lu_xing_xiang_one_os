@@ -287,6 +287,8 @@ os_err_t os_qspi_send_then_recv(struct os_qspi_device *device,
 
 os_err_t os_qspi_send(struct os_qspi_device *device, const void *send_buf, os_size_t length);
 
+os_err_t os_hw_spi_device_attach(const char *bus_name, const char *device_name, os_base_t cs_pin);
+
 #ifdef __cplusplus
 }
 #endif

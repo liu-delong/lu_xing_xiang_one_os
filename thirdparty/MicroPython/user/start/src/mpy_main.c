@@ -21,7 +21,6 @@
 #endif
 
 
-#define MPY_DEBUG		0
 
 void *stack_top = NULL;
 static char *heap = NULL;
@@ -92,7 +91,6 @@ void Mpy_Task(void* argument)
 
   //printf("mp_init ok\n");
   readline_init0();
-  //printf("readline_init0 ok\n");
 
    /* Save the open flag */
    old_flag = os_console_get_device()->open_flag;
@@ -100,26 +98,12 @@ void Mpy_Task(void* argument)
    os_console_get_device()->open_flag &= ~OS_DEVICE_FLAG_STREAM;
   
    if (argument) {
-	    //os_kprintf(argument);
 #ifndef MICROPYTHON_USING_UOS
         os_kprintf("Please enable uos module in sys module option first.\n");
 #else
         pyexec_file(argument);
 #endif
-    } else {
-		#if MPY_DEBUG
-			if (!access("main.mpy", 0)) {
-				if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
-					pyexec_frozen_module("main.mpy");
-			}
-		}
-			else if (!access("main.py", 0)) {
-				if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
-					pyexec_file("main.py");
-			}
-		}
-		#endif
-			
+    } else {			
 		for(;;)
 		{
 			if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {

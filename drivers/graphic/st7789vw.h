@@ -25,9 +25,6 @@
 #define __DRV_LCD_H__
 
 #include <os_task.h>
-#ifdef PKG_USING_QRCODE
-#include <qrcode.h>
-#endif
 
 #define LCD_W 240
 #define LCD_H 240
@@ -65,15 +62,6 @@ void lcd_fill(os_uint16_t x_start, os_uint16_t y_start, os_uint16_t x_end, os_ui
 void     lcd_show_num(os_uint16_t x, os_uint16_t y, os_uint32_t num, os_uint8_t len, os_uint32_t size);
 os_err_t lcd_show_string(os_uint16_t x, os_uint16_t y, os_uint32_t size, const char *fmt, ...);
 os_err_t lcd_show_image(os_uint16_t x, os_uint16_t y, os_uint16_t length, os_uint16_t wide, const os_uint8_t *p);
-
-#ifdef PKG_USING_QRCODE
-os_err_t lcd_show_qrcode(os_uint16_t x,
-                         os_uint16_t y,
-                         os_uint8_t  version,
-                         os_uint8_t  ecc,
-                         const char *data,
-                         os_uint8_t  enlargement);
-#endif
 
 void lcd_enter_sleep(void);
 void lcd_exit_sleep(void);

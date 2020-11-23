@@ -368,7 +368,6 @@ sfud_err sfud_spi_port_init(sfud_flash *flash)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops flash_device_ops =
 {
     OS_NULL,
@@ -378,7 +377,6 @@ const static struct os_device_ops flash_device_ops =
     os_sfud_write,
     os_sfud_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -489,16 +487,7 @@ os_spi_flash_device_t os_sfud_flash_probe(const char *spi_flash_dev_name, const 
 
         /* Register device */
         os_dev->flash_device.type = OS_DEVICE_TYPE_BLOCK;
-#ifdef OS_USING_DEVICE_OPS
         os_dev->flash_device.ops = &flash_device_ops;
-#else
-        os_dev->flash_device.init    = OS_NULL;
-        os_dev->flash_device.open    = OS_NULL;
-        os_dev->flash_device.close   = OS_NULL;
-        os_dev->flash_device.read    = os_sfud_read;
-        os_dev->flash_device.write   = os_sfud_write;
-        os_dev->flash_device.control = os_sfud_control;
-#endif
 
         os_device_register(&(os_dev->flash_device),
                            spi_flash_dev_name,

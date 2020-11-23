@@ -6,6 +6,9 @@ pwd     = PresentDir()
 objs 	= []
 list 	= os.listdir(pwd)
 
+if IsDefined(['SOC_SERIES_LPC5500']):
+    Return('objs')
+    
 for d in list:
     path = os.path.join(pwd, d)
     if os.path.isfile(os.path.join(path, 'SConscript')):

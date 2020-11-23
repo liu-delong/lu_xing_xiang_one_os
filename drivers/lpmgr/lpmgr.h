@@ -58,6 +58,17 @@ enum
     LPMGR_FREQUENCY_PENDING = 0x01,
 };
 
+enum
+{
+    LPMGR_MODE_CHANGE_FLAG = 1,
+    LPMGR_MODE_ENTER_SLEEP_CALL    = 7,
+};
+
+
+#define setbit(value, bit)        (value) |= (1 << (bit)) 
+#define getbit(value, bit)        ((value >> bit) & 0x1) 
+#define clrbit(value, bit)         (value) &= ~(1 << (bit))
+
 #define SYS_DEFAULT_SLEEP_MODE SYS_SLEEP_MODE_IDLE
 #define SYS_DEFAULT_RUN_MODE   SYS_RUN_MODE_NORMAL_SPEED
 
@@ -92,7 +103,7 @@ struct lpmgr;
 
 struct os_lpmgr_ops
 {
-    void (*sleep)(struct lpmgr *lpm, os_uint8_t mode);
+    int  (*sleep)(struct lpmgr *lpm, os_uint8_t mode);
     void (*run)(struct lpmgr *lpm, os_uint8_t mode);
     void (*timer_start)(struct lpmgr *lpm, os_uint32_t timeout);
     void (*timer_stop)(struct lpmgr *lpm);
@@ -101,14 +112,14 @@ struct os_lpmgr_ops
 
 struct os_lpmgr_device_ops
 {
-    int (*suspend)(const struct os_device *device, os_uint8_t mode);
-    void (*resume)(const struct os_device *device, os_uint8_t mode);
+    int (*suspend)(struct os_device *device, os_uint8_t mode);
+    void (*resume)(struct os_device *device, os_uint8_t mode);
     int (*frequency_change)(const struct os_device *device, os_uint8_t mode);
 };
 
 struct os_lpmgr_device
 {
-    const struct os_device           *device;
+    struct os_device           *device;
     const struct os_lpmgr_device_ops *ops;
 };
 
@@ -119,6 +130,7 @@ struct lpmgr
     /* modes */
     os_uint8_t modes[SYS_SLEEP_MODE_MAX];
     os_uint8_t sleep_mode; /* current sleep mode */
+    os_uint8_t mode_change_falg;
     os_uint8_t run_mode;   /* current running mode */
 
     /* the list of device, which has low power manager feature */
@@ -148,8 +160,8 @@ void os_lpmgr_request(os_uint8_t sleep_mode);
 void os_lpmgr_release(os_uint8_t sleep_mode);
 int  os_lpmgr_run_enter(os_uint8_t run_mode);
 
-void os_lpmgr_device_register(struct os_device *device, const struct os_lpmgr_device_ops *ops);
-void os_lpmgr_device_unregister(struct os_device *device);
+os_err_t os_lpmgr_device_register(struct os_device *device, const struct os_lpmgr_device_ops *ops);
+void os_lpmgr_device_unregister(struct os_device *device, const struct os_lpmgr_device_ops *ops);
 
 void os_lpmgr_notify_set(void (*notify)(os_uint8_t event, os_uint8_t mode, void *data), void *data);
 void os_lpmgr_default_set(os_uint8_t sleep_mode);

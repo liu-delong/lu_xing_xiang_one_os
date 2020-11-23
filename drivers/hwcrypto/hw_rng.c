@@ -25,7 +25,7 @@
 #include <os_device.h>
 #include <hwcrypto/hw_rng.h>
 #include <os_errno.h>
-#include <drivers.h>
+#include <os_drivers.h>
 
 static struct os_hwcrypto_device *hwcrypto_rng_device = OS_NULL;
 
@@ -88,7 +88,7 @@ os_err_t os_hwcrypto_rng_register(struct os_hwcrypto_device *device, const char 
     if (hwcrypto_rng_device != OS_NULL)
     {
         os_kprintf("hwcrypto rng dev %s exist, %s register failed.\r\n",
-                   hwcrypto_rng_device->parent.parent.name, name);
+                   device_name(&hwcrypto_rng_device->parent), name);
         return OS_EFULL;
     }
 

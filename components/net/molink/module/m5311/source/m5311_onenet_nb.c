@@ -55,7 +55,7 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_create, ONENET_NB_FUNC_ARGS)
         goto __exit;
     }
 
-    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATE:", "+MIPLCREATE:%d", &ref) > 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATE:", "+MIPLCREATE:%hhu", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
         result              = OS_EOK;
@@ -88,7 +88,7 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_createex, ONENET_NB_FUNC_ARGS)
         goto __exit;
     }
 
-    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATEEX:", "+MIPLCREATEEX:%d", &ref) > 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLCREATEEX:", "+MIPLCREATEEX:%hhu", &ref) > 0)
     {
         *(os_uint8_t *)resp = ref;
         result              = OS_EOK;
@@ -373,7 +373,7 @@ DEFINE_M5311_ONENET_FUNC(m5311_onenetnb_update, ONENET_NB_FUNC_ARGS)
         goto __exit;
     }
 
-    if (at_resp_get_data_by_kw(&at_resp, "+MIPLEVENT:", "+MIPLEVENT:%d,%d", &ref, &event_id) <= 0)
+    if (at_resp_get_data_by_kw(&at_resp, "+MIPLEVENT:", "+MIPLEVENT:%hhu,%hu", &ref, &event_id) <= 0)
     {
         goto __exit;
     }

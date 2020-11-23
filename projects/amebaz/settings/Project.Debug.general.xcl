@@ -1,0 +1,15 @@
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armproc.dll" 
+
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armjlink2.dll" 
+
+"D:\oneos\projects\amebaz\Build\Debug\Exe\application.axf" 
+
+--plugin="C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\bin\armbat.dll" 
+
+--macro="D:\oneos\projects\amebaz\packages\sdk-amebaz-v4.0e\component\soc\realtek\8711b\misc\iar_utility\common\preload.mac" 
+
+--flash_loader="D:\oneos\projects\amebaz\tmp.board" 
+
+
+
+

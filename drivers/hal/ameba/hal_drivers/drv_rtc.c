@@ -75,7 +75,6 @@ static os_err_t os_rtc_control(os_device_t *dev, int cmd, void *args)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops rtc_ops =
 {
     OS_NULL,
@@ -85,7 +84,6 @@ const static struct os_device_ops rtc_ops =
     OS_NULL,
     os_rtc_control
 };
-#endif
 
 static os_err_t os_hw_rtc_register(os_device_t *device, const char *name, os_uint32_t flag)
 {
@@ -93,19 +91,11 @@ static os_err_t os_hw_rtc_register(os_device_t *device, const char *name, os_uin
 
     os_rtc_init();
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &rtc_ops;
-#else
-    device->init    = OS_NULL;
-    device->open    = OS_NULL;
-    device->close   = OS_NULL;
-    device->read    = OS_NULL;
-    device->write   = OS_NULL;
-    device->control = os_rtc_control;
-#endif
+    
     device->type        = OS_DEVICE_TYPE_RTC;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     device->user_data   = OS_NULL;
 
     /* register a character device */

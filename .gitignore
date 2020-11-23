@@ -48,3 +48,20 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# VS Code
+.vscode/
+
+# Clang-format
+.clang-format
+
+# Out
+out/
+
+# Python 
+*.pyc
+
+projects_basic/
+projects_comp/
+projects_OnePos/
+projects_bootloader/

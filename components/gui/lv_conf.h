@@ -149,7 +149,7 @@ typedef void * lv_group_user_data_t;
 #define LV_USE_GPU              1
 
 /* 1: Enable file system (might be required for images */
-#define LV_USE_FILESYSTEM       1
+#define LV_USE_FILESYSTEM       0
 #if LV_USE_FILESYSTEM
 /*Declare the type of the user data of file system drivers (can be e.g. `void *`, `int`, `struct`)*/
 typedef void * lv_fs_drv_user_data_t;
@@ -305,7 +305,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  * https://fonts.google.com/specimen/Roboto  */
 #define LV_FONT_ROBOTO_12    0
 #define LV_FONT_ROBOTO_16    1
-#define LV_FONT_ROBOTO_22    0
+#define LV_FONT_ROBOTO_22    1
 #define LV_FONT_ROBOTO_28    0
 
 /* Demonstrate special features */

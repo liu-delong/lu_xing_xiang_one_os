@@ -97,7 +97,7 @@ static void sensor_show_data(os_size_t num, os_sensor_t sensor, struct os_sensor
     }
 }
 
-static os_err_t rx_callback(os_device_t *dev, os_size_t size)
+static os_err_t rx_callback(os_device_t *dev, struct os_device_cb_info *info)
 {
     os_sem_post(sensor_rx_sem);
     return 0;
@@ -166,7 +166,13 @@ static void sensor_fifo_test(int argc, char **argv)
     if (tid1 != OS_NULL)
         os_task_startup(tid1);
 
-    os_device_set_rx_indicate(dev, rx_callback);
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .cb   = rx_callback,
+    };
+
+    os_device_control(dev, IOC_SET_CB, &cb_info);
 
     os_device_control(dev, OS_SENSOR_CTRL_SET_ODR, (void *)20);
 }
@@ -220,7 +226,13 @@ static void sensor_int_test(int argc, char **argv)
     if (tid1 != OS_NULL)
         os_task_startup(tid1);
 
-    os_device_set_rx_indicate(dev, rx_callback);
+    struct os_device_cb_info cb_info = 
+    {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .cb   = rx_callback,
+    };
+
+    os_device_control(dev, IOC_SET_CB, &cb_info);
 
     if (os_device_open(dev, OS_DEVICE_FLAG_INT_RX) != OS_EOK)
     {

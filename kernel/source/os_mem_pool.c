@@ -525,7 +525,7 @@ static os_err_t sh_list_mempool(os_int32_t argc, char **argv)
     info = os_object_get_info(OS_OBJECT_MEMPOOL);
     return _list_mempool(&info->object_list);
 }
-SH_CMD_EXPORT(list_mempool, sh_list_mempool, "list memory pool in system");
+SH_CMD_EXPORT(memp, sh_list_mempool, "show memory pool information");
 #endif /* end of OS_USING_SHELL */
 
 #endif /* end of OS_USING_MEM_POOL */

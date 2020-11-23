@@ -23,9 +23,18 @@
  
 #include <os_task.h>
 
-#ifdef BSP_USING_ADC
+#ifdef OS_USING_ADC
 
-#if !defined(BSP_USING_ADC1) && !defined(BSP_USING_ADC2)
+#include <os_memory.h>
+#include "peripherals.h"
+#include <drv_log.h>
+#include "drv_adc.h"
+#include "fsl_adc.h"
+#include <os_device.h>
+#include "MIMXRT1052.h"
+#include "bus.h"
+
+#if !defined(ADC1_PERIPHERAL) && !defined(ADC2_PERIPHERAL)
 #error "Please define at least one BSP_USING_ADCx"
 #endif
 
@@ -33,104 +42,172 @@
 #error "Please don't define 'FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL'!"
 #endif
 
-#define LOG_TAG             "drv.adc"
-#include <drv_log.h>
-#include "drv_adc.h"
-#include "fsl_adc.h"
-#include <os_device.h>
+volatile bool g_AdcConversionDoneFlag;
 
-static os_err_t imxrt_hp_adc_enabled(struct rt_adc_device *device, os_uint32_t channel, os_bool_t enabled)
+void ADC_ETC_ADC_ETC_0_IRQHANDLER(void)
 {
-    return OS_EOK;
+    ADC_ETC_ClearInterruptStatusFlags(ADC_ETC_PERIPHERAL, kADC_ETC_Trg0TriggerSource, kADC_ETC_Done0StatusFlagMask);
+    g_AdcConversionDoneFlag = true;
+
+    return;
 }
 
-static os_err_t imxrt_hp_adc_convert(struct rt_adc_device *device, os_uint32_t channel, os_uint32_t *value)
+void ADC_ETC_ADC_ETC_1_IRQHANDLER(void)
 {
-    adc_channel_config_t adc_channel;
-    ADC_Type *base;
-    base = (ADC_Type *)(device->parent.user_data);
+    ADC_ETC_ClearInterruptStatusFlags(ADC_ETC_PERIPHERAL, kADC_ETC_Trg1TriggerSource, kADC_ETC_Done1StatusFlagMask);
+    g_AdcConversionDoneFlag = true;
 
-    adc_channel.channelNumber = channel;
-    adc_channel.enableInterruptOnConversionCompleted = false;
-
-    ADC_SetChannelConfig(base, 0, &adc_channel);
-
-    while (0U == ADC_GetChannelStatusFlags(base, 0))
-    {
-        continue;
-    }
-
-    *value = ADC_GetChannelConversionValue(base, 0);
-
-    return OS_EOK;
+    return;
 }
 
-static struct rt_adc_ops imxrt_adc_ops =
+void ADC_ETC_ADC_ETC_ERROR_IRQHANDLER(void)
 {
-    .enabled = imxrt_hp_adc_enabled,
-    .convert = imxrt_hp_adc_convert,
-};
+    os_kprintf("ADC_ETC_ADC_ETC_ERROR_IRQHANDLER\n");
 
-#if defined(BSP_USING_ADC1)
+    return;
+}
 
-static adc_config_t ADC1_config_value;
-static struct rt_adc_device adc1_device;
 
-#endif  /* BSP_USING_ADC1 */
-
-#if defined(BSP_USING_ADC2)
-
-static adc_config_t ADC2_config_value;
-static struct rt_adc_device adc2_device;
-
-#endif  /* BSP_USING_ADC2 */
-
-int rt_hw_adc_init(void)
+static os_err_t imxrt_adc_enabled(struct os_adc_device *device, os_bool_t enabled)
 {
-    int result = OS_EOK;
+    os_err_t result = OS_EOK;
 
-#if defined(BSP_USING_ADC1)
-
-    ADC_GetDefaultConfig(&ADC1_config_value);
-    ADC_Init(ADC1, &ADC1_config_value);
-
-#if !(defined(FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE) && FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE)
-    ADC_EnableHardwareTrigger(ADC1, false);
-#endif
-    ADC_DoAutoCalibration(ADC1);
-
-    result = rt_hw_adc_register(&adc1_device, "adc1", &imxrt_adc_ops, ADC1);
-
-    if (result != OS_EOK)
+    if (enabled == OS_TRUE)
     {
-        LOG_E("register adc1 device failed error code = %d\n", result);
+        EnableIRQ(ADC_ETC_ADC_ETC_0_IRQN);
     }
-
-#endif /* BSP_USING_ADC1 */
-
-#if defined(BSP_USING_ADC2)
-
-    ADC_GetDefaultConfig(&ADC2_config_value);
-    ADC_Init(ADC2, &ADC2_config_value);
-
-#if !(defined(FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE) && FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE)
-    ADC_EnableHardwareTrigger(ADC2, false);
-#endif
-    ADC_DoAutoCalibration(ADC2);
-
-    result = rt_hw_adc_register(&adc2_device, "adc2", &imxrt_adc_ops, ADC2);
-
-    if (result != OS_EOK)
+    else if (enabled == OS_FALSE)
     {
-        LOG_E("register adc2 device failed error code = %d\n", result);
+        DisableIRQ(ADC_ETC_ADC_ETC_0_IRQN);
     }
+    else
+    {
+        result = OS_ENOSYS;
+    }
+    
+    return result;
+}
 
-#endif /* BSP_USING_ADC2 */
+static os_err_t imxrt_adc_control(struct os_adc_device *dev, int cmd, void *arg)
+{
+    os_err_t result = OS_EOK;
+    
+    if (cmd == OS_ADC_CMD_ENABLE)
+    {
+        imxrt_adc_enabled(dev, OS_TRUE);
+    }
+    else if (cmd == OS_ADC_CMD_DISABLE)
+    {
+        imxrt_adc_enabled(dev, OS_FALSE);
+    }
+    else
+    {
+        os_kprintf("adc set able fail.\n");
+        result = OS_ERROR;
+    }
 
     return result;
 }
 
-INIT_DEVICE_EXPORT(rt_hw_adc_init);
+os_uint32_t imxrt_get_channel_group_by_adc_channel(os_uint32_t channel)
+{
+    os_uint32_t triggerGroup = ADC_ETC_TC_0; // TODO: 03903918
+    os_uint32_t channelNum = 0;
+    os_uint32_t channelIdx;
+    os_uint32_t i;
 
-#endif /* BSP_USING_ADC */
+    // trigger group 0
+    channelNum = ADC_ETC_trigger_config[triggerGroup].triggerChainLength + 1;
+    for (channelIdx = 0; channelIdx < channelNum; channelIdx++)
+    {
+        if (ADC_ETC_TC_0_chain_config[channelIdx].ADCChannelSelect == channel)
+        {
+            for (i = 0; i < ADC_HC_COUNT; i++)
+            {
+                if ((ADC_ETC_TC_0_chain_config[channelIdx].ADCHCRegisterSelect >> i) & 0x1)
+                {
+                    return i;
+                }
+            }
+        }
+    }
+    
+    os_kprintf("find channel group fail\n");
+
+    return 0;
+}
+
+
+static os_err_t imxrt_adc_read(struct os_adc_device *dev, os_uint32_t channel, os_int32_t *buff)
+{
+    adc_channel_config_t adc_channel;
+    ADC_Type *base;
+    imxrt_adc *imxrtAdc;    
+    os_uint32_t channelGroup;
+    os_uint32_t triggerGroup = ADC_ETC_TC_0; // TODO: 03903918
+    
+    imxrtAdc = os_container_of(dev, imxrt_adc, adc);
+    base = imxrtAdc->info->adc_base;
+    
+    ADC_EnableHardwareTrigger(base, true);
+
+    // specify the adc channel & channel group.
+    adc_channel.channelNumber = channel;
+    adc_channel.enableInterruptOnConversionCompleted = false;
+    channelGroup = imxrt_get_channel_group_by_adc_channel(channel);
+    ADC_SetChannelConfig(base, channelGroup, &adc_channel);
+
+    // adc convert start
+    g_AdcConversionDoneFlag = false;
+    ADC_ETC_DoSoftwareTrigger(ADC_ETC_PERIPHERAL, triggerGroup);
+    while (g_AdcConversionDoneFlag == false);
+
+    *buff = ADC_ETC_GetADCConversionValue(ADC_ETC_PERIPHERAL, triggerGroup, channelGroup);
+    __DSB();
+
+    return OS_EOK;
+}
+
+static struct os_adc_ops imxrt_adc_ops =
+{
+    .adc_enabled = imxrt_adc_enabled,
+    .adc_control = imxrt_adc_control,
+    .adc_read = imxrt_adc_read
+};
+
+static int imxrt_adc_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
+{
+    int result = OS_EOK;    
+    ADC_Type *adc_base;
+    imxrt_adc *imxrtDac = NULL;
+    struct os_adc_device *adcDevice = NULL;
+
+    imxrtDac = (imxrt_adc *)os_calloc(1, sizeof(imxrt_adc));
+    imxrtDac->info = (struct nxp_adc_info *)dev->info;
+    adc_base = imxrtDac->info->adc_base;
+    adcDevice = &imxrtDac->adc;
+    adcDevice->ops = &imxrt_adc_ops;
+
+    if (kStatus_Success != ADC_DoAutoCalibration(adc_base))
+    {
+        os_kprintf("ADC_DoAutoCalibration Failed.\r\n");
+    }
+    
+    result = os_hw_adc_register(adcDevice, dev->name, OS_DEVICE_FLAG_RDWR, adc_base);
+    if (result != OS_EOK)
+    {
+        os_kprintf("register %s device failed\n", dev->name);
+    }
+
+    return result;
+}
+
+OS_DRIVER_INFO imxrt_adc_driver = {
+    .name   = "ADC_Type",
+    .probe  = imxrt_adc_probe,
+};
+
+OS_DRIVER_DEFINE(imxrt_adc_driver,"2");
+
+#endif
 

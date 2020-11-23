@@ -26,5 +26,11 @@
 
 #include <os_task.h>
 
+os_uint32_t lptim_get_countfreq(void);
+os_uint32_t lptim_get_tick_max(void);
+os_uint32_t lptim_get_current_tick(void);
+
+os_err_t lptim_start(os_uint32_t reload);
+void     lptim_stop(void);
 
 #endif /* __DRV_PMTIMER_H__ */

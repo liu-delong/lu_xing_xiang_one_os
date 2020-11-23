@@ -23,6 +23,7 @@
 
 #include <board.h>
 #include <os_clock.h>
+#include <sdram_port.h>
 
 #define SDRAM_MODEREG_BURST_LENGTH_1             ((uint16_t)0x0000)
 #define SDRAM_MODEREG_BURST_LENGTH_2             ((uint16_t)0x0001)
@@ -35,16 +36,6 @@
 #define SDRAM_MODEREG_OPERATING_MODE_STANDARD    ((uint16_t)0x0000)
 #define SDRAM_MODEREG_WRITEBURST_MODE_PROGRAMMED ((uint16_t)0x0000)
 #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
-
-#include <sdram_port.h>
-
-#define DRV_EXT_LVL DBG_EXT_DEBUG
-#define LOG_TAG     "drv.sdram"
-#include <drv_log.h>
-
-#ifdef OS_USING_MEMHEAP_AS_HEAP
-static struct os_memheap system_heap;
-#endif
 
 void SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram)
 {
@@ -189,11 +180,6 @@ int SDRAM_Init(void)
     MPU_Config();
 
     sdram_test();
-    
-#ifdef OS_USING_MEMHEAP_AS_HEAP
-    /* If RT_USING_MEMHEAP_AS_HEAP is enabled, SDRAM is initialized to the heap */
-    os_memheap_init(&system_heap, "sdram", (void *)SDRAM_BASE, SDRAM_SIZE);
-#endif
     
     return 0;
 }

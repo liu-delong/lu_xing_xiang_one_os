@@ -7,5 +7,15 @@ menu "FAL"
         config OS_FAL_DYNAMIC_FLASH
             bool "Support fal dynamic flash"
             default n
+            
+        config OS_FAL_RAM
+            bool "Support fal ram"
+            default n
+            
+        if OS_FAL_RAM
+            config OS_FAL_RAM_SIZE
+                hex "Fal ram size(Bytes)"
+                default 0x80000
+        endif
     endif
 endmenu

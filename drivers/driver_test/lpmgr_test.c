@@ -27,6 +27,7 @@
 #include <shell.h>
 #include <lpmgr/lpmgr.h>
 
+#ifdef OS_USING_LPMGR
 static os_uint8_t demo_mode = SYS_SLEEP_MODE_NONE;
 
 static int demo_suspend(const struct os_device *device, os_uint8_t mode)
@@ -90,3 +91,6 @@ static int lpmgr_test(int argc, char *argv[])
     return 0;
 }
 SH_CMD_EXPORT(lpmgr_test, lpmgr_test, "lpmgr_test");
+
+#endif /* OS_USING_LPMGR */
+

@@ -1,153 +1,145 @@
-/*
- * Copyright (c) 2006-2018, RT-Thread Development Team
+/**
+ ***********************************************************************************************************************
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with 
+ * the License. You may obtain a copy of the License at
  *
- * Change Logs:
- * Date           Author       Notes
- * 2018-03-15     Liuguang     the first version.
- * 2019-07-19     Magicoe      The first version for LPC55S6x
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * @file        drv_rtc.c
+ *
+ * @brief       This file implements rtc driver for nxp.
+ *
+ * @revision
+ * Date         Author          Notes
+ * 2020-02-20   OneOS Team      First Version
+ ***********************************************************************************************************************
  */
 
-#include "drv_rtc.h" 
+#include <board.h>
+#include <os_memory.h>
+#include <sys/time.h>
+#include <drv_rtc.h>
 
-#include "fsl_common.h" 
-#include "fsl_rtc.h"
-#include <time.h>
+#define DRV_EXT_LVL DBG_EXT_INFO
+#define DRV_EXT_TAG "drv.rtc"
+#include <drv_log.h>
 
-#ifdef RT_USING_RTC
-
-#if defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL
-    #error "Please don't define 'FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL'!"
-#endif
-
-static time_t get_timestamp(void) 
+struct nxp_rtc
 {
-    struct tm tm_new = {0}; 
-    rtc_datetime_t rtcDate; 
+    os_device_t rtc;
     
-    /* Get date time */
-    RTC_GetDatetime(RTC, &rtcDate);
-    
-    tm_new.tm_sec  = rtcDate.second; 
-    tm_new.tm_min  = rtcDate.minute; 
-    tm_new.tm_hour = rtcDate.hour;
-    
-    tm_new.tm_mday = rtcDate.day; 
-    tm_new.tm_mon  = rtcDate.month - 1; 
-    tm_new.tm_year = rtcDate.year - 1900; 
+    struct nxp_rtc_info *rtc_info;
+};
 
+static time_t nxp_rtc_get_timestamp(struct nxp_rtc *nxp_rtc)
+{
+    struct tm       tm_new;
+    rtc_datetime_t rtc_datestruct = {0};
+
+    RTC_GetDatetime(nxp_rtc->rtc_info->rtc_base, &rtc_datestruct);
+
+    tm_new.tm_sec  = rtc_datestruct.second; 
+    tm_new.tm_min  = rtc_datestruct.minute; 
+    tm_new.tm_hour = rtc_datestruct.hour;
+    
+    tm_new.tm_mday = rtc_datestruct.day; 
+    tm_new.tm_mon  = rtc_datestruct.month - 1; 
+    tm_new.tm_year = rtc_datestruct.year - 1900;
+
+    LOG_EXT_D("get rtc time.");
     return mktime(&tm_new);
 }
 
-static int set_timestamp(time_t timestamp)
+static os_err_t nxp_rtc_set_time_stamp(struct nxp_rtc *nxp_rtc, time_t time_stamp)
 {
     struct tm *p_tm;
-    rtc_datetime_t rtcDate; 
+    rtc_datetime_t rtc_dateStruct = {0};
     
-    p_tm = localtime(&timestamp);
+    p_tm = localtime(&time_stamp);
     
-    rtcDate.second = p_tm->tm_sec ; 
-    rtcDate.minute = p_tm->tm_min ; 
-    rtcDate.hour   = p_tm->tm_hour; 
+    rtc_dateStruct.second = p_tm->tm_sec ;
+    rtc_dateStruct.minute = p_tm->tm_min ;
+    rtc_dateStruct.hour   = p_tm->tm_hour;
 
-    rtcDate.day    = p_tm->tm_mday; 
-    rtcDate.month  = p_tm->tm_mon  + 1;  
-    rtcDate.year   = p_tm->tm_year + 1900; 
+    rtc_dateStruct.day    = p_tm->tm_mday;
+    rtc_dateStruct.month  = p_tm->tm_mon  + 1;
+    rtc_dateStruct.year   = p_tm->tm_year + 1900;
     
-    /* RTC time counter has to be stopped before setting the date & time in the TSR register */
-    RTC_StopTimer(RTC);
+    RTC_StopTimer(nxp_rtc->rtc_info->rtc_base);
     
-    /* Set RTC time to default */
-    RTC_SetDatetime(RTC, &rtcDate);
+    RTC_SetDatetime(nxp_rtc->rtc_info->rtc_base, &rtc_dateStruct);
 
-    /* Start the RTC time counter */
-    RTC_StartTimer(RTC);
+    RTC_StartTimer(nxp_rtc->rtc_info->rtc_base);
     
-    return RT_EOK;
+    return OS_EOK;
 }
 
-static rt_err_t lpc_rtc_init(rt_device_t dev)
+static void nxp_rtc_init(struct nxp_rtc *nxp_rtc)
 {
-    /* Init RTC */
-    RTC_Init(RTC);
+    RTC_StartTimer(nxp_rtc->rtc_info->rtc_base);
+}
+
+static os_err_t os_rtc_control(os_device_t *dev, int cmd, void *args)
+{
+    os_err_t result = OS_ERROR;
+    OS_ASSERT(dev != OS_NULL);
+
+    struct nxp_rtc *nxp_rtc = (struct nxp_rtc *)dev;
     
-    /* Start the RTC time counter */
-    RTC_StartTimer(RTC);
-    
-    return RT_EOK; 
-}
-
-static rt_err_t lpc_rtc_open(rt_device_t dev, rt_uint16_t oflag)
-{
-    return RT_EOK; 
-}
-
-static rt_err_t lpc_rtc_close(rt_device_t dev) 
-{
-    return RT_EOK; 
-} 
-
-static rt_size_t lpc_rtc_read(rt_device_t dev, rt_off_t pos, void* buffer, rt_size_t size)
-{
-    return 0; 
-}
-
-static rt_size_t lpc_rtc_write(rt_device_t dev, rt_off_t pos, const void* buffer, rt_size_t size)
-{
-    return 0; 
-}
-
-static rt_err_t lpc_rtc_control(rt_device_t dev, int cmd, void *args)
-{
-    RT_ASSERT(dev != RT_NULL);
-    
-    switch(cmd)
+    switch (cmd)
     {
-        case RT_DEVICE_CTRL_RTC_GET_TIME: 
-        {
-            *(uint32_t *)args = get_timestamp(); 
-        }
+    case OS_DEVICE_CTRL_RTC_GET_TIME:
+        *(os_uint32_t *)args = nxp_rtc_get_timestamp(nxp_rtc);
+        LOG_EXT_D("RTC: get rtc_time %x\n", *(os_uint32_t *)args);
+        result = OS_EOK;
         break;
-            
-        case RT_DEVICE_CTRL_RTC_SET_TIME: 
+
+    case OS_DEVICE_CTRL_RTC_SET_TIME:
+        if (nxp_rtc_set_time_stamp(nxp_rtc, *(os_uint32_t *)args))
         {
-            set_timestamp(*(time_t *)args); 
+            result = OS_ERROR;
         }
+        LOG_EXT_D("RTC: set rtc_time %x\n", *(os_uint32_t *)args);
+        result = OS_EOK;
         break;
-            
-        default:
-            return RT_EINVAL; 
     }
-    
-    return RT_EOK; 
+
+    return result;
 }
 
-static struct rt_device device = 
-{
-    .type    = RT_Device_Class_RTC, 
-    .init    = lpc_rtc_init, 
-    .open    = lpc_rtc_open, 
-    .close   = lpc_rtc_close, 
-    .read    = lpc_rtc_read,
-    .write   = lpc_rtc_write,
-    .control = lpc_rtc_control, 
+const static struct os_device_ops rtc_ops = {
+    .control = os_rtc_control,
 };
 
-int rt_hw_rtc_init(void)
+static int nxp_rtc_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
 {
-    rt_err_t ret = RT_EOK;
-    
-    ret = rt_device_register(&device, "rtc", RT_DEVICE_FLAG_RDWR); 
-    if(ret != RT_EOK)
-    {
-        return ret; 
-    }
-    
-    rt_device_open(&device, RT_DEVICE_OFLAG_RDWR); 
-    
-    return RT_EOK; 
-}
-INIT_DEVICE_EXPORT(rt_hw_rtc_init); 
+    struct nxp_rtc *nxp_rtc;
 
-#endif /*RT_USING_RTC */
+    nxp_rtc = os_calloc(1, sizeof(struct nxp_rtc));
+
+    OS_ASSERT(nxp_rtc);
+
+    nxp_rtc->rtc_info = (struct nxp_rtc_info *)dev->info;
+
+    nxp_rtc_init(nxp_rtc);
+
+    os_device_default(&nxp_rtc->rtc, OS_DEVICE_TYPE_RTC);
+
+    nxp_rtc->rtc.ops     = &rtc_ops;
+
+    return os_device_register(&nxp_rtc->rtc, dev->name, OS_DEVICE_FLAG_RDWR);
+}
+
+OS_DRIVER_INFO nxp_rtc_driver = {
+    .name   = "RTC_Type",
+    .probe  = nxp_rtc_probe,
+};
+
+OS_DRIVER_DEFINE(nxp_rtc_driver, "1");
+

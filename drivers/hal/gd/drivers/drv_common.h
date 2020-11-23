@@ -28,28 +28,9 @@
 #include <os_hw.h>
 #include <os_device.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void _Error_Handler(char *s, int num);
-
-#ifndef Error_Handler
-#define Error_Handler() _Error_Handler(__FILE__, __LINE__)
-#endif
-
-#define DMA_NOT_AVAILABLE ((DMA_INSTANCE_TYPE *)0xFFFFFFFFU)
-
-#ifdef HAL_I2C_MODULE_ENABLED
-struct stm32_i2c_info {
-    I2C_HandleTypeDef *instance;
-    os_uint16_t scl;
-    os_uint16_t sda;
-};
-#endif
-
-#ifdef __cplusplus
-}
-#endif
+#include "drv_hwtimer.h"
+#include "drv_i2c.h"
+#include "drv_adc.h"
+#include "drv_dac.h"
 
 #endif

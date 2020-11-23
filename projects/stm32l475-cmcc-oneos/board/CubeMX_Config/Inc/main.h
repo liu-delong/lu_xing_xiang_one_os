@@ -60,6 +60,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define POWER_SENSOR_Pin GPIO_PIN_14
+#define POWER_SENSOR_GPIO_Port GPIOD
+#define POWER_AUDIO_Pin GPIO_PIN_15
+#define POWER_AUDIO_GPIO_Port GPIOD
+#define POWER_WIFI_Pin GPIO_PIN_6
+#define POWER_WIFI_GPIO_Port GPIOC
+#define POWER_4G_Pin GPIO_PIN_7
+#define POWER_4G_GPIO_Port GPIOC
+#define CAN_RS_Pin GPIO_PIN_2
+#define CAN_RS_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

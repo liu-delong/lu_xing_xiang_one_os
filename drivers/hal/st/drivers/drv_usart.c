@@ -30,6 +30,10 @@
 #define DRV_EXT_TAG "drv.usart"
 #include <drv_log.h>
 
+#define STM32_UART_POLL_TIMEOUT_MS_PER_BYTE (100)
+
+#ifdef OS_USING_SERIAL
+
 struct stm32_uart
 {
     struct os_serial_device serial;
@@ -247,7 +251,7 @@ static int stm32_uart_poll_send(struct os_serial_device *serial, const os_uint8_
     {
         level = os_hw_interrupt_disable();
         uart->huart->gState = HAL_UART_STATE_READY;
-        ret = HAL_UART_Transmit(uart->huart, (uint8_t *)buff + i, 1, HAL_MAX_DELAY);
+        ret = HAL_UART_Transmit(uart->huart, (uint8_t *)buff + i, 1, STM32_UART_POLL_TIMEOUT_MS_PER_BYTE);
         os_hw_interrupt_enable(level);
     }
 
@@ -268,7 +272,7 @@ static int stm32_uart_poll_recv(struct os_serial_device *serial, os_uint8_t *buf
 
     level = os_hw_interrupt_disable();
     uart->huart->RxState = HAL_UART_STATE_READY;
-    ret = HAL_UART_Receive(uart->huart, (uint8_t *)buff, size, HAL_MAX_DELAY);
+    ret = HAL_UART_Receive(uart->huart, (uint8_t *)buff, size, STM32_UART_POLL_TIMEOUT_MS_PER_BYTE * size);
     os_hw_interrupt_enable(level);
 
     return (ret == HAL_OK) ? size : 0;
@@ -358,9 +362,39 @@ static int stm32_usart_probe(const os_driver_info_t *drv, const os_device_info_t
     return result;
 }
 
+#else   /* OS_USING_SERIAL */
+
+static UART_HandleTypeDef *console_uart;
+
+void os_hw_console_output(const char *str)
+{
+    if (console_uart == OS_NULL)
+        return;
+
+    while (*str)
+    {
+        if (*str == '\n')
+        {
+            HAL_UART_Transmit(console_uart, "\r", 1, STM32_UART_POLL_TIMEOUT_MS_PER_BYTE);
+        }
+        
+        HAL_UART_Transmit(console_uart, (uint8_t *)str, 1, STM32_UART_POLL_TIMEOUT_MS_PER_BYTE);
+        str++;
+    }
+}
+
+static int stm32_usart_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
+{
+    console_uart = (UART_HandleTypeDef *)dev->info;
+    return 0;
+}
+
+#endif
+
 OS_DRIVER_INFO stm32_usart_driver = {
     .name   = "UART_HandleTypeDef",
     .probe  = stm32_usart_probe,
 };
 
 OS_DRIVER_DEFINE(stm32_usart_driver, "0.end.0");
+

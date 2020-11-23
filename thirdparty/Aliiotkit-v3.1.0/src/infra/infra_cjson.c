@@ -966,7 +966,7 @@ void lite_cjson_init_hooks(lite_cjson_hooks *hooks)
         return;
     }
 
-    global_hooks.allocate = hooks->malloc_fn;
+    global_hooks.allocate = (void *(*)(uint32_t size))hooks->malloc_fn;
     global_hooks.deallocate = hooks->free_fn;
 }
 

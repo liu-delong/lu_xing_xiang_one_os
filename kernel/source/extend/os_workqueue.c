@@ -623,6 +623,8 @@ void os_workqueue_cancel_all_work(os_workqueue_t *queue)
     os_list_node_t *next;
     os_work_t      *work;
 
+    OS_ASSERT(queue != OS_NULL);
+
     level = os_hw_interrupt_disable();
     os_list_for_each_safe(pos, next, &queue->delaying_list_head)
     {

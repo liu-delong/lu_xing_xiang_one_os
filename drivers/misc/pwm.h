@@ -30,9 +30,10 @@
 #include <os_errno.h>
 #include <os_device.h>
 
-#define OS_PWM_CMD_ENABLE  (128 + 0)
-#define OS_PWM_CMD_DISABLE (128 + 1)
-#define OS_PWM_CMD_SET_PERIOD     (128 + 2)
+#define OS_PWM_CMD_ENABLE           (128 + 0)
+#define OS_PWM_CMD_DISABLE          (128 + 1)
+#define OS_PWM_CMD_SET_PERIOD       (128 + 2)
+#define OS_PWM_CMD_SET_PULSE        (128 + 3)
 
 struct os_pwm_configuration
 {
@@ -46,13 +47,7 @@ struct os_pwm_device
     struct os_device         parent;
     const struct os_pwm_ops *ops;
     os_uint32_t period;
-    os_uint32_t max_sec;
     os_uint32_t max_value;
-
-    os_uint32_t mult;   
-    os_uint32_t shift;
-    os_uint32_t mult_t;   
-    os_uint32_t shift_t;
 };
 
 struct os_pwm_ops

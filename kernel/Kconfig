@@ -154,14 +154,6 @@ menu "Kernel"
             bool "Enable message queue"
             default y
 
-        config OS_USING_SIGNALS
-            bool "Enable signals"
-            select OS_USING_MEM_POOL
-            default n
-            help
-                A signal is an asynchronous notification sent to a specific task
-                in order to notify it of an event that occurred.
-        
         config OS_USING_COMPLETION
             bool "Enable completion"
             default y
@@ -210,7 +202,7 @@ menu "Kernel"
             default y if OS_USING_MEM_SLAB
             default y if OS_USING_MEM_HEAP_AS_HEAP
         
-        if OS_USING_MEM_SMALL || OS_USING_MEM_SLAB
+        if OS_USING_MEM_SMALL || OS_USING_MEM_SLAB || OS_USING_MEM_HEAP_AS_HEAP
             config OS_MEM_STATS
                 bool "Enable memory stats"
                 default y
@@ -233,15 +225,7 @@ menu "Kernel"
         endif
     endmenu
 
-    menu "Kernel device object"
-        config OS_USING_DEVICE
-            bool "Using device object"
-            default y
-
-        config OS_USING_DEVICE_OPS
-            bool "Using ops for each device object"
-            default n
-
+    menu "Kernel console"
         config OS_USING_CONSOLE
             bool "Using console for os_kprintf"
             default y

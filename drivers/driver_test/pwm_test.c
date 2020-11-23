@@ -26,46 +26,47 @@
 #include <os_clock.h>
 #include <stdlib.h>
 #include <shell.h>
+#include <timer/clocksource.h>
 
 static void pwm_pin_callback(void *args)
 {
     int pin = (int)(unsigned long)args;
 
-    os_kprintf("<%d>----------------------pin:%d value:%d\r\n", (int)os_tick_get(), pin, os_pin_read(pin));
+    os_kprintf("<%d>   <%d>----------------------pin:%d value:%d\r\n", (int)os_tick_get(), (int)(os_clocksource_gettime() & 0x7fffffff), pin, os_pin_read(pin));
 }
 
 int pwm_sample(int argc, char **argv)
 {
-    os_uint32_t period = 5000000;  
-    os_uint32_t pulse  = 1000000;      
-    os_uint32_t channel;
     os_uint32_t pin;
     
     char *dev_name;
-    os_pwm_device_t *pwm_dev = OS_NULL;
     
+    os_device_t *pwm_dev = OS_NULL;
     
+    struct os_pwm_configuration *config;
+    
+    config = os_malloc(sizeof(struct os_pwm_configuration));
     if (argc < 3)
     {
-        os_kprintf("usage: pwm_led_sample <dev> <channel> [period(ns)] [duty(ns) def 1000000] [pin]\r\n");
-        os_kprintf("       pwm_led_sample pwm_tim1 1 default: 5000000, 1000000\r\n");
-        os_kprintf("       pwm_led_sample pwm_tim1 1 5000000 1000000 0x3e\r\n");
-        os_kprintf("       pwm_led_sample pwm_tim1 1 1000000000 1000000000 0x3e\r\n");
-        os_kprintf("       pwm_led_sample pwm_tim1 1 1000000000 0 0x3e\r\n");
+        os_kprintf("usage: pwm_sample <dev> <channel> [period(ns)] [duty(ns) def 1000000] [pin]\r\n");
+        os_kprintf("       pwm_sample pwm_tim1 1 default: 5000000, 1000000\r\n");
+        os_kprintf("       pwm_sample pwm_tim1 1 5000000 1000000 0x3e\r\n");
+        os_kprintf("       pwm_sample pwm_tim1 1 1000000000 1000000000 0x3e\r\n");
+        os_kprintf("       pwm_sample pwm_tim1 1 1000000000 0 0x3e\r\n");
         return -1;
     }
     
     dev_name = argv[1];
-    channel  = strtol(argv[2], OS_NULL, 0);
+    config->channel  = strtol(argv[2], OS_NULL, 0);
 
     if (argc > 3)
     {
-        period = strtol(argv[3], OS_NULL, 0);
+        config->period = strtol(argv[3], OS_NULL, 0);
     }
 
     if (argc > 4)
     {
-        pulse = strtol(argv[4], OS_NULL, 0);
+        config->pulse = strtol(argv[4], OS_NULL, 0);
     }
 
     if (argc > 5)
@@ -77,19 +78,23 @@ int pwm_sample(int argc, char **argv)
         os_pin_irq_enable(pin, PIN_IRQ_ENABLE);
     }
     
-    pwm_dev = (os_pwm_device_t *)os_device_find(dev_name);
+    pwm_dev = os_device_find(dev_name);
     if (pwm_dev == OS_NULL)
     {
         os_kprintf("pwm sample run failed! can't find %s device!\n", dev_name);
         return OS_ERROR;
     }
 
-    os_pwm_set_period(pwm_dev, channel, period);
+    os_device_control(pwm_dev, OS_PWM_CMD_SET_PERIOD, &config->period);
+    
+    os_device_control(pwm_dev, OS_PWM_CMD_SET_PULSE, config);
 
-    os_pwm_set_pulse(pwm_dev, channel, pulse);
+    os_device_control(pwm_dev, OS_PWM_CMD_ENABLE, &config->channel);
 
-    os_pwm_enable(pwm_dev, channel);
-
+    os_task_mdelay(10000);
+    
+    os_device_control(pwm_dev, OS_PWM_CMD_DISABLE, &config->channel);
+    
     return 0;
 }
 

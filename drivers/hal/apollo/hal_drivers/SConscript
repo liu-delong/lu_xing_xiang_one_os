@@ -26,7 +26,7 @@ if IsDefined(['OS_USING_PWM']):
 if IsDefined(['OS_USING_SPI']):
     src += ['drv_spi.c']
 
-if IsDefined(['OS_USING_I2C']):
+if IsDefined(['OS_USING_I2C', 'BSP_USING_I2C']):
     src += ['drv_i2c.c']
 
 if IsDefined(['BSP_USING_ETH', 'NET_USING_LWIP']):

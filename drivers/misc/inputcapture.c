@@ -141,7 +141,6 @@ static os_err_t os_inputcapture_control(struct os_device *dev, int cmd, void *ar
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops inputcapture_ops = {
     os_inputcapture_init,
     os_inputcapture_open,
@@ -150,7 +149,6 @@ const static struct os_device_ops inputcapture_ops = {
     OS_NULL,
     os_inputcapture_control,
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -176,20 +174,11 @@ os_err_t os_device_inputcapture_register(struct os_inputcapture_device *inputcap
     device = &(inputcapture->parent);
 
     device->type           = OS_DEVICE_TYPE_MISCELLANEOUS;
-    device->rx_indicate    = OS_NULL;
-    device->tx_complete    = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb    = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb    = OS_NULL;
     inputcapture->ringbuff = OS_NULL;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &inputcapture_ops;
-#else
-    device->init    = os_inputcapture_init;
-    device->open    = os_inputcapture_open;
-    device->close   = os_inputcapture_close;
-    device->read    = os_inputcapture_read;
-    device->write   = OS_NULL;
-    device->control = os_inputcapture_control;
-#endif
     device->user_data = user_data;
 
     return os_device_register(device, name, OS_DEVICE_FLAG_RDONLY | OS_DEVICE_FLAG_STANDALONE);
@@ -225,8 +214,12 @@ void os_hw_inputcapture_isr(struct os_inputcapture_device *inputcapture, os_bool
     if (receive_size >= inputcapture->watermark)
     {
         /* indicate to upper layer application */
-        if (inputcapture->parent.rx_indicate != OS_NULL)
-            inputcapture->parent.rx_indicate(&inputcapture->parent, receive_size);
+        struct os_device_cb_info *info = &inputcapture->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+        if (info->cb != OS_NULL)
+        {
+            info->size = receive_size;
+            info->cb(&inputcapture->parent, info);
+        }
     }
 }
 #endif

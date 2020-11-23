@@ -50,8 +50,8 @@
  **
  *****************************************************************************/
 
-#ifndef __RTC_H__
-#define __RTC_H__
+#ifndef __HC_RTC_H__
+#define __HC_RTC_H__
 
 /*****************************************************************************
  * Include files
@@ -240,7 +240,7 @@ extern void Rtc_GetAlarmTime(stc_rtc_alarmtime_t* pstcAlarmTime);
 extern en_result_t Rtc_SetAlarmTime(stc_rtc_alarmtime_t* pstcAlarmTime);
 //初始化RTC
 extern void Rtc_Init(stc_rtc_initstruct_t* Rtc_InitStruct);
-#endif /* __RTC_H__ */
+#endif /* __HC_RTC_H__ */
 /******************************************************************************
  * EOF (not truncated)
  *****************************************************************************/    

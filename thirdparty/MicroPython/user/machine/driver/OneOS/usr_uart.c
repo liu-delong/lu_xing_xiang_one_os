@@ -27,14 +27,14 @@
 
 #include "py/runtime.h"
 
-//#include "serial/serial.h"
+
 
 
 #if (MICROPY_PY_MACHINE_UART)
-#include <stdio.h>
-#include <string.h>
 #include "usr_misc.h"
 #include "usr_uart.h"
+#include "os_device.h"
+
 
 int uart_timeout = 1;
 
@@ -152,7 +152,7 @@ STATIC struct operate uart_ops = {
 int mpycall_uart_register(void)
 {
 
-	device_info_t  *pos, *uart = mp_misc_find_similar_device("uart");
+	device_info_t  *pos, *uart = mp_misc_find_similar_device(MICROPYTHON_MACHINE_UART_PRENAME);
 	if (!uart){
 		return -1;
 	}

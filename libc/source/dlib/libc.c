@@ -40,9 +40,9 @@ int libc_system_init(void)
     if (dev_console)
     {
     #if defined(OS_USING_POSIX)
-        libc_stdio_set_console(dev_console->parent.name, O_RDWR);
+        libc_stdio_set_console(device_name(dev_console), O_RDWR);
     #else
-        libc_stdio_set_console(dev_console->parent.name, O_WRONLY);
+        libc_stdio_set_console(device_name(dev_console), O_WRONLY);
     #endif
     }
 #endif

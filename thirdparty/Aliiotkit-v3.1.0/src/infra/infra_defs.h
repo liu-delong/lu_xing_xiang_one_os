@@ -51,6 +51,7 @@ extern "C" {
 #define DEV_SIGN_USERNAME_MAXLEN  (64)
 #define DEV_SIGN_PASSWORD_MAXLEN  (65)
 
+
 typedef enum IOT_RETURN_CODES {
     ERROR_DEVICE_NOT_EXIST = -311,
     ERROR_NET_TIMEOUT = -310,
@@ -363,7 +364,6 @@ typedef struct {
 
 #define IOTX_HTTP_DOMAIN_NUMBER (6)
 extern const char *g_infra_http_domain[IOTX_HTTP_DOMAIN_NUMBER];
-
 extern int iotx_facility_json_print(const char *str, int level, ...);
 #ifdef __cplusplus
 }

@@ -34,7 +34,7 @@
 #include "machine_spi.h"
 #include "usr_spi.h"
 
-#ifdef MICROPY_PY_MACHINE_SPI
+#if  (MICROPY_PY_MACHINE_SPI && MICROPY_PY_MACHINE_PIN)
 
 
 STATIC const mp_obj_type_t machine_hard_spi_type;

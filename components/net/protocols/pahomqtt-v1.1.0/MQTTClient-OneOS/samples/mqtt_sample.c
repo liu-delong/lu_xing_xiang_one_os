@@ -127,8 +127,9 @@ static void mqtt_sample_task_func(void *arg)
     if ((rc = MQTTSubscribe(&mqtt_context.client, "/public/TEST/mqtest", QOS1, messageArrived)) != 0)
         LOG_EXT_E("Return code from MQTT subscribe is %d", rc);
 
-    while (++count)
+    while ((count<100) && (MQTTConnect(&mqtt_context.client, &connectData)!=0))
     {
+        ++count;
         MQTTMessage message;
         char payload[128];
 
@@ -140,7 +141,7 @@ static void mqtt_sample_task_func(void *arg)
 
 		if ((rc = MQTTPublish(&mqtt_context.client, "/public/TEST/mqtest", &message)) != 0)
 		{
-			LOG_EXT_E("Return code from MQTT publish is %d", rc);
+			LOG_EXT_I("Return code from MQTT publish is %d", rc);
 		}
 #if !defined(MQTT_TASK)
 		if ((rc = MQTTYield(&mqtt_context.client, 1000)) != 0)
@@ -149,7 +150,8 @@ static void mqtt_sample_task_func(void *arg)
 		}
 #endif
     }
-
+		
+    LOG_EXT_I("MQTT stop return code by count %d",count);
     /* do not return */
 }
 

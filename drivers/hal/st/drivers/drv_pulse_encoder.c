@@ -81,7 +81,7 @@ static os_err_t stm32_pulse_encoder_set_period(struct os_pulse_encoder_device *d
     }
     else
     {
-        LOG_EXT_E("pulse_encoder period over range!");
+        LOG_EXT_E("pulse_encoder period over range!\n");
         return OS_EFULL;
     }
     

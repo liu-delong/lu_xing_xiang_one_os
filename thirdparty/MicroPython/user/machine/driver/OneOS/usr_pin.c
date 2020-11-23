@@ -10,14 +10,30 @@
 #include <drv_gpio.h>
 
 os_base_t gpio_list[] ={
+	#if defined(GPIOA_BASE)
 	GPIOA_BASE,
+	#endif
+	#if defined(GPIOB_BASE)
 	GPIOB_BASE,
+	#endif
+	#if defined(GPIOC_BASE)
 	GPIOC_BASE,
+	#endif
+	#if defined(GPIOD_BASE)
 	GPIOD_BASE,
+	#endif
+	#if defined(GPIOE_BASE)
 	GPIOE_BASE,
+	#endif
+	#if defined(GPIOF_BASE)
 	GPIOF_BASE,
+	#endif
+	#if defined(GPIOG_BASE)
 	GPIOG_BASE,
+	#endif
+	#if defined(GPIOH_BASE)
 	GPIOH_BASE,
+	#endif
 };
 
 

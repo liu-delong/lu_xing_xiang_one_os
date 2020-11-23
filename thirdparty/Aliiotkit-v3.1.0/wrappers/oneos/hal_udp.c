@@ -128,7 +128,7 @@ int HAL_UDP_readTimeout(intptr_t p_socket, unsigned char *p_data, unsigned int d
     fd_set         read_fds;
     long           socket_id = -1;
 
-    if (0 == p_socket || NULL == p_data)
+    if (0 > p_socket || NULL == p_data)
     {
         return -1;
     }
@@ -279,6 +279,7 @@ int HAL_UDP_close_without_connect(intptr_t sockfd)
     return closesocket((int)sockfd);
 }
 
+#ifdef COAP_SERVER
 int HAL_UDP_joinmulticast(intptr_t sockfd, char *p_group)
 {
     int            err       = -1;
@@ -313,6 +314,7 @@ int HAL_UDP_joinmulticast(intptr_t sockfd, char *p_group)
 
     return 0;
 }
+#endif
 
 int HAL_UDP_recvfrom(intptr_t       sockfd,
                      NetworkAddr   *p_remote,

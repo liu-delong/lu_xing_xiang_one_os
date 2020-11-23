@@ -44,7 +44,7 @@ os_err_t os_pulse_encoder_disable(struct os_pulse_encoder_device *pulse_encoder)
 
     OS_ASSERT(pulse_encoder != OS_NULL);
 
-    result = pulse_encoder->ops->enabled(pulse_encoder, OS_TRUE);
+    result = pulse_encoder->ops->enabled(pulse_encoder, OS_FALSE);
 
     return result;
 }
@@ -111,7 +111,6 @@ static os_err_t _pulse_encoder_control(struct os_device *dev, int cmd, void *arg
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops pulse_encoder_ops = {
     OS_NULL,
     OS_NULL,
@@ -120,7 +119,6 @@ const static struct os_device_ops pulse_encoder_ops = {
     OS_NULL,
     _pulse_encoder_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -147,18 +145,10 @@ os_device_pulse_encoder_register(struct os_pulse_encoder_device          *pulse_
     device = &(pulse_encoder->parent);
 
     device->type        = OS_DEVICE_TYPE_MISCELLANEOUS;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &pulse_encoder_ops;
-#else
-    device->open    = OS_NULL;
-    device->close   = OS_NULL;
-    device->read    = _pulse_encoder_read;
-    device->write   = OS_NULL;
-    device->control = _pulse_encoder_control;
-#endif
 
     pulse_encoder->over_under_flowcount = 0;
 

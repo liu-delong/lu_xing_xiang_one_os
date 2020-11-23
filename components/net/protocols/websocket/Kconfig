@@ -1,0 +1,14 @@
+menu "Websocket"
+
+config NET_USING_WEBSOCKET_CLIENT
+    bool "Enable Websocket Client"
+    select NET_USING_BSD
+    default n
+
+if NET_USING_WEBSOCKET_CLIENT
+
+    source "$OS_ROOT/components/net/protocols/websocket/api/client/Kconfig"
+
+endif
+
+endmenu 

@@ -9,6 +9,9 @@ if IsDefined('OS_USING_AUDIO'):
 
 if IsDefined('OS_USING_SAI'):
     src += ['sai.c']
+    
+if IsDefined('OS_USING_I2S'):
+    src += ['i2s.c']
 
 if IsDefined('BSP_USING_VS1003B'):
     src += ['vs1003b.c']

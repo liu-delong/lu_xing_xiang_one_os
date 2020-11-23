@@ -4,6 +4,8 @@
 
 #include "py/runtime.h"
 
+#if (MICROPY_PY_MACHINE_PM)
+
 typedef struct _machine_hard_pm_obj_t {
     mp_obj_base_t base;
     device_info_t* pm;
@@ -101,5 +103,5 @@ const mp_obj_type_t machine_hard_pm_type = {
     .make_new = machine_hard_pm_make_new,
     .locals_dict = (mp_obj_dict_t*)&mp_machine_pm_locals_dict,
 };
-
+#endif
 

@@ -117,10 +117,6 @@ static os_err_t _audio_recorder_init(struct os_device *dev)
     if (audio->ops->init)
         audio->ops->init(audio);
 
-    /* get replay buffer information */
-    if (audio->ops->buffer_info)
-        audio->ops->buffer_info(audio, &audio->replay->buf_info);
-
     return result;
 }
 
@@ -228,17 +224,15 @@ static os_err_t _audio_recorder_control(struct os_device *dev, int cmd, void *ar
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops audio_ops =
 {
-    _audio_dev_init,
-    _audio_dev_open,
-    _audio_dev_close,
-    _audio_dev_read,
-    _audio_dev_write,
-    _audio_dev_control
+    _audio_recorder_init,
+    _audio_recorder_open,
+    _audio_recorder_close,
+    _audio_recorder_read,
+    OS_NULL,
+    _audio_recorder_control
 };
-#endif
 
 os_err_t os_audio_recorder_register(struct os_audio_device *audio, const char *name, os_uint32_t flag, void *data)
 {
@@ -249,19 +243,9 @@ os_err_t os_audio_recorder_register(struct os_audio_device *audio, const char *n
     device = &(audio->parent);
 
     device->type = OS_DEVICE_TYPE_SOUND;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
-
-#ifdef OS_USING_DEVICE_OPS
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     device->ops  = &audio_ops;
-#else
-    device->init    = _audio_recorder_init;
-    device->open    = _audio_recorder_open;
-    device->close   = _audio_recorder_close;
-    device->read    = _audio_recorder_read;
-    device->write   = OS_NULL;
-    device->control = _audio_recorder_control;
-#endif
     device->user_data = data;
 
     /* register a character device */
@@ -281,6 +265,10 @@ void os_audio_rx_done(struct os_audio_device *audio, os_uint8_t *pbuf, os_size_t
     os_device_write(OS_DEVICE(&audio->record->pipe), 0, pbuf, len);
 
     /* invoke callback */
-    if (audio->parent.rx_indicate != OS_NULL)
-        audio->parent.rx_indicate(&audio->parent, len);
+    struct os_device_cb_info *info = &audio->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+    if (info->cb != OS_NULL)
+    {
+        info->size = len;
+        info->cb(&audio->parent, info);
+    }
 }

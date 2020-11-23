@@ -140,7 +140,7 @@ mo_netconn_t *ml302_netconn_create(mo_object_t *module, mo_netconn_type_t type)
 
     if (OS_NULL == netconn)
     {
-
+        ml302_unlock(&ml302->netconn_lock);
         return OS_NULL;
     }
     os_data_queue_init(&netconn->data_queue, ML302_DATA_QUEUE_SIZE, 0, OS_NULL);
@@ -185,16 +185,18 @@ os_err_t ml302_netconn_destroy(mo_object_t *module, mo_netconn_t *netconn)
         break;
     }
 
-    if (netconn->data_queue.queue != OS_NULL)
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        os_data_queue_deinit(&netconn->data_queue);
+        mo_netconn_data_queue_deinit(&netconn->data_queue);
     }
 
     LOG_EXT_I("Module %s netconnn id %d destroyed", module->name, netconn->connect_id);
 
-    netconn->connect_id = -1;
-    netconn->stat       = NETCONN_STAT_NULL;
-    netconn->type       = NETCONN_TYPE_NULL;
+    netconn->connect_id  = -1;
+    netconn->stat        = NETCONN_STAT_NULL;
+    netconn->type        = NETCONN_TYPE_NULL;
+    netconn->remote_port = 0;
+    inet_aton("0.0.0.0", &netconn->remote_ip);
 
     return OS_EOK;
 }
@@ -234,7 +236,7 @@ os_err_t ml302_netconn_connect(mo_object_t *module, mo_netconn_t *netconn, ip_ad
     case NETCONN_TYPE_UDP:
         result = at_parser_exec_cmd(parser,
                                     &resp,
-                                    "AT+MIPOPEN=%d,\"UDP\",\"%s\",%d,",
+                                    "AT+MIPOPEN=%d,\"UDP\",\"%s\",%d",
                                     netconn->connect_id,
                                     remote_ip,
                                     port);
@@ -637,7 +639,7 @@ static at_urc_t gs_urc_table[] = {
     {.prefix = "",          .suffix = ",CLOSED\r\n",    .func = urc_close_func},
 };
 
-static os_err_t ml302_network_init(mo_object_t *module)
+static void ml302_network_init(mo_object_t *module)
 {
     int          verctrl_data1 = -1;
     int          verctrl_data2 = -1;
@@ -649,7 +651,7 @@ static os_err_t ml302_network_init(mo_object_t *module)
 
     char resp_buff[AT_RESP_BUFF_SIZE_DEF] = {0};
 
-    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = AT_RESP_TIMEOUT_DEF};
+    at_resp_t resp = {.buff = resp_buff, .buff_size = sizeof(resp_buff), .timeout = 5 * OS_TICK_PER_SECOND};
 
     os_err_t result = at_parser_exec_cmd(parser, &resp, "AT+VERCTRL?");
     if (result != OS_EOK)
@@ -659,6 +661,7 @@ static os_err_t ml302_network_init(mo_object_t *module)
 
     if (at_resp_get_data_by_kw(&resp, "+VERCTRL:", "+VERCTRL: %d, %d", &verctrl_data1, &verctrl_data2) < 0)
     {
+        result = OS_ERROR;
         goto __exit;
     }
 
@@ -669,10 +672,12 @@ static os_err_t ml302_network_init(mo_object_t *module)
     }
     if (at_resp_get_data_by_kw(&resp, "+CPIN:", "+CPIN: %s", &CPIN) < 0)
     {
+        result = OS_ERROR;
         goto __exit;
     }
     if (strcmp(CPIN, "READY") != 0)
     {
+        result = OS_ERROR;
         goto __exit;
     }
 
@@ -683,6 +688,7 @@ static os_err_t ml302_network_init(mo_object_t *module)
     }
     if (at_resp_get_data_by_kw(&resp, "+CFUN:", "+CFUN: %d", &cfun) < 0)
     {
+        result = OS_ERROR;
         goto __exit;
     }
     if (cfun == 0)
@@ -735,15 +741,17 @@ static os_err_t ml302_network_init(mo_object_t *module)
     }
 
 __exit:
-    if (result != OS_EOK)
+    if(result != OS_EOK)
     {
-        LOG_EXT_E("ML302 network init failed");
+        LOG_EXT_W("ML302 network init failed");
     }
-
-    return result;
+    else
+    {
+        LOG_EXT_W("ML302 network init sucess");
+    }
 }
 
-os_err_t ml302_netconn_init(mo_ml302_t *module)
+void ml302_netconn_init(mo_ml302_t *module)
 {
     /* Init module netconn array */
     memset(module->netconn, 0, sizeof(module->netconn));
@@ -752,17 +760,11 @@ os_err_t ml302_netconn_init(mo_ml302_t *module)
         module->netconn[i].connect_id = -1;
     }
 
-    os_err_t result = ml302_network_init(&module->parent);
-    if(result != OS_EOK)
-    {
-        return result;
-    }
+    ml302_network_init(&module->parent);
 
     /* Set netconn urc table */
     at_parser_t *parser = &(module->parent.parser);
     at_parser_set_urc_table(parser, gs_urc_table, sizeof(gs_urc_table) / sizeof(gs_urc_table[0]));
-
-    return result;
 }
 
 #endif /* ML302_USING_NETCONN_OPS */

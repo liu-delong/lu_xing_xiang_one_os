@@ -43,7 +43,7 @@ os_err_t os_pwm_disable(struct os_pwm_device *pwm, os_uint32_t channel)
 
     OS_ASSERT(pwm != OS_NULL);
 
-    result = pwm->ops->enabled(pwm, channel, OS_TRUE);
+    result = pwm->ops->enabled(pwm, channel, OS_FALSE);
 
     return result;
 }
@@ -51,7 +51,6 @@ os_err_t os_pwm_disable(struct os_pwm_device *pwm, os_uint32_t channel)
 os_err_t os_pwm_set_period(struct os_pwm_device *pwm, os_uint32_t channel, os_uint32_t period)
 {
     pwm->period = period;
-    pwm->ops->enabled(pwm, channel, OS_FALSE);
     return pwm->ops->set_period(pwm, channel, period);
 }
 
@@ -68,6 +67,7 @@ os_size_t _pwm_set(struct os_device *dev, os_off_t pos, const void *buffer, os_s
 static os_err_t _pwm_control(struct os_device *dev, int cmd, void *args)
 {
     struct os_pwm_device *pwm    = (struct os_pwm_device *)dev;
+    struct os_pwm_configuration *config = (struct os_pwm_configuration *)args;
 
     switch (cmd)
     {
@@ -76,21 +76,23 @@ static os_err_t _pwm_control(struct os_device *dev, int cmd, void *args)
     case OS_PWM_CMD_DISABLE:
         return pwm->ops->enabled(pwm, *(os_uint32_t *)args, OS_FALSE);
     case OS_PWM_CMD_SET_PERIOD:
-        return os_pwm_set_period((struct os_pwm_device *)dev, 0, *(os_uint32_t *)args);
+        pwm->period = *(os_uint32_t *)args;
+        return pwm->ops->set_period(pwm, 0, *(os_uint32_t *)args);
+    case OS_PWM_CMD_SET_PULSE:
+        return pwm->ops->set_pulse(pwm, config->channel, config->pulse);
     default:
         return OS_ENOSYS;
     }
 }
 
-#ifdef OS_USING_DEVICE_OPS
 static const struct os_device_ops pwm_device_ops = {
     OS_NULL,
     OS_NULL,
     OS_NULL,
+    OS_NULL,
     _pwm_set,
-    _pwm_control
+    _pwm_control,
 };
-#endif /* OS_USING_DEVICE_OPS */
 
 /**
  ***********************************************************************************************************************
@@ -111,14 +113,8 @@ os_err_t os_device_pwm_register(struct os_pwm_device       *device,
 {
     os_err_t result = OS_EOK;
 
-#ifdef OS_USING_DEVICE_OPS
-    device->parent.ops = &pwm_device_ops;
-#else
-    device->parent.write   = _pwm_set;
-    device->parent.control = _pwm_control;
-#endif /* OS_USING_DEVICE_OPS */
-
-    device->parent.type      = OS_DEVICE_TYPE_MISCELLANEOUS;
+    device->parent.ops  = &pwm_device_ops;
+    device->parent.type = OS_DEVICE_TYPE_MISCELLANEOUS;
 
     result = os_device_register(&device->parent, name, OS_DEVICE_FLAG_RDWR);
 

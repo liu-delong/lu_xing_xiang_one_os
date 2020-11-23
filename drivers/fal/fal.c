@@ -118,7 +118,7 @@ static int fal_flash_init(void)
 {
     int i;
 
-#if defined(__CC_ARM)                           /* ARM MDK Compiler */    
+#if defined(__CC_ARM) || defined(__ARMCC_VERSION)                           /* ARM MDK Compiler */    
     extern const int fal_flash_table$$Base;
     extern const int fal_flash_table$$Limit;
     

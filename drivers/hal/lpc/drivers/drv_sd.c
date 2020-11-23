@@ -230,8 +230,8 @@ int rt_hw_mci_init(void)
 
     /* no private, no callback */
     _mci_device->parent.user_data = RT_NULL;
-    _mci_device->parent.rx_indicate = RT_NULL;
-    _mci_device->parent.tx_complete = RT_NULL;
+    _mci_device->parent.cb_table[OS_DEVICE_CB_TYPE_RX].cb = RT_NULL;
+    _mci_device->parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb = RT_NULL;
 
     rt_device_register(&_mci_device->parent, "sdcard0",
                        RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_REMOVABLE );

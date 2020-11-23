@@ -33,6 +33,23 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define MO_IMEI_LEN               (15)              /* International Mobile Equipment Identity */
+#define MO_IMSI_LEN               (15)              /* International Mobile Subscriber Identity */
+#define MO_ICCID_LEN              (20)              /* Integrate Circuit Card Identity */
+
+/**
+ ***********************************************************************************************************************
+ * @struct      mo_firmware_version_t
+ *
+ * @brief       molink module firmware version infomation
+ ***********************************************************************************************************************
+ */
+typedef struct mo_firmware_version
+{
+    os_size_t line_counts;  /* The number of lines of firmware version information */
+    char    **ver_info;     /* The text of the firmware version information */
+} mo_firmware_version_t;
+
 /**
  ***********************************************************************************************************************
  * @struct      mo_general_ops_t
@@ -48,9 +65,8 @@ typedef struct mo_general_ops
     os_err_t (*get_iccid)(mo_object_t *self, char *value, os_size_t len);
     os_err_t (*get_cfun)(mo_object_t *self, os_uint8_t *fun_lvl);
     os_err_t (*set_cfun)(mo_object_t *self, os_uint8_t fun_lvl);
-    os_err_t (*soft_reset)(mo_object_t *self);
-    os_err_t (*clear_stored_earfcn)(mo_object_t *self);
-    os_err_t (*get_app_version)(mo_object_t *self, char *value, os_size_t len);
+    os_err_t (*get_firmware_version)(mo_object_t *self, mo_firmware_version_t *version);
+    os_err_t (*get_eid)(mo_object_t *self, char *eid, os_size_t len);
 } mo_general_ops_t;
 
 os_err_t mo_at_test(mo_object_t *self);
@@ -59,9 +75,9 @@ os_err_t mo_get_imsi(mo_object_t *self, char *value, os_size_t len);
 os_err_t mo_get_iccid(mo_object_t *self, char *value, os_size_t len);
 os_err_t mo_get_cfun(mo_object_t *self, os_uint8_t *fun_lvl);
 os_err_t mo_set_cfun(mo_object_t *self, os_uint8_t fun_lvl);
-os_err_t mo_soft_reset(mo_object_t *self);
-os_err_t mo_clear_stored_earfcn(mo_object_t *self);
-os_err_t mo_get_app_version(mo_object_t *self, char *value, os_size_t len);
+os_err_t mo_get_firmware_version(mo_object_t *self, mo_firmware_version_t *version);
+void     mo_get_firmware_version_free(mo_firmware_version_t *version);
+os_err_t mo_get_eid(mo_object_t *self, char *eid, os_size_t len);
 
 #ifdef __cplusplus
 }

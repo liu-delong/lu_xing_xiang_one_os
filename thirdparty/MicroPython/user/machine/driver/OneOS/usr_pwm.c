@@ -2,8 +2,7 @@
 #include "py/mperrno.h"
 
 #if (MICROPY_PY_MACHINE_PWM)
-#include <stdio.h>
-#include "stdlib.h"
+
 #include "usr_misc.h"
 #include "usr_pwm.h"
 
@@ -125,7 +124,7 @@ STATIC struct operate pwm_ops = {
 
 int mpycall_pwm_register(void)
 {
-	device_info_t  *pos, *pwm = mp_misc_find_similar_device("pwm");
+	device_info_t  *pos, *pwm = mp_misc_find_similar_device(MICROPYTHON_MACHINE_PWM_PRENAME);
 	if (!pwm){
 		return -1;
 	}

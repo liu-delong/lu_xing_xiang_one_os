@@ -23,6 +23,8 @@
 
 #include "mo_netconn.h"
 
+#include <stdlib.h>
+
 #define DBG_EXT_TAG "molink.netconn"
 #define DBG_EXT_LVL LOG_LVL_INFO
 #include <os_dbg_ext.h>
@@ -71,19 +73,22 @@ void mo_netconn_data_recv_notice(mo_netconn_t *netconn, const char *data, os_siz
 void mo_netconn_pasv_close_notice(mo_netconn_t *netconn)
 {
     OS_ASSERT(OS_NULL != netconn);
-    
-    netconn->stat = NETCONN_STAT_CLOSE;
-    
-#ifdef MOLINK_USING_SOCKETS_OPS
-    if (OS_NULL != netconn->evt_func)
+
+    if (netconn->stat != NETCONN_STAT_NULL)
     {
-        // when socket closed, notice recv & error event
-        netconn->evt_func(netconn, MO_NETCONN_EVT_RCVPLUS, 0);
-        netconn->evt_func(netconn, MO_NETCONN_EVT_ERROR, 0);
-    }
+        netconn->stat = NETCONN_STAT_CLOSE;
+
+#ifdef MOLINK_USING_SOCKETS_OPS
+        if (OS_NULL != netconn->evt_func)
+        {
+            // when socket closed, notice recv & error event
+            netconn->evt_func(netconn, MO_NETCONN_EVT_RCVPLUS, 0);
+            netconn->evt_func(netconn, MO_NETCONN_EVT_ERROR, 0);
+        }
 #endif
 
-    os_data_queue_reset(&netconn->data_queue);
+        os_data_queue_reset(&netconn->data_queue);
+    }
 
     return;
 }
@@ -107,6 +112,37 @@ os_err_t mo_netconn_get_info(mo_object_t *module, mo_netconn_info_t *info)
     }
 
     return ops->get_info(module, info);
+}
+
+/**
+ ***********************************************************************************************************************
+ * @brief           Releases legacy data items in the queue and deinit the queue
+ *
+ * @param[in]       data_queue       The descriptor of data queue
+ ***********************************************************************************************************************
+ */
+void mo_netconn_data_queue_deinit(os_data_queue_t *data_queue)
+{
+    OS_ASSERT(OS_NULL != data_queue);
+    OS_ASSERT(OS_NULL != data_queue->queue);
+
+    os_err_t  result    = OS_EOK;
+    os_size_t data_size = 0;
+    void     *data_ptr  = OS_NULL;
+
+    do
+    {
+        result = os_data_queue_pop(data_queue, (const void **)&data_ptr, &data_size, OS_IPC_WAITING_NO);
+        if (result != OS_EOK)
+        {
+            /* All items in the queue have been released */
+            break;
+        }
+
+        free(data_ptr);
+    } while (1);
+
+    os_data_queue_deinit(data_queue);
 }
 
 /**
@@ -328,13 +364,15 @@ os_err_t mo_netconn_recv(mo_object_t *module, mo_netconn_t *netconn, void **data
     OS_ASSERT(OS_NULL != data);
     OS_ASSERT(OS_NULL != size);
 
-    if (netconn->stat != NETCONN_STAT_CONNECT)
+    os_err_t result = os_data_queue_peak(&netconn->data_queue, (const void **)data, size);
+
+    if (netconn->stat != NETCONN_STAT_CONNECT && OS_EEMPTY == result)
     {
-        LOG_EXT_E("Module %s netconn %d does not connect to server, recv failed!", module->name, netconn->connect_id);
+        LOG_EXT_D("Module %s netconn %d does not connect to server, recv failed!", module->name, netconn->connect_id);
         return OS_ERROR;
     }
 
-    os_err_t result = os_data_queue_pop(&netconn->data_queue, (const void **)data, size, timeout);
+    result = os_data_queue_pop(&netconn->data_queue, (const void **)data, size, timeout);
 
     if (OS_ETIMEOUT == result)
     {

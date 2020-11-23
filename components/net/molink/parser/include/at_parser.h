@@ -92,7 +92,7 @@ typedef struct at_parser
     os_size_t curr_recv_len; /* The current receive data length of AT parser */
 
     os_sem_t   rx_notice; /* The receive notice semaphore of at parser */
-    os_mutex_t rx_lock;   /* The receive lock of at parser */
+    os_mutex_t exec_lock; /* The recursive lock that protects the execution of the AT command */
 
     os_sem_t resp_notice; /* the response notice semaphore */
 
@@ -110,8 +110,12 @@ os_err_t at_parser_init(at_parser_t *parser, const char *name, os_device_t *devi
 os_err_t at_parser_startup(at_parser_t *parser);
 os_err_t at_parser_deinit(at_parser_t *parser);
 
+os_err_t  at_parser_exec_lock(at_parser_t *parser);
+os_err_t  at_parser_exec_unlock(at_parser_t *parser);
 os_err_t  at_parser_exec_cmd_valist(at_parser_t *parser, at_resp_t *resp, const char *cmd_expr, va_list args);
 os_err_t  at_parser_exec_cmd(at_parser_t *parser, at_resp_t *resp, const char *cmd_expr, ...);
+
+os_err_t  at_parser_connect(at_parser_t *parser, os_uint8_t retry_times);
 os_size_t at_parser_send(at_parser_t *parser, const char *buf, os_size_t size);
 os_size_t at_parser_recv(at_parser_t *parser, char *buf, os_size_t size, os_int32_t timeout);
 

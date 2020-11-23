@@ -26,30 +26,69 @@
 #include <os_hw.h>
 #include <os_device.h>
 #include <os_irq.h>
+#include <os_memory.h>
 
 #include <string.h>
 
 #include "am_mcu_apollo.h"
+#include "bsp.h"
 
 /* AM uart driver */
-struct am_uart
+struct apollo_uart
 {
-    os_uint32_t uart_device;
-    os_uint32_t uart_interrupt;
-    os_uint8_t *buff;
+    struct os_serial_device serial;
+
+    UART_HandleTypeDef *huart;
+
+    os_list_node_t list;
 };
+
+static os_list_node_t am_uart_list = OS_LIST_INIT(am_uart_list);
+
+static void GPIO_Configuration(void)
+{
+#if defined(BSP_USING_UART0)
+    /* Make sure the UART RX and TX pins are enabled */
+    am_hal_gpio_pin_config(UART0_GPIO_TX, UART0_GPIO_CFG_TX | AM_HAL_GPIO_PULL24K);
+    am_hal_gpio_pin_config(UART0_GPIO_RX, UART0_GPIO_CFG_RX | AM_HAL_GPIO_PULL24K);
+#endif /* BSP_USING_UART0 */
+
+#if defined(BSP_USING_UART1)
+    /* Make sure the UART RX and TX pins are enabled */
+    am_hal_gpio_pin_config(UART1_GPIO_TX, UART1_GPIO_CFG_TX | AM_HAL_GPIO_PULL24K);
+    am_hal_gpio_pin_config(UART1_GPIO_RX, UART1_GPIO_CFG_RX | AM_HAL_GPIO_PULL24K);
+#endif /* BSP_USING_UART1 */
+}
+
+static void RCC_Configuration(UART_HandleTypeDef *uart)
+{
+    /* Power on the selected UART */
+    am_hal_uart_pwrctrl_enable(uart->uart_device);
+
+    /* Start the UART interface, apply the desired configuration settings */
+    am_hal_uart_clock_enable(uart->uart_device);
+
+    /* Disable the UART before configuring it */
+    am_hal_uart_disable(uart->uart_device);
+}
 
 static os_err_t am_uart_configure(struct os_serial_device *serial, struct serial_configure *cfg)
 {
-    struct am_uart *     uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
     am_hal_uart_config_t uart_cfg;
 
     OS_ASSERT(serial != OS_NULL);
     OS_ASSERT(cfg != OS_NULL);
-
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
+    
+    GPIO_Configuration();
+    RCC_Configuration(uart);
 
     memset(&uart_cfg, 0, sizeof(uart_cfg));
 
@@ -95,11 +134,14 @@ static os_err_t am_uart_configure(struct os_serial_device *serial, struct serial
 static void uart_isr(struct os_serial_device *serial)
 {
     uint32_t        status;
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 
     /* Read the interrupt status */
@@ -128,11 +170,14 @@ static void uart_isr(struct os_serial_device *serial)
 
 static int am_uart_start_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
 {
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
     
     if(!(am_hal_uart_int_enable_get(uart->uart_device) & AM_HAL_UART_INT_TX))
@@ -156,11 +201,14 @@ static int am_uart_start_send(struct os_serial_device *serial, const os_uint8_t 
 
 static int am_uart_stop_send(struct os_serial_device *serial)
 {
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 
      am_hal_uart_int_disable(uart->uart_device, AM_HAL_UART_INT_TX);
@@ -170,11 +218,14 @@ static int am_uart_stop_send(struct os_serial_device *serial)
 
 static int am_uart_start_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
 {
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 /*   if(am_hal_uart_int_status_get(uart->uart_device, true) & AM_HAL_UART_INT_RX)
     {
@@ -192,11 +243,14 @@ static int am_uart_start_recv(struct os_serial_device *serial, os_uint8_t *buff,
 
 static int am_uart_stop_recv(struct os_serial_device *serial)
 {
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 
     am_hal_uart_int_disable(uart->uart_device,AM_HAL_UART_INT_RX);
@@ -207,11 +261,14 @@ static int am_uart_stop_recv(struct os_serial_device *serial)
 static int am_uart_recv_state(struct os_serial_device *serial)
 {
     int state;
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 
     state = OS_SERIAL_FLAG_RX_IDLE;
@@ -222,11 +279,14 @@ static int am_uart_recv_state(struct os_serial_device *serial)
 static int am_uart_poll_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
 {
     int i;    
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 
     for (i = 0; i < size; i++)
@@ -239,11 +299,14 @@ static int am_uart_poll_send(struct os_serial_device *serial, const os_uint8_t *
 
 static int am_uart_poll_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
 {
-    struct am_uart *uart;
+    struct apollo_uart *a_uart;
+    UART_HandleTypeDef *     uart;
 
     OS_ASSERT(serial != OS_NULL);
-    uart = (struct am_uart *)serial->parent.user_data;
-
+    a_uart = os_container_of(serial, struct apollo_uart, serial);
+    OS_ASSERT(a_uart != OS_NULL);
+    
+    uart = a_uart->huart;
     OS_ASSERT(uart != OS_NULL);
 
     OS_ASSERT(size == 1);
@@ -272,116 +335,88 @@ static const struct os_uart_ops am_uart_ops =
 
 #if defined(BSP_USING_UART0)
 /* UART0 device driver structure */
-struct am_uart uart0 =
+void am_uart_isr(void)
 {
-    AM_UART0_INST,
-    AM_HAL_INTERRUPT_UART
-};
-static struct os_serial_device serial0;
+    struct apollo_uart *am_uart;
 
+//    am_uart = os_container_of(&huart0, struct apollo_uart, huart);
+    os_list_for_each_entry(am_uart, &am_uart_list, struct apollo_uart, list)
+    {
+        if (am_uart->huart == &huart0)
+        {
+            /* enter interrupt */
+            os_interrupt_enter();
+            uart_isr(&am_uart->serial);
+            /* leave interrupt */
+            os_interrupt_leave();
+            break;
+        }
+    }
+}
+#ifdef SOC_APOLLO2_XXX
 void am_uart0_isr(void)
 {
-    /* enter interrupt */
-    os_interrupt_enter();
-
-    uart_isr(&serial0);
-
-    /* leave interrupt */
-    os_interrupt_leave();
+	am_uart_isr();
 }
+#endif
 #endif /* BSP_USING_UART0 */
 
 #if defined(BSP_USING_UART1)
 /* UART1 device driver structure */
-struct am_uart uart1 =
-{
-    AM_UART1_INST,
-    AM_HAL_INTERRUPT_UART1
-};
-static struct os_serial_device serial1;
-
 void am_uart1_isr(void)
 {
-    /* enter interrupt */
-    os_interrupt_enter();
+    struct apollo_uart *am_uart;
 
-    uart_isr(&serial1);
-
-    /* leave interrupt */
-    os_interrupt_leave();
+    os_list_for_each_entry(am_uart, &am_uart_list, struct apollo_uart, list)
+    {
+        if (am_uart->huart == &huart1)
+        {
+            /* enter interrupt */
+            os_interrupt_enter();
+            uart_isr(&am_uart->serial);
+            /* leave interrupt */
+            os_interrupt_leave();
+            break;
+        }
+    }
 }
 #endif /* BSP_USING_UART1 */
 
-void am_uart_isr(void)
+
+static int am_usart_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
 {
-    /* enter interrupt */
-    os_interrupt_enter();
+    struct serial_configure config  = OS_SERIAL_CONFIG_DEFAULT;
+    
+    os_err_t    result  = 0;
+    os_base_t   level;
 
-    uart_isr(&serial0);
+    struct apollo_uart *uart = (struct apollo_uart *)os_calloc(1, sizeof(struct apollo_uart));
 
-    /* leave interrupt */
-    os_interrupt_leave();
+    OS_ASSERT(uart);
+
+    uart->huart = (UART_HandleTypeDef *)dev->info;
+
+    struct os_serial_device *serial = &uart->serial;
+
+    serial->ops    = &am_uart_ops;
+    serial->config = config;
+
+    level = os_hw_interrupt_disable();
+    os_list_add_tail(&am_uart_list, &uart->list);
+    os_hw_interrupt_enable(level);
+    
+    result = os_hw_serial_register(serial, dev->name, OS_DEVICE_FLAG_RDWR, NULL);
+    
+    OS_ASSERT(result == OS_EOK);
+
+    return result;
 }
 
-static void GPIO_Configuration(void)
-{
-#if defined(BSP_USING_UART0)
-    /* Make sure the UART RX and TX pins are enabled */
-    am_hal_gpio_pin_config(UART0_GPIO_TX, UART0_GPIO_CFG_TX | AM_HAL_GPIO_PULL24K);
-    am_hal_gpio_pin_config(UART0_GPIO_RX, UART0_GPIO_CFG_RX | AM_HAL_GPIO_PULL24K);
-#endif /* BSP_USING_UART0 */
 
-#if defined(BSP_USING_UART1)
-    /* Make sure the UART RX and TX pins are enabled */
-    am_hal_gpio_pin_config(UART1_GPIO_TX, UART1_GPIO_CFG_TX | AM_HAL_GPIO_PULL24K);
-    am_hal_gpio_pin_config(UART1_GPIO_RX, UART1_GPIO_CFG_RX | AM_HAL_GPIO_PULL24K);
-#endif /* BSP_USING_UART1 */
-}
+OS_DRIVER_INFO am_usart_driver = {
+    .name   = "UART_HandleTypeDef",
+    .probe  = am_usart_probe,
+};
 
-static void RCC_Configuration(struct am_uart *uart)
-{
-    /* Power on the selected UART */
-    am_hal_uart_pwrctrl_enable(uart->uart_device);
+OS_DRIVER_DEFINE(am_usart_driver, "0.end.0");
 
-    /* Start the UART interface, apply the desired configuration settings */
-    am_hal_uart_clock_enable(uart->uart_device);
-
-    /* Disable the UART before configuring it */
-    am_hal_uart_disable(uart->uart_device);
-}
-
-int os_hw_usart_init(void)
-{
-    struct am_uart *        uart;
-    struct serial_configure config = OS_SERIAL_CONFIG_DEFAULT;
-
-    GPIO_Configuration();
-
-#if defined(BSP_USING_UART0)
-    uart             = &uart0;
-    config.baud_rate = BAUD_RATE_115200;
-
-    RCC_Configuration(uart);
-
-    serial0.ops    = &am_uart_ops;
-    serial0.config = config;
-
-    /* register UART0 device */
-    os_hw_serial_register(&serial0, "uart0", OS_DEVICE_FLAG_RDWR , uart);
-#endif /* BSP_USING_UART0 */
-
-#if defined(BSP_USING_UART1)
-    uart             = &uart1;
-    config.baud_rate = BAUD_RATE_115200;
-
-    RCC_Configuration(uart);
-
-    serial1.ops    = &am_uart_ops;
-    serial1.config = config;
-
-    /* register UART1 device */
-    os_hw_serial_register(&serial1, "uart1", OS_DEVICE_FLAG_RDWR , uart);
-#endif /* BSP_USING_UART1 */
-
-    return 0;
-}

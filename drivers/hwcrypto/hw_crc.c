@@ -175,7 +175,7 @@ os_err_t os_hwcrypto_crc_register(struct os_hwcrypto_device *device, const char 
     if (hwcrypto_crc_device != OS_NULL)
     {
         os_kprintf("hwcrypto crc dev %s exist, %s register failed.\r\n",
-                   hwcrypto_crc_device->parent.parent.name, name);
+                   device_name(&hwcrypto_crc_device->parent), name);
         return OS_EFULL;
     }
 

@@ -30,6 +30,17 @@ menu "M5310A Config"
         select MOLINK_USING_NETSERV_OPS
         default y
 
+    config M5310A_USING_PING_OPS
+        bool "Enable M5310A Module Ping Operates"
+        select MOLINK_USING_PING_OPS
+        default y
+
+    config M5310A_USING_IFCONFIG_OPS
+        bool "Enable M5310A Module Ifconfig Operates"
+        select MOLINK_USING_IFCONFIG_OPS
+        select M5310A_USING_GENERAL_OPS
+        select M5310A_USING_NETSERV_OPS
+        default y
     config M5310A_USING_NETCONN_OPS
         bool "Enable M5310A Module Network TCP/IP Operates"
         select MOLINK_USING_NETCONN_OPS

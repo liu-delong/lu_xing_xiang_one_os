@@ -17,7 +17,7 @@
  *
  * @revision
  * Date         Author          Notes
- * 2020-02-20   OneOS Team      First Version
+ * 2020-09-07   OneOS Team      First Version
  ***********************************************************************************************************************
  */
 
@@ -27,142 +27,152 @@
 #include <bus/bus.h>
 #include <drv_cfg.h>
 #include <drv_usart.h>
-#include "peripherals.h"
+#include <os_clock.h>
+#include <string.h>
 
 #define DRV_EXT_LVL DBG_EXT_INFO
 #define DRV_EXT_TAG "drv.usart"
 #include <drv_log.h>
 
-#ifndef HAL_UART_ISR_PRIORITY
-#define HAL_UART_ISR_PRIORITY (25U)
-#endif
-
-#if 0
-#define USART_MODE_POLL
-#define USART_MODE_INTERRUPT
-#define USART_MODE_NOPOLL
-#define USART_MODE_DMA
-#endif
-#define USART_MODE_DMA
-
-static uint8_t usart0_rxRingBuffer[100];
-uint8_t usart0_txRingBuffer[]   = "Usart polling example! \r\n";
-
-static USART_Type *const s_UsartAdapterBase[] = USART_BASE_PTRS;
-struct lpc_uart *uart;
-
-struct lpc_uart
+struct nxp_usart
 {
     struct os_serial_device serial;
-    USART_Type *uart_base;
-    const usart_config_t *config;
-    char *device_name;
-    usart_transfer_t sendXfer;
-    usart_transfer_t receiveXfer;
+    struct nxp_usart_info *usart_info;
+    hal_usart_transfer_t sendXfer;
+    hal_usart_transfer_t receiveXfer;
+    os_uint32_t clk_src;
 
-#if defined(USART_MODE_INTERRUPT)
     IRQn_Type irqn;
-    os_int32_t priority;
-//    clock_name_t clock_src;
-#elif defined(USART_MODE_DMA)       
-    usart_dma_handle_t *uartDmaHandle;
-//    dma_handle_t *uartTxDmaHandle;
-//    dma_handle_t *uartRxDmaHandle;
-#endif
+    usart_handle_t *usart_handle;
+    usart_dma_handle_t *usart_DmaHandle;
+
+    os_list_node_t list;
 };
 
-#if defined(USART_MODE_INTERRUPT)
-void FLEXCOMM0_IRQHandler(void)
-{
-    uint8_t data;
-    
-    /* If new data arrived. */
-    if ((kUSART_RxFifoNotEmptyFlag | kUSART_RxError) & USART_GetStatusFlags(s_UsartAdapterBase[0]))
-    {
-        uart->serial.rx_fifo->line_buff[0] = USART_ReadByte(s_UsartAdapterBase[0]);
-        os_hw_serial_isr_rxdone(&uart->serial, 1);
-    }
-    SDK_ISR_EXIT_BARRIER;
-}
-#elif defined(USART_MODE_DMA)
-void lpc_usart_callback(USART_Type *base, usart_dma_handle_t *handle, status_t status, void *userData)
-{   
-    struct lpc_uart *uart;
-    
-    uart = os_container_of(base, struct lpc_uart, uart_base);
+static os_list_node_t nxp_usart_list = OS_LIST_INIT(nxp_usart_list);
 
+void nxp_usart_irq_callback(struct nxp_usart *nxp_usart)
+{
+//    if (USART_GetStatusFlags(nxp_usart->usart_info->usart_base) & kUSART_RxFifoNotEmptyFlag)
+//    {
+//        nxp_usart->receiveXfer.transfer.data[nxp_usart->receiveXfer.count_cur] = USART_ReadByte(nxp_usart->usart_info->usart_base);
+//        nxp_usart->receiveXfer.count_cur++;
+//        if ((nxp_usart->receiveXfer.count_cur == nxp_usart->receiveXfer.transfer.dataSize) && (nxp_usart->receiveXfer.transfer.data != OS_NULL))
+//        {
+//            USART_DisableInterrupts(nxp_usart->usart_info->usart_base, kUSART_RxLevelInterruptEnable);
+//            os_interrupt_enter();
+//            os_hw_serial_isr_rxdone((struct os_serial_device *)nxp_usart, nxp_usart->receiveXfer.transfer.dataSize);
+//            os_interrupt_leave();
+//            
+//            nxp_usart->receiveXfer.transfer.data = OS_NULL;
+//            nxp_usart->receiveXfer.count_cur = 0;
+//            nxp_usart->receiveXfer.transfer.dataSize = 0;
+//        }
+//    }
+//    else 
+//    {
+//        USART_ClearStatusFlags(nxp_usart->usart_info->usart_base, USART_FIFOSTAT_TXERR_MASK | USART_FIFOSTAT_RXERR_MASK);
+//    }
+}
+
+USART_IRQHandler_DEFINE(0);
+USART_IRQHandler_DEFINE(1);
+USART_IRQHandler_DEFINE(2);
+USART_IRQHandler_DEFINE(3);
+USART_IRQHandler_DEFINE(4);
+USART_IRQHandler_DEFINE(5);
+USART_IRQHandler_DEFINE(6);
+USART_IRQHandler_DEFINE(7);
+USART_IRQHandler_DEFINE(8);
+
+void nxp_usart_dma_callback(USART_Type *base, usart_dma_handle_t *handle, status_t status, void *userData)
+{
+    struct nxp_usart *nxp_usart = (struct nxp_usart *)userData;
+    
     if (kStatus_USART_TxIdle == status)
     {
         os_interrupt_enter();
-        os_hw_serial_isr_txdone((struct os_serial_device *)uart);
+        os_hw_serial_isr_txdone((struct os_serial_device *)nxp_usart);
         os_interrupt_leave();
     }
+    
     if (kStatus_USART_RxIdle == status)
     {
         os_interrupt_enter();
-        os_hw_serial_isr_rxdone((struct os_serial_device *)uart, uart->receiveXfer.dataSize);
+        os_hw_serial_isr_rxdone((struct os_serial_device *)nxp_usart, nxp_usart->receiveXfer.transfer.dataSize);
         os_interrupt_leave();
     }
-
-    /* User data is actually CMSIS driver callback. */
-    if (userData)
-    {
-//        ((ARM_USART_SignalEvent_t)userData)(event);
-    }
 }
-#elif defined(USART_MODE_NOPULL)
-void lpc_usart_callback(USART_Type *base, usart_handle_t *handle, status_t status, void *userData)
-{   
-    struct lpc_uart *uart;
-    
-    uart = os_container_of(base, struct lpc_uart, uart_base);
 
+void nxp_usart_transfer_callback(USART_Type *base, usart_handle_t *handle, status_t status, void *userData)
+{
+    struct nxp_usart *nxp_usart = (struct nxp_usart *)userData;
+    
     if (kStatus_USART_TxIdle == status)
     {
         os_interrupt_enter();
-        os_hw_serial_isr_txdone((struct os_serial_device *)uart);
+        os_hw_serial_isr_txdone((struct os_serial_device *)nxp_usart);
         os_interrupt_leave();
     }
+    
     if (kStatus_USART_RxIdle == status)
     {
         os_interrupt_enter();
-        os_hw_serial_isr_rxdone((struct os_serial_device *)uart, uart->receiveXfer.dataSize);
+        os_hw_serial_isr_rxdone((struct os_serial_device *)nxp_usart, nxp_usart->receiveXfer.transfer.dataSize);
         os_interrupt_leave();
-    }
-
-    /* User data is actually CMSIS driver callback. */
-    if (userData)
-    {
-//        ((ARM_USART_SignalEvent_t)userData)(event);
     }
 }
 
-#endif
-
-static os_err_t lpc_configure(struct os_serial_device *serial, struct serial_configure *cfg)
+static os_err_t nxp_usart_configure(struct os_serial_device *serial, struct serial_configure *cfg)
 {
+    struct nxp_usart *nxp_usart = (struct nxp_usart *)serial;
+    
+    OS_ASSERT(serial != OS_NULL);
+    OS_ASSERT(cfg != OS_NULL);
+
+    LOG_EXT_D("sofeware just use to config baud_rate, other param should use MCUXpresso config tool!\n");
+    
+    if (USART_SetBaudRate(nxp_usart->usart_info->usart_base, cfg->baud_rate, nxp_usart->clk_src) != kStatus_Success)
+    {
+        return OS_ERROR;
+    }
+
     return OS_EOK;
 }
 
-static int lpc_uart_start_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
+static int nxp_usart_start_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
 {
-    int32_t ret;
+    int32_t ret = OS_EOK;
     status_t status;
-    struct lpc_uart *uart;
+    
+    struct nxp_usart *nxp_usart;
     
     OS_ASSERT(serial != OS_NULL);
 
-    uart = os_container_of(serial, struct lpc_uart, serial);
+    nxp_usart = (struct nxp_usart *)serial;
 
-    uart->sendXfer.data = (os_uint8_t *)buff;
-    uart->sendXfer.dataSize = size;
+    nxp_usart->sendXfer.transfer.data = (os_uint8_t *)buff;
+    nxp_usart->sendXfer.transfer.dataSize = size;
 
-#if defined(USART_MODE_DMA)
-    status = USART_TransferSendDMA(uart->uart_base, uart->uartDmaHandle, &uart->sendXfer);
-#elif defined(USART_MODE_NOPULL)
-    status = USART_TransferSendNonBlocking(uart->uart_base, &uart->uart_handle, &uart->sendXfer);
-#endif
-    
+    if (nxp_usart->usart_DmaHandle != OS_NULL)
+    {
+        status = USART_TransferSendDMA(nxp_usart->usart_info->usart_base, nxp_usart->usart_DmaHandle, &nxp_usart->sendXfer.transfer);
+    }
+    else if (nxp_usart->usart_handle != OS_NULL)
+    {
+        status = USART_TransferSendNonBlocking(nxp_usart->usart_info->usart_base, nxp_usart->usart_handle, &nxp_usart->sendXfer.transfer);
+    }
+    else if (nxp_usart->irqn >= 14)
+    {
+        LOG_EXT_E("lpc55 usart not support irq mode! please use transfer or dma or polling!\n");
+        status = kStatus_InvalidArgument;
+    }
+    else
+    {
+        LOG_EXT_E("lpc55 usart polling mode don't use start! serial should use polling mode!\n");
+        status = kStatus_InvalidArgument;
+    }
+
     switch (status)
     {
         case kStatus_Success:
@@ -182,40 +192,85 @@ static int lpc_uart_start_send(struct os_serial_device *serial, const os_uint8_t
     return (ret == OS_EOK) ? size : 0;
 }
 
-static int lpc_uart_stop_send(struct os_serial_device *serial)
+static int nxp_usart_stop_send(struct os_serial_device *serial)
 {
-    struct lpc_uart *uart;
+    int32_t ret = OS_EOK;
+    status_t status = kStatus_Success;
+    
+    struct nxp_usart *nxp_usart;
     
     OS_ASSERT(serial != OS_NULL);
 
-    uart = os_container_of(serial, struct lpc_uart, serial);
+    nxp_usart = (struct nxp_usart *)serial;
     
-#if defined(USART_MODE_DMA)
-    USART_TransferAbortSendDMA(uart->uart_base, uart->uartDmaHandle);
-#elif defined(USART_MODE_NOPULL)
-    USART_TransferAbortSend(uart->uart_base, &uart->uart_handle);
-#endif
-    return 0;
+    if (nxp_usart->usart_DmaHandle != OS_NULL)
+    {
+        USART_TransferAbortSendDMA(nxp_usart->usart_info->usart_base, nxp_usart->usart_DmaHandle);
+    }
+    else if (nxp_usart->usart_handle != OS_NULL)
+    {
+        USART_TransferAbortSend(nxp_usart->usart_info->usart_base, nxp_usart->usart_handle);
+    }
+    else if (nxp_usart->irqn >= 14)
+    {
+        return 0;
+    }
+    else
+    {
+        return 0;
+    }
+
+    switch (status)
+    {
+        case kStatus_Success:
+            ret = OS_EOK;
+            break;
+        case kStatus_InvalidArgument:
+            ret = OS_EINVAL;
+            break;
+        case kStatus_USART_TxBusy:
+            ret = OS_EBUSY;
+            break;
+        default:
+            ret = OS_ERROR;
+            break;
+    }
+    
+    return ret;
 }
 
-static int lpc_uart_start_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
+static int nxp_usart_start_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
 {
-    int32_t ret;
+    int32_t ret = OS_EOK;
     status_t status;
-    struct lpc_uart *uart;
+    
+    struct nxp_usart *nxp_usart;
 
     OS_ASSERT(serial != OS_NULL);
 
-    uart = os_container_of(serial, struct lpc_uart, serial); 
+    nxp_usart = (struct nxp_usart *)serial;
 
-    uart->receiveXfer.data = buff;
-    uart->receiveXfer.dataSize = size;
+    nxp_usart->receiveXfer.transfer.data = buff;
+    nxp_usart->receiveXfer.transfer.dataSize = size;
+    nxp_usart->receiveXfer.count_cur = 0;
+
+    if (nxp_usart->usart_DmaHandle != OS_NULL)
+    {
+        status = USART_TransferReceiveDMA(nxp_usart->usart_info->usart_base, nxp_usart->usart_DmaHandle, &nxp_usart->receiveXfer.transfer);
+    }
+    else if (nxp_usart->usart_handle != OS_NULL)
+    {
+        status = USART_TransferReceiveNonBlocking(nxp_usart->usart_info->usart_base, nxp_usart->usart_handle, &nxp_usart->receiveXfer.transfer, OS_NULL);
+    }
+    else if (nxp_usart->irqn >= 14)
+    {
+        return 0;
+    }
+    else
+    {
+        return 0;
+    }
     
-#if defined(USART_MODE_DMA)
-    status = USART_TransferReceiveDMA(uart->uart_base, uart->uartDmaHandle, &uart->receiveXfer);
-#elif defined(USART_MODE_NOPULL)
-    status = USART_TransferReceiveNonBlocking(uart->uart_base, &uart->uart_handle, &uart->receiveXfer, OS_NULL);
-#endif
     switch (status)
     {
         case kStatus_Success:
@@ -236,113 +291,150 @@ static int lpc_uart_start_recv(struct os_serial_device *serial, os_uint8_t *buff
     return (ret == OS_EOK) ? size : 0;
 }
 
-static int lpc_uart_stop_recv(struct os_serial_device *serial)
+static int nxp_usart_stop_recv(struct os_serial_device *serial)
 {
-    int32_t ret;
+    int32_t ret = OS_EOK;
     status_t status;
-    struct lpc_uart *uart;
-    
+    struct nxp_usart *nxp_usart;
+
     OS_ASSERT(serial != OS_NULL);
 
-    uart = os_container_of(serial, struct lpc_uart, serial);
+    nxp_usart = (struct nxp_usart *)serial;
 
-#if defined(USART_MODE_DMA)
-    USART_TransferAbortReceiveDMA(uart->uart_base, uart->uartDmaHandle);
-#elif defined(USART_MODE_NOPULL)
-    USART_TransferAbortReceive(uart->uart_base, &uart->uart_handle);
-#endif
+    if (nxp_usart->usart_DmaHandle != OS_NULL)
+    {
+        USART_TransferAbortReceiveDMA(nxp_usart->usart_info->usart_base, nxp_usart->usart_DmaHandle);
+    }
+    else if (nxp_usart->usart_handle != OS_NULL)
+    {
+        USART_TransferAbortReceive(nxp_usart->usart_info->usart_base, nxp_usart->usart_handle);
+    }
+    else if (nxp_usart->irqn >= 14)
+    {
+        
+    }
+    else
+    {
+    }
     
-    return 0;
+    nxp_usart->receiveXfer.transfer.data = OS_NULL;
+    nxp_usart->receiveXfer.transfer.dataSize = 0;
+    nxp_usart->receiveXfer.count_cur = 0;
+    
+    switch (status)
+    {
+        case kStatus_Success:
+            ret = OS_EOK;
+            break;
+        case kStatus_InvalidArgument:
+            ret = OS_EINVAL;
+            break;
+        case kStatus_USART_TxBusy:
+            ret = OS_EBUSY;
+            break;
+        default:
+            ret = OS_ERROR;
+            break;
+    }
+
+    return ret;
 }
 
-static int lpc_uart_recv_state(struct os_serial_device *serial)
+static int nxp_usart_recv_state(struct os_serial_device *serial)
 {
-    os_uint32_t count;
     status_t state;
     
-    struct lpc_uart *uart;
+    struct nxp_usart *nxp_usart;
     
     OS_ASSERT(serial != OS_NULL);
 
-    uart = os_container_of(serial, struct lpc_uart, serial);
+    nxp_usart = (struct nxp_usart *)serial;
 
-#if defined(USART_MODE_DMA)
-    state = USART_TransferGetReceiveCountDMA(uart->uart_base, uart->uartDmaHandle, &count);
-#elif defined(USART_MODE_NOPULL)
-    state = USART_TransferGetReceiveCount(uart->uart_base, &uart->uart_handle, &count);
-#endif
+    if (nxp_usart->usart_DmaHandle != OS_NULL)
+    {
+        state = USART_TransferGetReceiveCountDMA(nxp_usart->usart_info->usart_base, nxp_usart->usart_DmaHandle, (uint32_t *)&nxp_usart->receiveXfer.count_cur);
+    }
+    else if (nxp_usart->usart_handle != OS_NULL)
+    {
+        state = USART_TransferGetReceiveCount(nxp_usart->usart_info->usart_base, nxp_usart->usart_handle, (uint32_t *)&nxp_usart->receiveXfer.count_cur);
+    }
+    else if (nxp_usart->irqn >= 14)
+    {
+        return 0;
+    }
+    else
+    {
+        return 0;
+    }
     
-    count |= OS_SERIAL_FLAG_RX_IDLE;
-
-    return count;
+    if (serial->rx_timer_status != 0x01)
+        return nxp_usart->receiveXfer.count_cur | OS_SERIAL_FLAG_RX_IDLE;
+    else
+        return nxp_usart->receiveXfer.count_cur;
 }
 
-static int lpc_uart_poll_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
+static int nxp_usart_poll_send(struct os_serial_device *serial, const os_uint8_t *buff, os_size_t size)
 {
     int32_t  ret;
     status_t status;
     
-    struct lpc_uart *uart;
+    struct nxp_usart *nxp_usart;
     
     int i;
     os_base_t level;
     
     OS_ASSERT(serial != OS_NULL);
 
-    uart = os_container_of(serial, struct lpc_uart, serial);
+    nxp_usart = os_container_of(serial, struct nxp_usart, serial);
 
-    for (i = 0; i < size; i++)
-    {
-        level = os_hw_interrupt_disable();
-        status = USART_WriteBlocking(uart->uart_base, (uint8_t *)buff + i, 1);
-        os_hw_interrupt_enable(level);
-    }
+    level = os_hw_interrupt_disable();
+    status = USART_WriteBlocking(nxp_usart->usart_info->usart_base, (uint8_t *)buff, size);
+    os_hw_interrupt_enable(level);
 
     return (status == kStatus_Success) ? size : 0;
 }
 
-static int lpc_uart_poll_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
+static int nxp_usart_poll_recv(struct os_serial_device *serial, os_uint8_t *buff, os_size_t size)
 {
     int32_t  ret;
     status_t status;
     
-    struct lpc_uart *uart;
+    struct nxp_usart *nxp_usart;
 
     os_base_t level;
     
     OS_ASSERT(serial != OS_NULL);
     OS_ASSERT(size == 1);
 
-    uart = os_container_of(serial, struct lpc_uart, serial);
+    nxp_usart = os_container_of(serial, struct nxp_usart, serial);
 
     level = os_hw_interrupt_disable();
-    status = USART_ReadBlocking(uart->uart_base, buff, size);
+    status = USART_ReadBlocking(nxp_usart->usart_info->usart_base, buff, size);
     os_hw_interrupt_enable(level);
 
     return (status == kStatus_Success) ? size : 0;
 }
 
-static const struct os_uart_ops lpc_uart_ops = {
-    .configure    = lpc_configure,
+static const struct os_uart_ops nxp_usart_ops = {
+    .configure    = nxp_usart_configure,
 
-    .start_send   = lpc_uart_start_send,
-    .stop_send    = lpc_uart_stop_send,
+    .start_send   = nxp_usart_start_send,
+    .stop_send    = nxp_usart_stop_send,
 
-    .start_recv   = lpc_uart_start_recv,
-    .stop_recv    = lpc_uart_stop_recv,
-    .recv_state   = lpc_uart_recv_state,
+    .start_recv   = nxp_usart_start_recv,
+    .stop_recv    = nxp_usart_stop_recv,
+    .recv_state   = nxp_usart_recv_state,
     
-    .poll_send    = lpc_uart_poll_send,
-    .poll_recv    = lpc_uart_poll_recv,
+    .poll_send    = nxp_usart_poll_send,
+    .poll_recv    = nxp_usart_poll_recv,
 };
 
-void lpc_usart_parse_configs_from_configtool(struct lpc_uart *uart)
+void nxp_usart_parse_configs_from_configtool(struct nxp_usart *nxp_usart)
 {
-    struct os_serial_device *serial = &uart->serial;
+    struct os_serial_device *serial = &nxp_usart->serial;
     
-    serial->config.baud_rate = uart->config->baudRate_Bps;
-
-    switch (uart->config->stopBitCount)
+    serial->config.baud_rate = nxp_usart->usart_info->usart_config->baudRate_Bps;
+    switch (nxp_usart->usart_info->usart_config->stopBitCount)
     {
     case kUSART_OneStopBit:
         serial->config.stop_bits = STOP_BITS_1;
@@ -351,7 +443,7 @@ void lpc_usart_parse_configs_from_configtool(struct lpc_uart *uart)
         serial->config.stop_bits = STOP_BITS_2;
         break;
     }
-    switch (uart->config->parityMode)
+    switch (nxp_usart->usart_info->usart_config->parityMode)
     {
     case kUSART_ParityDisabled:
         serial->config.parity   = PARITY_NONE;
@@ -364,45 +456,81 @@ void lpc_usart_parse_configs_from_configtool(struct lpc_uart *uart)
         break;
     }
 
-    switch (uart->config->bitCountPerChar)
+    switch (nxp_usart->usart_info->usart_config->bitCountPerChar)
     {
     case kUSART_7BitsPerChar:
-        serial->config.data_bits = DATA_BITS_8;
+        serial->config.data_bits = DATA_BITS_7;
         break;
     case kUSART_8BitsPerChar:
-        serial->config.data_bits = DATA_BITS_9;
+        serial->config.data_bits = DATA_BITS_8;
         break;
     }
 
 }
 
-static int lpc_usart_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
+
+void nxp_usart_param_cfg(struct nxp_usart *nxp_usart)
 {
-    struct serial_configure config  = OS_SERIAL_CONFIG_DEFAULT;
-    
+    switch((os_uint32_t)nxp_usart->usart_info->usart_base)
+    {
+    case (os_uint32_t)FLEXCOMM0:
+        USART0_CFG_INIT(nxp_usart, 0);
+        break;
+    case (os_uint32_t)FLEXCOMM1:
+        USART1_CFG_INIT(nxp_usart, 1);
+        break;
+    case (os_uint32_t)FLEXCOMM2:
+        USART2_CFG_INIT(nxp_usart, 2);
+        break;
+    case (os_uint32_t)FLEXCOMM3:
+        USART3_CFG_INIT(nxp_usart, 3);
+        break;
+    case (os_uint32_t)FLEXCOMM4:
+        USART4_CFG_INIT(nxp_usart, 4);
+        break;
+    case (os_uint32_t)FLEXCOMM5:
+        USART5_CFG_INIT(nxp_usart, 5);
+        break;
+    case (os_uint32_t)FLEXCOMM6:
+        USART6_CFG_INIT(nxp_usart, 6);
+        break;
+    case (os_uint32_t)FLEXCOMM7:
+        USART7_CFG_INIT(nxp_usart, 7);
+        break;
+    case (os_uint32_t)FLEXCOMM8:
+        USART8_CFG_INIT(nxp_usart, 8);
+        break;
+    default:
+        break;
+    }
+}
+
+static int nxp_usart_probe(const os_driver_info_t *drv, const os_device_info_t *dev)
+{
     os_err_t    result  = 0;
     os_base_t   level;
     
-    hal_usart_handle_t *uart_handle = (hal_usart_handle_t *)dev->info;
-
-    struct lpc_uart *uart = os_calloc(1, sizeof(struct lpc_uart));
-
-    OS_ASSERT(uart);
+    struct serial_configure config  = OS_SERIAL_CONFIG_DEFAULT;
     
-    uart->uart_base = uart_handle->uart_base;
-    uart->config = uart_handle->uart_config;
-    uart->uartDmaHandle = uart_handle->uartDmaHandle;
+    struct nxp_usart_info *usart_info = (struct nxp_usart_info *)dev->info;
 
-    struct os_serial_device *serial = &uart->serial;
+    struct nxp_usart *nxp_usart = os_calloc(1, sizeof(struct nxp_usart));
 
-    serial->ops    = &lpc_uart_ops;
+    OS_ASSERT(nxp_usart);
+    
+    nxp_usart->usart_info = usart_info;
+    nxp_usart_param_cfg(nxp_usart);
+    
+    struct os_serial_device *serial = &nxp_usart->serial;
+
+    serial->ops    = &nxp_usart_ops;
     serial->config = config;
 
-    lpc_usart_parse_configs_from_configtool(uart);
+    nxp_usart_parse_configs_from_configtool(nxp_usart);
 
-//    level = os_hw_interrupt_disable();
-//    os_list_add_tail(&lpc_uart_list, &uart->list);
-//    os_hw_interrupt_enable(level);
+    level = os_hw_interrupt_disable();
+    os_list_add_tail(&nxp_usart_list, &nxp_usart->list);
+    os_hw_interrupt_enable(level);
     
     result = os_hw_serial_register(serial, dev->name, OS_DEVICE_FLAG_RDWR, NULL);
     
@@ -411,9 +539,9 @@ static int lpc_usart_probe(const os_driver_info_t *drv, const os_device_info_t *
     return result;
 }
 
-OS_DRIVER_INFO lpc_usart_driver = {
+OS_DRIVER_INFO nxp_usart_driver = {
     .name   = "USART_Type",
-    .probe  = lpc_usart_probe,
+    .probe  = nxp_usart_probe,
 };
 
-OS_DRIVER_DEFINE(lpc_usart_driver, "0.end.0");
+OS_DRIVER_DEFINE(nxp_usart_driver, "0.end.0");

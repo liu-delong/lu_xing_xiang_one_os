@@ -9,6 +9,10 @@ pwd = PresentDir()
 src = Split("""
 src/hc_sysctrl.c
 src/hc_ddl.c
+src/hc_gpio.c
+src/hc_reset.c
+common/interrupts_hc32l17x.c
+common/system_hc32l17x.c
 """)
 
 if IsDefined(['BSP_USING_LPUART0']) or IsDefined(['BSP_USING_LPUART1']):
@@ -20,14 +24,39 @@ if IsDefined(['BSP_USING_UART0']) or IsDefined(['BSP_USING_UART1']):
 if IsDefined(['BSP_USING_ON_CHIP_FLASH']):
     src += ['src/hc_flash.c']
 
+if IsDefined(['OS_USING_I2C']):
+    src += ['src/hc_i2c.c']
+
+if IsDefined(['OS_USING_DAC']):
+    src += ['src/hc_dac.c']
+
+if IsDefined(['OS_USING_ADC']):
+    src += ['src/hc_adc.c']
+    src += ['src/hc_bgr.c']
+
+if IsDefined(['OS_USING_WDG']):
+    src += ['src/hc_wdt.c']
+
+if IsDefined(['OS_USING_RTC']):
+    src += ['src/hc_rtc.c']
+
+if IsDefined(['OS_USING_SPI', 'BSP_USING_SPI0']) or IsDefined(['OS_USING_SPI', 'BSP_USING_SPI1']):
+    src += ['src/hc_spi.c']
+
+if IsDefined(['OS_USING_CLOCKEVENT', 'OS_USING_HRTIMER','BSP_USING_LPTIM0']) or IsDefined(['OS_USING_CLOCKEVENT', 'OS_USING_HRTIMER','BSP_USING_LPTIM1']):
+    src += ['src/hc_lptim.c']
+
+if IsDefined(['OS_USING_LPMGR']):
+    src += ['src/hc_lpm.c']
+
+if IsDefined(['OS_USING_HRTIMER']):
+    src += ['src/hc_bt.c']
+
 path = [pwd + '/inc']
 path += [pwd + '/common']
 
 CPPDEFINES = ['USE_HAL_DRIVER']
 group = AddCodeGroup('hal', src, depend = ['SOC_SERIES_HC32L17'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
 
-src = ['common/interrupts_hc32l17x.c']
-src += ['common/system_hc32l17x.c']
-group = AddCodeGroup('bsp', src, depend = ['SOC_SERIES_HC32L17'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
 
 Return('group')

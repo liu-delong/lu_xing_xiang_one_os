@@ -1,0 +1,36 @@
+import os
+import osconfig
+from build_tools import *
+
+sys.path.append(Env['OS_ROOT'] + '/drivers/hal/imxrt/scripts/')
+import prebuild
+prebuild.prebuild(Env['BSP_ROOT'])
+pwd = PresentDir()
+
+# add general drivers
+src = Split('''
+board.c
+board/clock_config.c
+board/pin_mux.c
+board/peripherals.c
+board/dcd.c
+''')
+
+# path   include path in project
+path = [pwd,pwd + '/board/',pwd + '/ports']
+CPPDEFINES = ['CPU_MIMXRT1052DVL6B', 'SKIP_SYSCLK_INIT', 'EVK_MCIMXRM', 'FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1','XIP_EXTERNAL_FLASH=1']
+
+if IsDefined(['PHY_USING_KSZ8081']):
+    src += Glob('ports/phyksz8081/fsl_phy.c')
+    path += [pwd + '/ports/phyksz8081']
+
+if osconfig.CROSS_TOOL == 'gcc':
+    src += [pwd + '/startup/startup_MIMXRT1052_gcc.s']
+elif osconfig.CROSS_TOOL == 'keil':
+    src += [pwd + '/startup/startup_MIMXRT1052_arm.s']
+elif osconfig.CROSS_TOOL == 'iar':
+    src += [pwd + '/startup/startup_MIMXRT1052_iar.s']
+
+group = AddCodeGroup('bsp', src, depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+
+Return('group')

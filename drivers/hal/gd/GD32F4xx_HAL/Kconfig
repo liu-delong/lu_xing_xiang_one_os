@@ -1,0 +1,22 @@
+config SOC_SERIES_GD32F4XX
+    bool
+    select ARCH_ARM_CORTEX_M4
+    default n
+
+config SOC_GD32F405RGT6
+    bool
+    select SOC_FAMILY_GD32F4XX
+    select SOC_SERIES_GD32F4XX
+    default n
+
+config SOC_GD32F450ZKT6
+    bool
+    select SOC_FAMILY_GD32F4XX
+    select SOC_SERIES_GD32F4XX
+    default n
+
+config SOC_GD32F450VIT6
+    bool
+    select SOC_FAMILY_GD32F4XX
+    select SOC_SERIES_GD32F4XX
+    default n

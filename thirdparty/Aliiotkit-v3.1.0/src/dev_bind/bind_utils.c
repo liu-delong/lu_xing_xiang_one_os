@@ -1,10 +1,11 @@
 /*
  * Copyright (C) 2015-2019 Alibaba Group Holding Limited
  */
-#include <memory.h>
+#include <os_memory.h>
 #include "coap_api.h"
 #include "wrappers.h"
 #include "infra_state.h"
+#include "string.h"
 
 #if defined(__cplusplus)  /* If this is a C++ compiler, use C linkage */
 extern "C" {

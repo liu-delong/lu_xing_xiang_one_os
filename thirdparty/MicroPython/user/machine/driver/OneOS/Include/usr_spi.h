@@ -30,7 +30,7 @@
 #include "mpconfigport.h"
 #include "py/obj.h"
 
-#ifdef MICROPY_PY_MACHINE_SPI
+#if MICROPY_PY_MACHINE_SPI
 
 #define PY_SPI_NAME_MAX (8)
 

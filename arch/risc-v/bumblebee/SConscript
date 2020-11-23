@@ -1,0 +1,13 @@
+Import('osconfig')
+from build_tools import *
+
+pwd  = PresentDir()
+src  = []
+group = []
+path = [pwd]
+
+src += Glob('*.S')  
+
+group = AddCodeGroup('cpu', src, depend = ['ARCH_RISCV_BUMBLEBEE'], CPPPATH = path)
+
+Return('group')

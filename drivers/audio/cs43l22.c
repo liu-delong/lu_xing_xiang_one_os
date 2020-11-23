@@ -39,8 +39,6 @@
 #define DBG_COLOR
 #define DBG_SECTION_NAME "CS43L22"
 
-#define TX_FIFO_SIZE (2048)
-
 struct cs43l22_dev
 {
     struct os_i2c_client i2c;
@@ -51,10 +49,9 @@ struct cs43l22_player_device
 {
     struct os_audio_device    audio;
     struct os_audio_configure replay_config;
-    os_uint8_t *              tx_fifo;
     os_uint8_t                volume;
-    os_device_sai_t *         sai;
-
+    os_device_t     *cfg_bus;
+    os_device_t     *data_bus;
     struct cs43l22_dev cs43l22;
 };
 
@@ -550,13 +547,9 @@ static os_err_t audio_cs43l22_config(struct os_audio_device *audio, struct os_au
 
     case AUDIO_PARAM_CMD:
     {
-        /* set samplerate */
-        os_sai_frequency_set(aduio_dev->sai, caps->udata.config.samplerate);
+        os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_FRQ, &caps->udata.config.samplerate);
+        os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_CHANNEL, &caps->udata.config.channels);
 
-        /* set channels */
-        os_sai_channel_set(aduio_dev->sai, caps->udata.config.channels);
-
-        /* save configs */
         aduio_dev->replay_config.samplerate = caps->udata.config.samplerate;
         aduio_dev->replay_config.channels   = caps->udata.config.channels;
         aduio_dev->replay_config.samplebits = caps->udata.config.samplebits;
@@ -583,9 +576,8 @@ static os_err_t audio_cs43l22_init(struct os_audio_device *audio)
 
     cs43l22_init(&aduio_dev->cs43l22, OUTPUT_DEVICE_HEADPHONE, 70, 0);
 
-    /* set default params */
-    os_sai_frequency_set(aduio_dev->sai, aduio_dev->replay_config.samplerate);
-    os_sai_channel_set(aduio_dev->sai, aduio_dev->replay_config.channels);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_FRQ, &aduio_dev->replay_config.samplerate);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_SET_CHANNEL, &aduio_dev->replay_config.channels);
 
     return result;
 }
@@ -597,17 +589,10 @@ static os_err_t audio_cs43l22_start(struct os_audio_device *audio)
     OS_ASSERT(audio != OS_NULL);
     aduio_dev = (struct cs43l22_player_device *)audio->parent.user_data;
 
-    os_sai_info(aduio_dev->sai,
-                aduio_dev->tx_fifo,
-                &aduio_dev->audio.replay->queue,
-                &audio->replay->cmp,
-                &audio->replay->event);
-
     cs43l22_play(&aduio_dev->cs43l22, OS_NULL, 0);
 
     LOG_EXT_D("open sound device");
-
-    os_sai_transimit(aduio_dev->sai, aduio_dev->tx_fifo, TX_FIFO_SIZE / 2);
+	os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_ENABLE, OS_NULL);
 
     return OS_EOK;
 }
@@ -619,7 +604,7 @@ static os_err_t audio_cs43l22_stop(struct os_audio_device *audio)
     OS_ASSERT(audio != OS_NULL);
     aduio_dev = (struct cs43l22_player_device *)audio->parent.user_data;
 
-    os_sai_stop(aduio_dev->sai);
+    os_device_control(aduio_dev->data_bus, OS_AUDIO_CMD_DISABLE, OS_NULL);
 
     cs43l22_stop(&aduio_dev->cs43l22, 0);
     audio_cs43l22_init(audio);
@@ -629,35 +614,50 @@ static os_err_t audio_cs43l22_stop(struct os_audio_device *audio)
     return OS_EOK;
 }
 
-static void player_buffer_info(struct os_audio_device *audio, struct os_audio_buf_info *info)
+os_size_t audio_cs43l22_transmit(struct os_audio_device *audio, const void *writeBuf, os_size_t size)
 {
     struct cs43l22_player_device *aduio_dev;
-
+    
     OS_ASSERT(audio != OS_NULL);
-
+    
     aduio_dev = (struct cs43l22_player_device *)audio->parent.user_data;
 
-    info->buffer      = aduio_dev->tx_fifo;
-    info->total_size  = TX_FIFO_SIZE;
-    info->block_size  = TX_FIFO_SIZE / 2;
-    info->block_count = 2;
+    return os_device_write(aduio_dev->data_bus, 0, (os_uint8_t *)writeBuf, size);
+}
+
+os_size_t audio_cs43l22_receive(struct os_audio_device *audio, void *readBuf, os_size_t size)
+{
+    struct cs43l22_player_device *aduio_dev;
+    
+    OS_ASSERT(audio != OS_NULL);
+    
+    aduio_dev = (struct cs43l22_player_device *)audio->parent.user_data;
+    
+    return os_device_read(aduio_dev->data_bus, 0, (os_uint8_t *)readBuf, size);
+}
+
+os_err_t audio_cs43l22_data_tx_done(os_device_t *dev, struct os_device_cb_info *info)
+{
+    if (dev->user_data != OS_NULL)
+    {
+        struct cs43l22_player_device *cs43l22_player_dev = dev->user_data;
+        return cs43l22_player_dev->audio.parent.cb_table[OS_DEVICE_CB_TYPE_TX].cb((os_device_t *)cs43l22_player_dev, info);
+    }
+    return OS_ENOSYS;
 }
 
 static struct os_audio_ops cs43l22_player_ops = {
-    .getcaps           = OS_NULL,
-    .configure         = audio_cs43l22_config,
-    .init              = audio_cs43l22_init,
-    .start             = audio_cs43l22_start,
-    .stop              = audio_cs43l22_stop,
-    .transmit          = OS_NULL,
-    .buffer_info       = player_buffer_info,
-    .frame_tx_complete = &os_audio_tx_complete,
+    .getcaps            = OS_NULL,
+    .configure          = audio_cs43l22_config,
+    .init               = audio_cs43l22_init,
+    .start              = audio_cs43l22_start,
+    .stop               = audio_cs43l22_stop,
+    .transmit           = audio_cs43l22_transmit, 
+    .receive            = audio_cs43l22_receive,
 };
 
 int os_hw_audio_player_init(void)
 {
-    os_uint8_t *tx_fifo;
-
     struct cs43l22_player_device *cs43l22_player;
     struct cs43l22_dev *cs43l22;
 
@@ -666,38 +666,34 @@ int os_hw_audio_player_init(void)
 
     cs43l22 = &cs43l22_player->cs43l22;
 
-    tx_fifo = os_malloc(TX_FIFO_SIZE);
-    if (tx_fifo == OS_NULL)
-        return OS_ENOMEM;
-    memset(tx_fifo, 0, TX_FIFO_SIZE);
-    cs43l22_player->tx_fifo = tx_fifo;
+    cs43l22_player->replay_config.samplerate = 44100;
+    cs43l22_player->replay_config.channels   = 2;
+    cs43l22_player->replay_config.samplebits = 16;
+    cs43l22_player->volume                   = 50;
 
-    /* init default configuration */
-    {
-        cs43l22_player->replay_config.samplerate = 44100;
-        cs43l22_player->replay_config.channels   = 2;
-        cs43l22_player->replay_config.samplebits = 16;
-        cs43l22_player->volume                   = 50;
-    }
-
-    /* register sound device */
     cs43l22_player->audio.ops = &cs43l22_player_ops;
 
-    cs43l22_player->sai = (os_device_sai_t *)os_device_find(BSP_SAI_BLOCK);
-    if (cs43l22_player->sai == OS_NULL)
+    cs43l22_player->cfg_bus = os_device_find(BSP_CS43L22_I2C_BUS);
+    if (cs43l22_player->cfg_bus == OS_NULL)
     {
-        os_kprintf("can not find the sai device!\n");
+        LOG_EXT_E("can not find the config device!\n");
         return OS_ERROR;
     }
-
-    /* cs43l22 device */
-    cs43l22->i2c.bus = os_i2c_bus_device_find(BSP_CS43L22_I2C_BUS);
-    if (cs43l22->i2c.bus == NULL)
+    
+    cs43l22_player->data_bus = os_device_find(BSP_CS43L22_DATA_BUS);
+    if (cs43l22_player->data_bus == OS_NULL)
     {
-        LOG_EXT_E("cs43l22 i2c invalid.");
-        os_free(cs43l22_player);
-        return -1;
+        LOG_EXT_E("can not find the data device!\n");
+        return OS_ERROR;
     }
+    cs43l22_player->data_bus->user_data = cs43l22_player;
+    os_device_open(cs43l22_player->data_bus, OS_DEVICE_OFLAG_RDWR);
+    struct os_device_cb_info *info = os_calloc(1, sizeof(struct os_device_cb_info));
+    info->type = OS_DEVICE_CB_TYPE_TX;
+    info->cb = audio_cs43l22_data_tx_done;
+    os_device_control(cs43l22_player->data_bus, IOC_SET_CB, info);
+    
+    cs43l22->i2c.bus = (struct os_i2c_bus_device *)cs43l22_player->cfg_bus;
 
     cs43l22->i2c.client_addr = BSP_CS43L22_I2C_ADDR;
     cs43l22->rst_pin         = BSP_CS43L22_RST_PIN;

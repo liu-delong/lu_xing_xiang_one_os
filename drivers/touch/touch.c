@@ -40,7 +40,9 @@ static void irq_callback(void *args)
 
     touch = (os_touch_t *)args;
 
-    if (touch->parent.rx_indicate == OS_NULL)
+    struct os_device_cb_info *info = &touch->parent.cb_table[OS_DEVICE_CB_TYPE_RX];
+
+    if (info->cb == OS_NULL)
     {
         return;
     }
@@ -50,7 +52,9 @@ static void irq_callback(void *args)
         touch->irq_handle(touch);
     }
 
-    touch->parent.rx_indicate(&touch->parent, 1);
+
+    info->size = 1;
+    info->cb(&touch->parent, info);
 }
 
 /* touch interrupt initialization function */
@@ -221,7 +225,6 @@ static os_err_t os_touch_control(os_device_t *dev, int cmd, void *args)
     return result;
 }
 
-#ifdef OS_USING_DEVICE_OPS
 const static struct os_device_ops os_touch_ops =
 {
     OS_NULL,
@@ -231,7 +234,6 @@ const static struct os_device_ops os_touch_ops =
     OS_NULL,
     os_touch_control
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -255,19 +257,10 @@ int os_hw_touch_register(os_touch_t *touch, const char *name, os_uint32_t flag, 
 
     device = &touch->parent;
 
-#ifdef OS_USING_DEVICE_OPS
     device->ops = &os_touch_ops;
-#else
-    device->init    = OS_NULL;
-    device->open    = os_touch_open;
-    device->close   = os_touch_close;
-    device->read    = os_touch_read;
-    device->write   = OS_NULL;
-    device->control = os_touch_control;
-#endif
     device->type        = OS_DEVICE_TYPE_TOUCH;
-    device->rx_indicate = OS_NULL;
-    device->tx_complete = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_RX].cb = OS_NULL;
+    device->cb_table[OS_DEVICE_CB_TYPE_TX].cb = OS_NULL;
     device->user_data   = data;
 
     result = os_device_register(device, name, flag | OS_DEVICE_FLAG_STANDALONE);

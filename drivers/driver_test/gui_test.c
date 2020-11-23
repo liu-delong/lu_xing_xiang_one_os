@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <shell.h>
 #include <lvgl/lvgl.h>
+#include <lv_lib_gif/lv_gif.h>
 
 static void btn_event_cb(struct _lv_obj_t *obj, lv_event_t event)
 {
@@ -36,10 +37,23 @@ static void btn_event_cb(struct _lv_obj_t *obj, lv_event_t event)
     os_kprintf("----------------------button clicked\r\n");
 }
 
+#ifdef OS_USING_GUI_LVGL_GIF
+extern const lv_img_dsc_t gif;
+static void gif_test(void)
+{
+    lv_obj_t *scr = lv_scr_act();
+    lv_obj_t *img = lv_gif_create_from_data(scr, gif.data);
+}
+#endif
+
 static void gui_test(void *parameter)
 {
     int  i;
     char buff[64];
+
+#ifdef OS_USING_GUI_LVGL_GIF
+    gif_test();
+#endif
 
     /* Gui */
     /* Button */

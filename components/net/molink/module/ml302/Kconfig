@@ -31,6 +31,18 @@ menu "ML302 Config"
         select MOLINK_USING_NETSERV_OPS
         default y
 
+    config ML302_USING_PING_OPS
+        bool "Enable ML302 Module Ping Operates"
+        select MOLINK_USING_PING_OPS
+        default y
+
+    config ML302_USING_IFCONFIG_OPS
+        bool "Enable ML302 Module Ifconfig Operates"
+        select MOLINK_USING_IFCONFIG_OPS
+        select ML302_USING_GENERAL_OPS
+        select ML302_USING_NETSERV_OPS
+        default y
+
     config ML302_USING_NETCONN_OPS
         bool "Enable ML302 Module Network TCP/IP Operates"
         select MOLINK_USING_NETCONN_OPS

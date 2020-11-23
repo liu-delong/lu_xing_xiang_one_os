@@ -39,6 +39,7 @@ extern void mp_hal_stdout_tx_strn_stream(const char *str, size_t len);
 
 // needed for machine.I2C
 #define mp_hal_delay_us_fast(us) mp_hal_delay_us(us)
+#if (MICROPY_PY_MACHINE_PIN)
 #define mp_hal_pin_od_low(pin)   mp_pin_od_write(pin, PIN_LOW)
 #define mp_hal_pin_od_high(pin)  mp_pin_od_write(pin, PIN_HIGH)
 #define mp_hal_pin_open_drain(p) mp_hal_pin_open_set(p, PIN_MODE_OUTPUT_OD)
@@ -48,4 +49,5 @@ extern void mp_hal_stdout_tx_strn_stream(const char *str, size_t len);
 #define mp_hal_pin_input(p)      mp_hal_pin_open_set(p, PIN_MODE_INPUT)
 #define mp_hal_pin_name(p)       mp_hal_pin_get_name(p)
 #define mp_hal_pin_high(p)       mp_hal_pin_write(p, 1)
-
+#else
+#endif
