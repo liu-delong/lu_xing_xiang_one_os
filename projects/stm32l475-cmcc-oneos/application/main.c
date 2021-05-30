@@ -37,10 +37,10 @@ static void user_task(void *parameter)
         for (i = 0; i < led_table_size; i++)
         {
             os_pin_write(led_table[i].pin, led_table[i].active_level);
-            os_task_msleep(200);
+            os_task_msleep(500);
 
             os_pin_write(led_table[i].pin, !led_table[i].active_level);
-            os_task_msleep(200);
+            os_task_msleep(500);
         }
     }
 }
