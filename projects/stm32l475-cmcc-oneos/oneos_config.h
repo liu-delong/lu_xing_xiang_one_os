@@ -291,6 +291,8 @@
 /* NAND */
 
 /* end of NAND */
+#define OS_USING_DRIVERS_SAMPLES
+#define OS_UART_DEMO
 /* end of Drivers */
 
 /* Components */
@@ -309,6 +311,8 @@
 
 /* MQTT kit */
 
+#define OS_USING_ONENET_MQTTS
+#define ONENET_MQTTS_USING_AUTO_REGISTER
 /* end of MQTT kit */
 
 /* NB-IoT kit */
@@ -361,7 +365,7 @@
 #define ESP8266_DEVICE_RATE 115200
 #define ESP8266_RECV_BUFF_LEN 512
 #define ESP8266_AUTO_CONNECT_AP
-#define ESP8266_CONNECT_SSID "Tenda_56D088"
+#define ESP8266_CONNECT_SSID "Redmi"
 #define ESP8266_CONNECT_PASSWORD "12345678"
 #define ESP8266_USING_GENERAL_OPS
 #define ESP8266_USING_WIFI_OPS
@@ -403,6 +407,7 @@
 
 /* MQTT */
 
+#define NET_USING_PAHO_MQTT
 /* end of MQTT */
 
 /* Websocket */
@@ -416,6 +421,8 @@
 
 /* Socket */
 
+#define NET_USING_BSD
+#define BSD_USING_MOLINK
 /* end of Socket */
 
 /* Tools */
@@ -488,6 +495,7 @@
 
 /* cJSON */
 
+#define PKG_USING_CJSON
 /* end of cJSON */
 
 /* Easyflash */

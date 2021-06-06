@@ -138,7 +138,7 @@
           </Flash1>
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
-          <Flash3>"" ()</Flash3>
+          <Flash3></Flash3>
           <Flash4></Flash4>
           <pFcarmOut></pFcarmOut>
           <pFcarmGrp></pFcarmGrp>
@@ -335,9 +335,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>OS_USING_ARM_LIBC, STM32L475xx, USE_HAL_DRIVER</Define>
+              <Define>STM32L475xx, USE_HAL_DRIVER, OS_USING_ARM_LIBC</Define>
               <Undefine></Undefine>
-              <IncludePath>.;application;..\..\drivers\audio;board;board\CubeMX_Config\Inc;board\ports;..\..\common\include;..\..\arch\arm\common;..\..\arch\arm\cortex-m4;..\..\components\diagnose\include;..\..\drivers;..\..\drivers\bus;..\..\drivers\can;..\..\drivers\dma;..\..\drivers\fal;..\..\drivers\hwcrypto;.;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\pin;..\..\drivers\rtc;..\..\drivers\serial;..\..\drivers\spi;..\..\drivers\spi\sfud\inc;..\..\drivers\timer;..\..\drivers\usb\usbdevice;..\..\drivers\watchdog;..\..\components\fs\include;..\..\components\fs\include\devfs;..\..\components\fs\include\fatfs;..\..\drivers\graphic;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Device\ST\STM32L4xx\Include;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Include;..\..\drivers\infrared;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\net\molink\core\include;..\..\components\net\molink\api\include;..\..\components\net\molink\parser\include;..\..\components\net\molink\module\esp8266\include;..\..\thirdparty\mpu6xxx\inc;..\..\drivers\sensors;..\..\components\shell\include;..\..\components\net\tools\include</IncludePath>
+              <IncludePath>.;application;..\..\drivers\audio;board;board\CubeMX_Config\Inc;board\ports;..\..\thirdparty\cJSON-v1.7.12;..\..\common\include;..\..\arch\arm\common;..\..\arch\arm\cortex-m4;..\..\components\diagnose\include;..\..\drivers\driver_test;..\..\drivers;..\..\drivers\bus;..\..\drivers\can;..\..\drivers\dma;..\..\drivers\fal;..\..\drivers\hwcrypto;.;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\pin;..\..\drivers\rtc;..\..\drivers\serial;..\..\drivers\spi;..\..\drivers\spi\sfud\inc;..\..\drivers\timer;..\..\drivers\usb\usbdevice;..\..\drivers\watchdog;..\..\components\fs\include;..\..\components\fs\include\devfs;..\..\components\fs\include\fatfs;..\..\drivers\graphic;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Device\ST\STM32L4xx\Include;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Include;..\..\drivers\infrared;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\net\molink\core\include;..\..\components\net\molink\api\include;..\..\components\net\molink\parser\include;..\..\components\net\molink\module\esp8266\include;..\..\thirdparty\mpu6xxx\inc;..\..\components\cloud\onenet\mqtt-kit\authorization;..\..\components\cloud\onenet\mqtt-kit\cert;..\..\components\cloud\onenet\mqtt-kit\mqtts_device;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\src;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src;..\..\drivers\sensors;..\..\components\shell\include;..\..\components\net\socket\include;..\..\components\net\socket\include\sys_socket;..\..\components\net\socket\include\vfs_net;..\..\components\net\tools\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -459,6 +459,26 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>cjson</GroupName>
+          <Files>
+            <File>
+              <FileName>cJSON.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\thirdparty\cJSON-v1.7.12\cJSON.c</FilePath>
+            </File>
+            <File>
+              <FileName>cJSON_Utils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\thirdparty\cJSON-v1.7.12\cJSON_Utils.c</FilePath>
+            </File>
+            <File>
+              <FileName>cJSON_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\thirdparty\cJSON-v1.7.12\cJSON_port.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>common</GroupName>
           <Files>
             <File>
@@ -500,6 +520,16 @@
               <FileName>context_rvds.S</FileName>
               <FileType>2</FileType>
               <FilePath>..\..\arch\arm\cortex-m4\context_rvds.S</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>driver_test</GroupName>
+          <Files>
+            <File>
+              <FileName>serial_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\driver_test\serial_test.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -551,7 +581,7 @@
                   <MiscControls></MiscControls>
                   <Define> </Define>
                   <Undefine> </Undefine>
-                  <IncludePath></IncludePath>
+                  <IncludePath> </IncludePath>
                 </VariousControls>
               </Cads>
               <Aads>
@@ -1126,11 +1156,6 @@
               <FilePath>..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Src\stm32l4xx_hal_iwdg.c</FilePath>
             </File>
             <File>
-              <FileName>stm32l4xx_hal_wwdg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Src\stm32l4xx_hal_wwdg.c</FilePath>
-            </File>
-            <File>
               <FileName>stm32l4xx_hal_sd.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Src\stm32l4xx_hal_sd.c</FilePath>
@@ -1463,6 +1488,111 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>onenet</GroupName>
+          <Files>
+            <File>
+              <FileName>hmac_sha1.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\cloud\onenet\mqtt-kit\authorization\hmac_sha1.c</FilePath>
+            </File>
+            <File>
+              <FileName>onenet_base64.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\cloud\onenet\mqtt-kit\authorization\onenet_base64.c</FilePath>
+            </File>
+            <File>
+              <FileName>token.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\cloud\onenet\mqtt-kit\authorization\token.c</FilePath>
+            </File>
+            <File>
+              <FileName>ca_certificate.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\cloud\onenet\mqtt-kit\cert\ca_certificate.c</FilePath>
+            </File>
+            <File>
+              <FileName>onenet_device_sample.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\cloud\onenet\mqtt-kit\mqtts_device\onenet_device_sample.c</FilePath>
+            </File>
+            <File>
+              <FileName>onenet_mqtts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\cloud\onenet\mqtt-kit\mqtts_device\onenet_mqtts.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>pahomqtt</GroupName>
+          <Files>
+            <File>
+              <FileName>MQTTClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\src\MQTTClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTOneOS.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\src\MQTTOneOS.c</FilePath>
+            </File>
+            <File>
+              <FileName>tls_mbedtls.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\src\tls_mbedtls.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTConnectClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTConnectClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTConnectServer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTConnectServer.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTDeserializePublish.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTDeserializePublish.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTFormat.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTFormat.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTPacket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTPacket.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSerializePublish.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTSerializePublish.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSubscribeClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTSubscribeClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTSubscribeServer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTSubscribeServer.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTUnsubscribeClient.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTUnsubscribeClient.c</FilePath>
+            </File>
+            <File>
+              <FileName>MQTTUnsubscribeServer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src\MQTTUnsubscribeServer.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>sensors</GroupName>
           <Files>
             <File>
@@ -1509,6 +1639,16 @@
               <FileName>shell_symbol.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\components\shell\source\shell_symbol.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>socket</GroupName>
+          <Files>
+            <File>
+              <FileName>socket.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\socket\source\socket.c</FilePath>
             </File>
           </Files>
         </Group>

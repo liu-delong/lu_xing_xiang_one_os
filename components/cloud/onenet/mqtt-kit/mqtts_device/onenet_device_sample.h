@@ -34,16 +34,16 @@
 #ifndef _ONENET_DEVICE_SAMPLE_H_
 #define _ONENET_DEVICE_SAMPLE_H_
 
-#define USER_PRODUCT_ID  "338906"
-#define USER_ACCESS_KEY  "40jiS3PtGz2gIWJqn+LkMeG7w5bxT7FDEtgkgJpQSXk="
-#define USER_DEVICE_NAME "pandora-mqtt-test" /*use characters, numbers or symbols like '_' or '-',\
+#define USER_PRODUCT_ID  "435187"
+#define USER_ACCESS_KEY  "qrtj9ILPAqStwbWFdyv12gxkP6/VSdz3p8VeGBfYxJ8="
+#define USER_DEVICE_NAME "temperature" /*use characters, numbers or symbols like '_' or '-',\
                                              no longer than 64, can use device serial num*/
 #define USER_KEEPALIVE_INTERVAL 240 /*onenent heart interval 10~1800s*/
 #define USER_PUBLISH_INTERVAL   10  /*user onenet data upload interval*/
 
 #ifndef ONENET_MQTTS_USING_AUTO_REGISTER
-#define USER_DEVICE_ID "594722122"
-#define USER_KEY       "4EjlgCv+PW47/WK0ImryIOVwk9nXOYF2c6FJxRRRvfo="
+#define USER_DEVICE_ID "729910889"
+#define USER_KEY       "XI9b3vP3Y7nVGi+wczQ6aLyecfez5/qwNzt/E3xwvvM="
 #endif
 
 extern const char *base_dp_upload_str;
