@@ -826,3 +826,4 @@ __exit:
 }
 
 OS_DEVICE_INIT(os_hw_ap3216c_proximity_init);
+

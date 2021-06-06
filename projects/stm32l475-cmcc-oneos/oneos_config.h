@@ -293,6 +293,7 @@
 /* end of NAND */
 #define OS_USING_DRIVERS_SAMPLES
 #define OS_UART_DEMO
+#define OS_SENSORS_DEMO
 /* end of Drivers */
 
 /* Components */

@@ -358,3 +358,4 @@ end:
 }
 SH_CMD_EXPORT(serial_rx_test, serial_rx_test, "serial_rx_test");
 
+

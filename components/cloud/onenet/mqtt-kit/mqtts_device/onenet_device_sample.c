@@ -70,7 +70,8 @@ static void         generate_onenet_publish_data_cycle_thread_func(void *arg)
         {
             id = 1;
         }
-
+				
+				
         temperature_value = rand() % 40;
         power_value       = rand() % 99;
         snprintf(pub_buf, sizeof(pub_buf), base_dp_upload_str, id, temperature_value, power_value);
