@@ -47,7 +47,7 @@ static int sensor_light_test(int argc, char *argv[])
 
     struct os_sensor_info sensor_info;
     os_device_control(sensor, OS_SENSOR_CTRL_GET_INFO, &sensor_info);
-
+	
     for (i = 0; i < 10; i++)
     {
         os_device_read(sensor, 0, &sensor_data, sizeof(struct os_sensor_data));

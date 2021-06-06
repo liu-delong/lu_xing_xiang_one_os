@@ -30,6 +30,11 @@
 #include <oneos_config.h>
 #include "onenet_mqtts.h"
 
+#include <drv_cfg.h>
+#include <os_clock.h>
+#include <shell.h>
+#include <sensors/sensor.h>
+
 #define DBG_EXT_TAG "onenet_device.sample"
 #define DBG_EXT_LVL DBG_EXT_INFO
 
@@ -38,10 +43,10 @@
 const char *base_dp_upload_str = "{"
                                  "\"id\": %d,"
                                  "\"dp\": {"
-                                 "\"temperature\": [{"
+                                 "\"temperaturez\": [{"
                                  "\"v\": %d,"
                                  "}],"
-                                 "\"power\": [{"
+                                 "\"temperatures\": [{"
                                  "\"v\": %d"
                                  "}]"
                                  "}"
@@ -70,10 +75,23 @@ static void         generate_onenet_publish_data_cycle_thread_func(void *arg)
         {
             id = 1;
         }
+				char sensor_name[24];
+				struct os_sensor_data sensor_data;
+
 				
-				
-        temperature_value = rand() % 40;
-        power_value       = rand() % 99;
+
+				snprintf(sensor_name, sizeof(sensor_name) - 1, "temp_%s", "aht10");
+
+				os_device_t *sensor = os_device_find(sensor_name);
+				OS_ASSERT(sensor != NULL);
+				os_device_open(sensor, OS_DEVICE_FLAG_RDWR);
+
+				struct os_sensor_info sensor_info;
+				os_device_control(sensor, OS_SENSOR_CTRL_GET_INFO, &sensor_info);
+				os_device_read(sensor, 0, &sensor_data, sizeof(struct os_sensor_data));
+				os_task_mdelay(1000);
+        temperature_value = sensor_data.data.temp/1000;
+        power_value       = sensor_data.data.temp%1000;
         snprintf(pub_buf, sizeof(pub_buf), base_dp_upload_str, id, temperature_value, power_value);
 
         pub_msg     = pub_buf;
