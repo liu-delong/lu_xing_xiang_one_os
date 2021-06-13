@@ -313,7 +313,6 @@
 /* MQTT kit */
 
 #define OS_USING_ONENET_MQTTS
-#define ONENET_MQTTS_USING_AUTO_REGISTER
 /* end of MQTT kit */
 
 /* NB-IoT kit */
