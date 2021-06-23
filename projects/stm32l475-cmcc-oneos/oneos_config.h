@@ -312,7 +312,6 @@
 
 /* MQTT kit */
 
-#define OS_USING_ONENET_MQTTS
 /* end of MQTT kit */
 
 /* NB-IoT kit */
@@ -408,6 +407,7 @@
 /* MQTT */
 
 #define NET_USING_PAHO_MQTT
+#define MQTT_USING_SAMPLE
 /* end of MQTT */
 
 /* Websocket */
