@@ -965,7 +965,12 @@ os_err_t lcd_show_string(os_uint16_t x, os_uint16_t y, os_uint32_t size, const c
         x += size / 2;
         p++;
     }
-
+    while(x<LCD_W - size / 2) 
+    {
+    	char space=' ';
+    	lcd_show_char(x, y,space,size);
+    	x += size/2;
+	}
     return OS_EOK;
 }
 
