@@ -142,8 +142,8 @@ int getdata(int kind,char* key[],int data[])
 		{
 				memset(key[0],0,41);
 				memset(key[1],0,41);
-				key[0]="tempatature_zheng";
-				key[1]="tempatature_xiao";
+				key[0]="temperature_zheng";
+				key[1]="temperature_xiao";
 				if (sensor_info.unit == OS_SENSOR_UNIT_MDCELSIUS)
         {
 						os_kprintf("sensor temp (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
@@ -162,7 +162,7 @@ int getdata(int kind,char* key[],int data[])
 				memset(key[0],0,41);
 				memset(key[1],0,41);
 				key[0]="shi_du_zheng";
-				key[1]="shi_di_xiao";
+				key[1]="shi_du_xiao";
 				if (sensor_info.unit == OS_SENSOR_UNIT_MPERMILLAGE)
         {
 						os_kprintf("sensor humi (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
@@ -210,23 +210,22 @@ void test()
 		{
 			num=getdata(0,key,value);
 			lcd_show_string(0, 0, 16, "%s:",key[0]);
-			lcd_show_string(0, 16, 16, "%d:",value[0]);
+			lcd_show_string(0, 16, 16, "%d",value[0]);
 			lcd_show_string(0, 32, 16, "%s:",key[1]);
-			lcd_show_string(0, 48, 16, "%d:",value[1]);
+			lcd_show_string(0, 48, 16, "%d",value[1]);
 			mysend(key,value,num,id);
 			num=getdata(1,key,value);
 			lcd_show_string(0, 64, 16, "%s:",key[0]);
-			lcd_show_string(0, 80, 16, "%d:",value[0]);
+			lcd_show_string(0, 80, 16, "%d",value[0]);
 			lcd_show_string(0, 96, 16, "%s:",key[1]);
-			lcd_show_string(0, 112, 16, "%d:",value[1]);
+			lcd_show_string(0, 112, 16, "%d",value[1]);
 			mysend(key,value,num,id);
 			num=getdata(2,key,value);
 			lcd_show_string(0, 128, 16, "%s:",key[0]);
-			lcd_show_string(0, 144, 16, "%d:",value[0]);
+			lcd_show_string(0, 144, 16, "%d",value[0]);
 			lcd_show_string(0, 160, 16, "%s:",key[1]);
-			lcd_show_string(0, 178, 16, "%d:",value[1]);
-			mysend(key,value,num,id);
-			
+			lcd_show_string(0, 178, 16, "%d",value[1]);
+			mysend(key,value,num,id);	
 			id++;
 		}
 }
