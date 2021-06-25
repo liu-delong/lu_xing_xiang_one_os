@@ -262,7 +262,7 @@ os_err_t module_esp8266_destroy(mo_object_t *self)
 
 #ifdef ESP8266_AUTO_CREATE
 #include <serial.h>
-
+#include <shell.h>
 static struct serial_configure uart_config = OS_SERIAL_CONFIG_DEFAULT;
 
 int esp8266_auto_create(void)
@@ -272,6 +272,7 @@ int esp8266_auto_create(void)
     if (OS_NULL == device)
     {
         LOG_EXT_E("Auto create failed, Can not find ESP8266 interface device %s!", ESP8266_DEVICE_NAME);
+				os_kprintf("Auto create failed, Can not find ESP8266 interface device %s\r\n!",ESP8266_DEVICE_NAME);
         return OS_ERROR;
     }
 	
@@ -292,6 +293,7 @@ int esp8266_auto_create(void)
     if (OS_NULL == module)
     {
         LOG_EXT_E("Auto create failed, Can not create %s module object!", ESP8266_NAME);
+				os_kprintf("Auto create failed, Can not create %s module object!\r\n",ESP8266_NAME);
         return OS_ERROR;
     }
 
@@ -299,8 +301,9 @@ int esp8266_auto_create(void)
     os_err_t result = mo_wifi_connect_ap(module, ESP8266_CONNECT_SSID, ESP8266_CONNECT_PASSWORD);
 #endif /* ESP8266_AUTO_CONNECT_AP */
 
-    LOG_EXT_I("Auto create %s module object success!", ESP8266_NAME);
-    return OS_EOK;
+    //LOG_EXT_I("Auto create %s module object success!", ESP8266_NAME);
+		//os_kprintf("Auto create failed, Can not create %s module object!\r\n",ESP8266_NAME);
+    return result;
 }
 OS_CMPOENT_INIT(esp8266_auto_create);
 

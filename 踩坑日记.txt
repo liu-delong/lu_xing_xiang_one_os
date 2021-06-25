@@ -1,0 +1,2 @@
+2021 6 25 wifi模组destroy会使得系统崩溃，在esp8266.c中第301行附近加if（result!=OS_EOK) module_esp8266_destroy使得系统崩溃。
+2021 6 25 wifi不断长连的进程只分配512B的用户栈是不够的。

@@ -386,6 +386,11 @@
               <FileType>1</FileType>
               <FilePath>application\main.c</FilePath>
             </File>
+            <File>
+              <FileName>liu_de_long.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\liu_de_long.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

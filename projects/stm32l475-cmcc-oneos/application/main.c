@@ -36,6 +36,7 @@
 #include <sensors/sensor.h>
 #include <os_dbg_ext.h>
 #include <st7789vw.h>
+#include "liu_de_long.h"
 static int pack(char* result,char * key[],int key_num,int r_size)
 {
 	int i;
@@ -286,19 +287,26 @@ static void         generate_onenet_publish_data_cycle_thread_func(void *arg)
         os_task_mdelay(1 * 1000);
     }
 }
+
 int main(void)
 {
     os_task_t *task;
 		os_task_t *task2;
-    task = os_task_create("user", user_task, NULL, 512, 3, 5);
+		
+		os_task_t *task3;//wifi
+		task3= os_task_create("wifi",connet_wifi,NULL,4096,6,5);
+		OS_ASSERT(task3);
+		os_task_startup(task3);
+		
+	
+		task = os_task_create("user", user_task, NULL, 512, 3, 5);
     OS_ASSERT(task);
     os_task_startup(task);
 		onenet_mqtts_device_start();
 		os_task_msleep(2000);
-		task2=os_task_create("up",test,NULL,8192,5,10);
+		
+		task2=os_task_create("up",test,NULL,4096,5,10);
 		OS_ASSERT(task2);
 		os_task_startup(task2);
-		
-
     return 0;
 }
