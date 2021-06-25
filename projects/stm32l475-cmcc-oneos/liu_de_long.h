@@ -12,7 +12,7 @@ void connet_wifi(void* para)
 		while(esp8266_wifi_get_stat(module)!=MO_WIFI_STAT_CONNECTED)
 		{
 				mo_wifi_connect_ap(module, ESP8266_CONNECT_SSID, ESP8266_CONNECT_PASSWORD);
-				os_task_msleep(2000);
+				os_task_msleep(0);
 		}
 }
 int wifi_is_connet(void)

@@ -311,11 +311,11 @@ static void submessage_arrived_default_handler(MessageData *data)
 static void submessage_pubdata_accepted_arrived_handler(MessageData *data)
 {
     /* publish and save data to onenet success */
-    os_kprintf("Recv submessage pubdata accepted, Message arrived on topic %.*s: %.*s\n",
+    /*os_kprintf("Recv submessage pubdata accepted, Message arrived on topic %.*s: %.*s\n",
                data->topicName->lenstring.len,
                data->topicName->lenstring.data,
                data->message->payloadlen,
-               (char *)data->message->payload);
+               (char *)data->message->payload);*/
 }
 
 static void submessage_pubdata_rejected_arrived_handler(MessageData *data)
@@ -371,11 +371,11 @@ static void submessage_cmd_request_arrived_handler(MessageData *data)
 
         onenet_mqtts_client_publish(cmd_resp_topic, cmd_resp_msg); /* response cmd */
     }
-
+		/*
     cmd_type = *((char *)data->message->payload);
     switch (cmd_type)
     {
-    /* do own thing here */
+     //do own thing here 
     case 0x01:
         os_kprintf("Recv submessage cmd: cmd_type=0x01\n");
         break;
@@ -388,6 +388,12 @@ static void submessage_cmd_request_arrived_handler(MessageData *data)
     default:
         break;
     }
+		*/
+		char* cmd=(char *)data->message->payload;
+		if(strcmp(cmd,"test")==0)
+		{
+				os_kprintf("get_test\r\n");
+		}
 }
 
 static void submessage_cmd_response_result_arrived_handler(MessageData *data)

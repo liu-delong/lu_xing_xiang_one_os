@@ -118,22 +118,28 @@ void test()
 		while (1)
 		{
 			num=getdata(0,key,value);
+			/*
 			lcd_show_string(0, 0, 16, "%s:",key[0]);
 			lcd_show_string(0, 16, 16, "%d",value[0]);
 			lcd_show_string(0, 32, 16, "%s:",key[1]);
 			lcd_show_string(0, 48, 16, "%d",value[1]);
+			*/
 			mysend(key,value,num,id);
 			num=getdata(1,key,value);
+			/*
 			lcd_show_string(0, 64, 16, "%s:",key[0]);
 			lcd_show_string(0, 80, 16, "%d",value[0]);
 			lcd_show_string(0, 96, 16, "%s:",key[1]);
 			lcd_show_string(0, 112, 16, "%d",value[1]);
+			*/
 			mysend(key,value,num,id);
 			num=getdata(2,key,value);
+			/*
 			lcd_show_string(0, 128, 16, "%s:",key[0]);
 			lcd_show_string(0, 144, 16, "%d",value[0]);
 			lcd_show_string(0, 160, 16, "%s:",key[1]);
 			lcd_show_string(0, 178, 16, "%d",value[1]);
+			*/
 			mysend(key,value,num,id);	
 			id++;
 		}
@@ -141,24 +147,18 @@ void test()
 
 int main(void)
 {
-    os_task_t *task;
-		os_task_t *task2;
-		
-		os_task_t *task3;//wifi
-		task3= os_task_create("wifi",connet_wifi,NULL,4096,6,5);
-		OS_ASSERT(task3);
-		os_task_startup(task3);
-		
+    onenet_mqtts_device_start();
 	
-		task = os_task_create("user", signal_task, NULL, 512, 3, 5);
-    OS_ASSERT(task);
-    os_task_startup(task);
-		onenet_mqtts_device_start();
+		os_task_t *task1;// status_led
+		os_task_t *task2;// data_up_to_cloud
 		
-		os_task_msleep(2000);
+		task1 = os_task_create("status_led", signal_task, NULL, 512, 6, 5);
+    OS_ASSERT(task1);
+    os_task_startup(task1);
 		
-		task2=os_task_create("up",test,NULL,4096,5,10);
+		task2=os_task_create("data_up",test,NULL,8096,7,10);
 		OS_ASSERT(task2);
 		os_task_startup(task2);
+		
     return 0;
 }

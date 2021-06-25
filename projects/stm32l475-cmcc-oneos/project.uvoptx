@@ -2807,7 +2807,7 @@
       <GroupNumber>19</GroupNumber>
       <FileNumber>204</FileNumber>
       <FileType>1</FileType>
-      <tvExp>0</tvExp>
+      <tvExp>1</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
       <PathWithFileName>..\..\components\cloud\onenet\mqtt-kit\mqtts_device\onenet_device_sample.c</PathWithFileName>

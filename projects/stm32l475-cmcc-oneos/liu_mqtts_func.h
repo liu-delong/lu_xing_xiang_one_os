@@ -44,7 +44,7 @@ void  mysend(char *key[],int value[],int num,int id)
 		if(num==1) snprintf(pub_buf, sizeof(pub_buf), gs, id,value[0]);
 		if(num==3) snprintf(pub_buf, sizeof(pub_buf), gs, id,value[0],value[1],value[2]);
     pub_msg     = pub_buf;
-		os_kprintf("%s\r\n",pub_msg);
+		//os_kprintf("%s\r\n",pub_msg);
     pub_msg_len = strlen(pub_msg);
 
     memset(&mq_msg, 0x00, sizeof(mq_msg));
@@ -99,7 +99,7 @@ int getdata(int kind,char* key[],int data[])
 				key[1]="temperature_xiao";
 				if (sensor_info.unit == OS_SENSOR_UNIT_MDCELSIUS)
         {
-						os_kprintf("sensor temp (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
+						//os_kprintf("sensor temp (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
 						data[0]=sensor_data.data.temp / 1000;
 						data[1]=sensor_data.data.temp % 1000;
         }
@@ -118,7 +118,7 @@ int getdata(int kind,char* key[],int data[])
 				key[1]="shi_du_xiao";
 				if (sensor_info.unit == OS_SENSOR_UNIT_MPERMILLAGE)
         {
-						os_kprintf("sensor humi (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
+						//os_kprintf("sensor humi (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
 						data[0]=sensor_data.data.temp / 1000;
 						data[1]=sensor_data.data.temp % 1000;
         }
@@ -137,13 +137,13 @@ int getdata(int kind,char* key[],int data[])
 				key[1]="guang_xiao";
 				if (sensor_info.unit == OS_SENSOR_UNIT_MLUX)
         {
-						os_kprintf("sensor light (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
+						//os_kprintf("sensor light (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);	
 						data[0]=sensor_data.data.temp / 1000;
 						data[1]=sensor_data.data.temp % 1000;
         }
         else if (sensor_info.unit == OS_SENSOR_UNIT_LUX)
         {
-            os_kprintf("sensor light (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);
+            //os_kprintf("sensor light (%d.%03d)\r\n", sensor_data.data.light / 1000, sensor_data.data.light % 1000);
 						data[0]=sensor_data.data.temp;
 						data[1]=0;
         }
