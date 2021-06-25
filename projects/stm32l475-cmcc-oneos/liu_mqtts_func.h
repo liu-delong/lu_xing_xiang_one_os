@@ -56,6 +56,7 @@ void  mysend(char *key[],int value[],int num,int id)
     if (rc != OS_EOK)
     {
         LOG_EXT_E("mqtts_device_messagequeue_send ERR");
+				os_kprintf("mqtts_device_messagequeue_send ERR\r\n");
     }
     os_task_mdelay(1 * 1000);
 }

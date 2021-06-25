@@ -37,6 +37,7 @@
 #include "onenet_mqtts.h"
 #include "liu_de_long.h"
 #include "liu_mqtts_func.h"
+/*
 static void user_task(void *parameter)
 {
     int i = 0;
@@ -57,6 +58,53 @@ static void user_task(void *parameter)
             os_task_msleep(500);
         }
     }
+}
+*/
+void signal_task(void *para)
+{
+		int i = 0;
+
+		for (i = 0; i < led_table_size; i++)
+		{
+				os_pin_mode(led_table[i].pin, PIN_MODE_OUTPUT);
+		}
+		int wifi;
+		int onenet;
+		os_pin_write(led_table[0].pin,led_table[0].active_level);
+		int last_i=0;
+		while (1)
+		{
+				wifi=wifi_is_connet();
+				onenet=onenet_mqtts_device_is_connected();
+				if((!wifi)&&(!onenet))
+				{
+						if(last_i!=0) 
+						{
+								os_pin_write(led_table[last_i].pin, !led_table[last_i].active_level);
+								os_pin_write(led_table[0].pin,led_table[0].active_level);
+								last_i=0;
+						}
+				}
+				else if((wifi)&&(!onenet))
+				{
+						if(last_i!=2)
+						{
+								os_pin_write(led_table[last_i].pin, !led_table[last_i].active_level);
+								os_pin_write(led_table[2].pin,led_table[2].active_level);
+								last_i=2;
+						}
+				}
+				else
+				{
+						if(last_i!=1)
+						{
+								os_pin_write(led_table[last_i].pin, !led_table[last_i].active_level);
+								os_pin_write(led_table[1].pin,led_table[1].active_level);
+								last_i=1;
+						}
+				}
+				os_task_msleep(2000);
+		}
 }
 
 void test()
@@ -102,15 +150,15 @@ int main(void)
 		os_task_startup(task3);
 		
 	
-		task = os_task_create("user", user_task, NULL, 512, 3, 5);
+		task = os_task_create("user", signal_task, NULL, 512, 3, 5);
     OS_ASSERT(task);
     os_task_startup(task);
 		onenet_mqtts_device_start();
+		
 		os_task_msleep(2000);
 		
 		task2=os_task_create("up",test,NULL,4096,5,10);
 		OS_ASSERT(task2);
 		os_task_startup(task2);
     return 0;
-		
 }
