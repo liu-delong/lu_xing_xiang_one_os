@@ -391,6 +391,11 @@
               <FileType>5</FileType>
               <FilePath>.\liu_de_long.h</FilePath>
             </File>
+            <File>
+              <FileName>liu_mqtts_func.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\liu_mqtts_func.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
