@@ -147,7 +147,8 @@ void test()
 
 int main(void)
 {
-    onenet_mqtts_device_start();
+    lcd_display_off();
+		onenet_mqtts_device_start();
 	
 		os_task_t *task1;// status_led
 		os_task_t *task2;// data_up_to_cloud
@@ -159,6 +160,5 @@ int main(void)
 		task2=os_task_create("data_up",test,NULL,8096,7,10);
 		OS_ASSERT(task2);
 		os_task_startup(task2);
-		
     return 0;
 }

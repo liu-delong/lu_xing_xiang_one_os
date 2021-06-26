@@ -396,6 +396,11 @@
               <FileType>5</FileType>
               <FilePath>.\liu_mqtts_func.h</FilePath>
             </File>
+            <File>
+              <FileName>order_recv.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\order_recv.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

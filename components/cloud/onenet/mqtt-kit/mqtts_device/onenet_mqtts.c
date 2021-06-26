@@ -39,6 +39,7 @@
 #include "onenet_device_sample.h"
 #include "ca_certificate.h"
 
+#include "order_recv.h"
 #define DBG_EXT_TAG "onenet_mqtts"
 #define DBG_EXT_LVL DBG_EXT_INFO
 #include <os_dbg_ext.h>
@@ -390,9 +391,21 @@ static void submessage_cmd_request_arrived_handler(MessageData *data)
     }
 		*/
 		char* cmd=(char *)data->message->payload;
-		if(strcmp(cmd,"test")==0)
+		int kind=eval(cmd);
+		if(kind==1||kind==2)
 		{
-				os_kprintf("get_test\r\n");
+				
+				os_task_t* task1;
+				task1=os_task_find("display");
+				if(task1!=OS_NULL)
+				{
+						os_task_destroy(task1);
+				}
+				char a[2];
+				lcd_display_on();
+				sprintf(a,"%d",kind);
+				task1=os_task_create("display",display,(void*)a,1024,9,10);
+				os_task_startup(task1);
 		}
 }
 
