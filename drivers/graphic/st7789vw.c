@@ -973,6 +973,44 @@ os_err_t lcd_show_string(os_uint16_t x, os_uint16_t y, os_uint32_t size, const c
 	}
     return OS_EOK;
 }
+os_err_t lcd_show_string_optimize(char *p)
+{
+#define LCD_STRING_BUF_LEN 128
+
+	os_uint32_t size=24;
+    int x=0,y=0; 
+    while (*p != '\0')
+    {
+    	if(*p=='\n')
+    	{
+    		x=0;
+    		y += size;
+    		if (y > LCD_H -size)
+		    {
+		        y = x = 0;
+		        lcd_clear(RED);
+		    }
+		    p++;
+		}
+		else
+		{
+			if (x > LCD_W - size / 2)
+	        {
+	            x = 0;
+	            y += size;
+	        }
+	        if (y > LCD_H -size)
+		    {
+		        y = x = 0;
+		        lcd_clear(RED);
+		    }
+		    lcd_show_char(x, y, *p, size);
+        	x+=size/2;
+        	p++;
+		}
+    }
+    return OS_EOK;
+}
 
 /**
  ***********************************************************************************************************************

@@ -62,7 +62,7 @@ void lcd_fill(os_uint16_t x_start, os_uint16_t y_start, os_uint16_t x_end, os_ui
 void     lcd_show_num(os_uint16_t x, os_uint16_t y, os_uint32_t num, os_uint8_t len, os_uint32_t size);
 os_err_t lcd_show_string(os_uint16_t x, os_uint16_t y, os_uint32_t size, const char *fmt, ...);
 os_err_t lcd_show_image(os_uint16_t x, os_uint16_t y, os_uint16_t length, os_uint16_t wide, const os_uint8_t *p);
-
+os_err_t lcd_show_string_optimize(char *p); 
 void lcd_enter_sleep(void);
 void lcd_exit_sleep(void);
 void lcd_display_on(void);
