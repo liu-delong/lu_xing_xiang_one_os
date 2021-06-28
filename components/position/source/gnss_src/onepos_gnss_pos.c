@@ -1,6 +1,6 @@
 /**
  ***********************************************************************************************************************
- * Copyright (c)2020, China Mobile Communications Group Co.,Ltd.
+ * Copyright (c) 2020, China Mobile Communications Group Co.,Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -11,90 +11,51 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  *
- * @file        gnss_pos.c
+ * @file        onepos_gnss_pos.c
  *
  * @brief       nmea0183 protocol parser source file
  *
- * @details
- *
  * @revision
  * Date         Author          Notes
- * 2020-06-12  OneOS Team      First Version
+ * 2020-06-12   OneOS Team      First Version
  ***********************************************************************************************************************
  */
 
-#include <os_kernel.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <board.h>
-#include "ring_buff.h"
 #include "nmea_0183.h"
 
-#define GNSS_POS_TAG "OnePos.gnss"
-#include <os_dbg.h>
+#define DBG_EXT_TAG "onepos.gnss"
+#define DBG_EXT_LVL DBG_EXT_INFO
+#include <os_dbg_ext.h>
 
-#ifdef OS_USING_GNSS_POS
-
-#define NMEA_DEBUG_PRINT 0
-
+#ifdef ONEPOS_GNSS_POS
 #undef OS_SERIAL_RB_BUFSZ
 #define OS_SERIAL_RB_BUFSZ 128
 
-/**
- ***********************************************************************************************************************
- * @def         NMEA_SERIAL_CONFIG_DEFAULT
- *
- * @brief       config of GNSS module use uart
- ***********************************************************************************************************************
- */
-#define NMEA_SERIAL_CONFIG_DEFAULT                                                                                     \
-    {                                                                                                                  \
-        BAUD_RATE_115200,       /* 115200 bits/s */                                                                    \
-            DATA_BITS_8,        /* 8 databits */                                                                       \
-            STOP_BITS_1,        /* 1 stopbit */                                                                        \
-            PARITY_NONE,        /* No parity  */                                                                       \
-            BIT_ORDER_LSB,      /* LSB first sent */                                                                   \
-            NRZ_NORMAL,         /* Normal mode */                                                                      \
-            OS_SERIAL_RB_BUFSZ, /* Buffer size */                                                                      \
-            0                                                                                                          \
-    }
-
-static os_device_t*  serial           = OS_NULL;
-static os_sem_t*     nmea_data_sem    = OS_NULL;
-static os_sem_t*     nmea_parser_lock = OS_NULL;
+static nmea_parse_t g_nmea_parse = {
+    0,
+};
+static os_sem_t *     nmea_parser_lock = OS_NULL;
 static os_uint8_t     nmea_data_buff[NMEA_MAX_BUFF_LEN];
 static rb_ring_buff_t nmea_ring_buff;
 static nmea_t         global_nmea_data = {
     0,
 };
 
-#define NMEA_PARSER_LOCK()                                                                                             \
-    os_sem_wait(nmea_parser_lock, (NMEA_MIN_INTERVAL + NMEA_PARSER_TIME) * OS_TICK_PER_SECOND)
+#define NMEA_PARSER_LOCK()   os_sem_wait(nmea_parser_lock, (NMEA_MIN_INTERVAL + NMEA_PARSER_TIME) * OS_TICK_PER_SECOND)
 #define NMEA_PARSER_UNLOCK() os_sem_post(nmea_parser_lock)
 
-/**
- ***********************************************************************************************************************
- * @brief           uart received call_back func
- *
- * @details
- *
- * @attention
- *
- * @param[in]       dev       device object of the uart
- * @param[out]      size      received data size
- *
- * @return          run succ or fail
- ***********************************************************************************************************************
- */
 static os_err_t uart_rx_ind(os_device_t *dev, struct os_device_cb_info *info)
 {
-    static char         tmp_rec_buff[NMEA_SENTENCE_CHARS_MAX_LEN];
-    static unsigned int tmp_rec_len = 0;
+    os_int32_t tmp_rec_len = 0;
+    os_int8_t  tmp_rec_buff[NMEA_SENTENCE_CHARS_MAX_LEN];
 
-    if (serial == dev)
+    if (info->size > 0)
     {
+        nmea_parse_t *parse = (nmea_parse_t *)info->data;
+
         /* Read from the serial port and store the data in the ring buffer*/
         if (nmea_ring_buff.buff_size != rb_ring_buff_data_len(&nmea_ring_buff))
         {
@@ -102,9 +63,9 @@ static os_err_t uart_rx_ind(os_device_t *dev, struct os_device_cb_info *info)
             memset(tmp_rec_buff, 0, sizeof(tmp_rec_buff));
 
             /* Save the data to the ring buffer and release the semaphore */
-            tmp_rec_len = os_device_read(serial, 0, tmp_rec_buff, tmp_rec_len);
+            tmp_rec_len = os_device_read(parse->device, 0, tmp_rec_buff, tmp_rec_len);
             rb_ring_buff_put(&nmea_ring_buff, (os_uint8_t *)tmp_rec_buff, tmp_rec_len);
-            os_sem_post(nmea_data_sem);
+            os_sem_post(parse->rx_notice);
         }
         else
         {
@@ -115,8 +76,6 @@ static os_err_t uart_rx_ind(os_device_t *dev, struct os_device_cb_info *info)
     return OS_EOK;
 }
 
-/* Serial Device Config End*/
-
 static os_bool_t nmea_parse_rmc(nmea_t *nmea_data, const os_uint8_t *sentence);
 static os_bool_t nmea_parse_gga(nmea_t *nmea_data, const os_uint8_t *sentence);
 static os_bool_t nmea_parse_gsv(nmea_t *nmea_data, const os_uint8_t *sentence);
@@ -126,11 +85,13 @@ static os_bool_t nmea_parse_vtg(nmea_t *nmea_data, const os_uint8_t *sentence);
 static os_bool_t nmea_parse_zda(nmea_t *nmea_data, const os_uint8_t *sentence);
 
 const nmea_sentence_praser_t nmea_sentence_parser[] = {
-    // format : $--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxxxx,x.x,a,a*hh<CR><LF>
+    // format :
+    // $--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxxxx,x.x,a,a*hh<CR><LF>
     // RMC sentence :
     // 日期、字符（数据质量）、小数（纬度）、方向（南/北）、小数（精度）、方向（东/西）、小数（速度）、小数（航向）、日期、小数（调整偏角）、方向、状态指示
     {"RMC", "TcfdfdffDfdc", (nmea_parser_func_t)nmea_parse_rmc},
-    // format : $--GGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh<CR><LF>
+    // format :
+    // $--GGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh<CR><LF>
     // GGA sentence
     // ：时间、小数（纬度）、方向（南/北）、小数（经度）、方向（东西）、整数（质量状况）、整数（使用的卫星数量）、小数（水平精度系数）、大地水准面高度、高度单位（M）、椭球与地球体的高度差、高度差单位（M)、DGPS（差分GPS信号）数据的时长、DGPS基准站标识
     {"GGA", "Tfdfdiiffcfcfi", (nmea_parser_func_t)nmea_parse_gga},
@@ -141,14 +102,16 @@ const nmea_sentence_praser_t nmea_sentence_parser[] = {
     {"GSV", "iiiiiiiiiiiiiiiiiii", (nmea_parser_func_t)nmea_parse_gsv},
 #else
     // format : $--GSV,x,x,xx*hh<CR><LF>
-    // GSV sentence : （发送的GSV数据集总数（1~9））、整数（本GSV数据集的当前编号（1~9））、整数（可见卫星总数）
+    // GSV sentence :
+    // （发送的GSV数据集总数（1~9））、整数（本GSV数据集的当前编号（1~9））、整数（可见卫星总数）
     {"GSV", "iii_", (nmea_parser_func_t)nmea_parse_gsv},
 #endif
     // format : $--GLL,llll.ll,a,yyyyy.yy,a,hhmmss.ss,A,a*hh<CR><LF>
     // GLL sentence :
     // 小数（纬度）、方向（南/北）、小数（经度）、方向（东西）、时间、字符（数据状态（质量））、字符（模式指示）
     {"GLL", "fdfdTcc", (nmea_parser_func_t)nmea_parse_gll},
-    // format : $--GSA,a,x,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,x.x,x.x,x.x*hh<CR><LF>
+    // format :
+    // $--GSA,a,x,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,xx,x.x,x.x,x.x*hh<CR><LF>
     // GSA sentence :
     // 字符（计算模式）、整形（计算模式）、整形（使用的卫星编号）...、小数（位置精度因子）、小数（水平精度因子）、小数（垂直精度因子）
     {"GSA", "ciiiiiiiiiiiiifff", (nmea_parser_func_t)nmea_parse_gsa},
@@ -207,7 +170,7 @@ const nmea_sentence_praser_t nmea_sentence_parser[] = {
 #define jump_sendtence_id_str(sentence)                                                                                \
     ((os_uint8_t *)(sentence + NMEA_SENTENCE_IDS_LENGHT + NMEA_SENTENCE_START_LENGTH + 1))
 
-#define nmea_isfield(c) ((nmea_iseffect((char)c) && (c != ',') && (c != '*')) ? OS_TRUE : OS_FALSE)
+#define nmea_isfield(c) ((nmea_iseffect((os_int8_t)c) && (c != ',') && (c != '*')) ? OS_TRUE : OS_FALSE)
 
 #define next_field(sentence, field)                                                                                    \
     do                                                                                                                 \
@@ -228,7 +191,7 @@ const nmea_sentence_praser_t nmea_sentence_parser[] = {
 #define is_null_field(field) (NULL == field)
 
 /* debug function */
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
 static void nmea_rmc_display(nmea_t *nmea);
 static void nmea_gga_display(nmea_t *nmea);
 static void nmea_gsv_display(nmea_t *nmea);
@@ -238,7 +201,7 @@ static void nmea_vtg_display(nmea_t *nmea);
 static void nmea_zda_display(nmea_t *nmea);
 #endif
 
-static os_int32_t hex2int(char c)
+static os_int32_t hex2int(os_int8_t c)
 {
     if (c >= '0' && c <= '9')
         return c - '0';
@@ -253,13 +216,7 @@ static os_int32_t hex2int(char c)
  ***********************************************************************************************************************
  * @brief           check sentence is nmea0183 or not
  *
- * @details
- *
- * @attention
- *
- * @param[in,out]   [param_1]       [The param_1 description.]
- * @param[in]       [param_2]       [The param_2 description.]
- * @param[out]      [param_n]       [The param_n description.]
+ * @param[in]       data       name0183 sentence string
  *
  * @return          is right nmea0183 sentence or nots
  * @retval          OS_FALSE       is not
@@ -267,10 +224,10 @@ static os_int32_t hex2int(char c)
  ***********************************************************************************************************************
  */
 
-static os_bool_t nmea_check(const char *data)
+static os_bool_t nmea_check(const os_int8_t *data)
 {
-    char        checksum = 0x00;
-    const char *sentence = data;
+    os_int8_t        checksum = 0x00;
+    const os_int8_t *sentence = data;
 
     // check the product sentence is or not
     if (*sentence == PRO_SENTEN_START_CHAR)
@@ -288,7 +245,7 @@ static os_bool_t nmea_check(const char *data)
         return OS_FALSE;
 
     // calculate all data checksum between '$' and  '*'
-    while (*sentence && *sentence != '*' && nmea_iseffect((unsigned char)*sentence))
+    while (*sentence && *sentence != '*' && nmea_iseffect((os_uint8_t)*sentence))
         checksum ^= *sentence++;
 
     // compare checksum
@@ -308,7 +265,7 @@ static os_bool_t nmea_check(const char *data)
     }
 
     // check end character
-    if (*sentence && (NULL == strchr((const char *)sentence, NMEA_SENTENCE_END_CHAR)))
+    if (*sentence && (NULL == strchr((const char*)sentence, NMEA_SENTENCE_END_CHAR)))
         return OS_FALSE;
 
     return OS_TRUE;
@@ -317,19 +274,15 @@ static os_bool_t nmea_check(const char *data)
  ***********************************************************************************************************************
  * @brief           get the sentence index in nmea_sentence_parser array
  *
- * @details
- *
- * @attention
- *
  * @param[in]       sentence       nmea0183 sentence string
  *
  * @return          index number
  ***********************************************************************************************************************
  */
-static nmea_sentence_id_t get_sentence_index(const char *sentence)
+static nmea_sentence_id_t get_sentence_index(const os_int8_t *sentence)
 {
     os_uint8_t   sentence_ids[NMEA_SENTENCE_IDS_LENGHT + 1];
-    unsigned int i = 0;
+    os_uint32_t i = 0;
 
     get_sentence_id_str(sentence, sentence_ids);
 
@@ -351,8 +304,6 @@ static nmea_sentence_id_t get_sentence_index(const char *sentence)
  ***********************************************************************************************************************
  * @brief           according format to pase the sentence
  *
- * @details
- *
  * @attention       using right format
  *
  * @return         succ ot fail
@@ -368,14 +319,14 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
 
     while (*format)
     {
-        char type = *format++;
+        os_int8_t type = *format++;
 
         switch (type)
         {
         //  eg: A M
         case 'c':
         {
-            char value = '\0';
+            os_int8_t value = '\0';
 
             if (field && nmea_isfield(*field))
                 value = *field;
@@ -383,7 +334,7 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
                 value = ' ';
             else
                 goto parse_error;
-            *va_arg(ap, char *) = value;
+            *va_arg(ap, os_int8_t *) = value;
         }
         break;
         // direction：eg: N W E S ; 1 -> W ans S；-1 -> E and N
@@ -425,7 +376,7 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
                 {
                     if (sign == 0 && value == -1)
                     {
-                        if (isdigit((char)*field))
+                        if (_isdigit(field))
                             sign = 1;
                         else if (*field == '+')
                         {
@@ -444,7 +395,7 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
                             goto parse_error;
                         }
                     }
-                    if (sign != 0 && isdigit((char)*field))
+                    if (sign != 0 && _isdigit(field))
                     {
                         os_int32_t digit = *field - '0';
                         if (value == -1)
@@ -494,8 +445,8 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
 
             if (field)
             {
-                char *endptr;
-                value = strtol((const char *)field, &endptr, 10);
+                os_int8_t *endptr;
+                value = strtol((const char *)field, (char**)&endptr, 10);
                 if (field && nmea_isfield(*endptr))
                     goto parse_error;
             }
@@ -506,7 +457,7 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
         // string
         case 's':
         {
-            char *buf = va_arg(ap, char *);
+            os_int8_t *buf = va_arg(ap, os_int8_t *);
 
             if (field)
             {
@@ -527,15 +478,15 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
             if (field && nmea_isfield(*field))
             {
                 for (os_int32_t f = 0; f < 6; f++)
-                    if (!isdigit((char)field[f]))
+                    if (!_isdigit(&field[f]))
                         goto parse_error;
 
-                char dArr[] = {field[0], field[1], '\0'};    // day
-                char mArr[] = {field[2], field[3], '\0'};    // month
-                char yArr[] = {field[4], field[5], '\0'};    // year
-                d           = strtol(dArr, NULL, 10);
-                m           = strtol(mArr, NULL, 10);
-                y           = strtol(yArr, NULL, 10);
+                os_int8_t dArr[] = {field[0], field[1], '\0'};    // day
+                os_int8_t mArr[] = {field[2], field[3], '\0'};    // month
+                os_int8_t yArr[] = {field[4], field[5], '\0'};    // year
+                d           = strtol((const char*)dArr, NULL, 10);
+                m           = strtol((const char*)mArr, NULL, 10);
+                y           = strtol((const char*)yArr, NULL, 10);
             }
 
             date->day   = d;
@@ -552,24 +503,25 @@ static os_bool_t nmea_parse(const os_uint8_t *sentence, const os_uint8_t *format
 
             if (field && nmea_isfield(*field))
             {
-                for (int f = 0; f < 6; f++)
-                    if (!isdigit((unsigned char)field[f]))
+                for (os_int32_t f = 0; f < 6; f++)
+                    if (!_isdigit(&field[f]))
                         goto parse_error;
 
-                char iArr[] = {field[2], field[3], '\0'};    // min
-                char sArr[] = {field[4], field[5], '\0'};    // sec
-                char hArr[] = {field[0], field[1], '\0'};    // hour
-                h           = strtol(hArr, NULL, 10);
-                i           = strtol(iArr, NULL, 10);
-                s           = strtol(sArr, NULL, 10);
+                os_int8_t iArr[] = {field[2], field[3], '\0'};    // min
+                os_int8_t sArr[] = {field[4], field[5], '\0'};    // sec
+                os_int8_t hArr[] = {field[0], field[1], '\0'};    // hour
+                h           = strtol((const char*)hArr, NULL, 10);
+                i           = strtol((const char*)iArr, NULL, 10);
+                s           = strtol((const char*)sArr, NULL, 10);
                 field += 6;
                 // us
                 if (*field++ == '.')
                 {
                     os_uint32_t value = 0;
                     os_uint32_t scale = 1000000LU;    // reduced uint
-                    // since the accuracy of different receivers is not consistent, a loop is used to parse all the data
-                    while (isdigit((unsigned char)*field) && scale > 1)
+                    // since the accuracy of different receivers is not consistent, a loop
+                    // is used to parse all the data
+                    while (_isdigit(field) && scale > 1)
                     {
                         value = (value * 10) + (*field++ - '0');
                         scale /= 10;
@@ -620,14 +572,15 @@ parse_error:
 #if NMEA_SUPP_RMC
 static os_bool_t nmea_parse_rmc(nmea_t *nmea_data, const os_uint8_t *sentence)
 {
-    // 格式：$--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxxxx,x.x,a,a*hh<CR><LF> page.106
+    // 格式：$--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxxxx,x.x,a,a*hh<CR><LF>
+    // page.106
     // RMC构成：日期、字符（数据质量）、小数（纬度）、方向（南/北）、小数（精度）、方向（东/西）、小数（速度）、小数（航向）、日期、小数（调整偏角）、方向、状态指示
 
-    char        status;
-    int         latitude_direction;
-    int         longitude_direction;
-    int         variation_direction;
-    char        mode_indicat;
+    os_int8_t   status;
+    os_int8_t   mode_indicat;
+    os_int32_t  latitude_direction;
+    os_int32_t  longitude_direction;
+    os_int32_t  variation_direction;
     nmea_rmc_t *rmc_frame = &(nmea_data->rmc_frame);
 
     if (!nmea_parse(jump_sendtence_id_str(sentence),
@@ -654,7 +607,7 @@ static os_bool_t nmea_parse_rmc(nmea_t *nmea_data, const os_uint8_t *sentence)
 
     nmea_data->valid_flag |= GNSS_RMC_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_rmc_display(nmea_data);
 #endif
 
@@ -667,8 +620,8 @@ static os_bool_t nmea_parse_gga(nmea_t *nmea_data, const os_uint8_t *sentence)
 {
     // format：$--GGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx*hh<CR><LF>
     // GGA构成：时间、小数（纬度）、方向（南/北）、小数（经度）、方向（东西）、质量状况、大地水准面高度、高度单位（M）、椭球与地球体的高度差、高度差单位（M)、DGPS（差分GPS信号）数据的时长、DGPS基准站标识
-    int         latitude_direction;
-    int         longitude_direction;
+    os_int32_t  latitude_direction;
+    os_int32_t  longitude_direction;
     nmea_gga_t *gga_frame = &(nmea_data->gga_frame);
 
     if (!nmea_parse(jump_sendtence_id_str(sentence),
@@ -694,7 +647,7 @@ static os_bool_t nmea_parse_gga(nmea_t *nmea_data, const os_uint8_t *sentence)
 
     nmea_data->valid_flag |= GNSS_GGA_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_gga_display(nmea_data);
 #endif
 
@@ -741,14 +694,14 @@ static os_bool_t nmea_parse_gsv(nmea_t *nmea_data, const os_uint8_t *sentence)
     }
     if (0 < gsv_frame->msg_nr && MAX_GSV_NUM >= gsv_frame->msg_nr)
         memcpy((void *)(&gsv_frame->sates_info[(gsv_frame->msg_nr - 1) * MAX_SATE_NUM_OF_ONE_GSV]),
-                  (void *)temp_sates_info,
-                  sizeof(nmea_sate_t) * MAX_SATE_NUM_OF_ONE_GSV);
+               (void *)temp_sates_info,
+               sizeof(nmea_sate_t) * MAX_SATE_NUM_OF_ONE_GSV);
     else
         return OS_FALSE;
 
     nmea_data->valid_flag |= GNSS_GSV_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_gsv_display(nmea_data);
 #endif
 
@@ -760,10 +713,11 @@ static os_bool_t nmea_parse_gsv(nmea_t *nmea_data, const os_uint8_t *sentence)
 static os_bool_t nmea_parse_gll(nmea_t *nmea_data, const os_uint8_t *sentence)
 {
     // $GPGLL,4717.115, N,00833.912, E,130305.0, A?32＜CR＞＜LF＞
-    int         latitude_direction;
-    int         longitude_direction;
-    char        status;
-    char        mode_indicat;
+    os_int8_t        status;
+    os_int8_t        mode_indicat;
+    os_int32_t         latitude_direction;
+    os_int32_t         longitude_direction;
+
     nmea_gll_t *gll_frame = &(nmea_data->gll_frame);
 
     if (!nmea_parse(jump_sendtence_id_str(sentence),
@@ -784,7 +738,7 @@ static os_bool_t nmea_parse_gll(nmea_t *nmea_data, const os_uint8_t *sentence)
 
     nmea_data->valid_flag |= GNSS_GLL_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_gll_display(nmea_data);
 #endif
 
@@ -820,7 +774,7 @@ static os_bool_t nmea_parse_gsa(nmea_t *nmea_data, const os_uint8_t *sentence)
 
     nmea_data->valid_flag |= GNSS_GSA_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_gsa_display(nmea_data);
 #endif
 
@@ -851,7 +805,7 @@ static os_bool_t nmea_parse_vtg(nmea_t *nmea_data, const os_uint8_t *sentence)
 
     nmea_data->valid_flag |= GNSS_VTG_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_vtg_display(nmea_data);
 #endif
 
@@ -883,7 +837,7 @@ static os_bool_t nmea_parse_zda(nmea_t *nmea_data, const os_uint8_t *sentence)
 
     nmea_data->valid_flag |= GNSS_ZDA_DATA_FLAG;
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
     nmea_zda_display(nmea_data);
 #endif
 
@@ -895,24 +849,20 @@ static os_bool_t nmea_parse_zda(nmea_t *nmea_data, const os_uint8_t *sentence)
  ***********************************************************************************************************************
  * @brief           run parser and save data
  *
- * @details
- *
- * @attention
- *
  * @param[out]      nmea_data       nmea_t type to save date
  * @param[in]       date            nmea sentence string
  *
  * @return          succ or fail
  ***********************************************************************************************************************
  */
-os_bool_t nmea(nmea_t *nmea_data, const char *data)
+os_bool_t nmea(nmea_t *nmea_data, const os_int8_t *data)
 {
-    const char *sentence = data;
+    const os_int8_t *sentence = data;
 
     if ((NULL != nmea_data) && (NULL != sentence))
     {
         nmea_sentence_id_t sentence_index = NMEA_INVILID_TYPE;
-        LOG_D(GNSS_POS_TAG, "(nmea) sentence : %s\n", sentence);
+        LOG_EXT_D("(nmea) sentence : %s", sentence);
         sentence_index = get_sentence_index(sentence);
         if (NMEA_INVILID_TYPE != sentence_index && NMEA_UNKNOWN_TYPE != sentence_index)
         {
@@ -922,309 +872,308 @@ os_bool_t nmea(nmea_t *nmea_data, const char *data)
             }
             else
             {
-                LOG_E(GNSS_POS_TAG,
-                      "\nsentence:\n%s\nsentence_index:\n%d\nPrase ERROR!!! Pls Check!!!\n",
-                      sentence,
-                      sentence_index);
+                LOG_EXT_E("\nsentence:\n%s\nsentence_index:\n%d\nPrase ERROR!!! Pls Check!!!",
+                          sentence,
+                          sentence_index);
                 return OS_FALSE;
             }
         }
         else
         {
-            LOG_E(GNSS_POS_TAG, "\nsentence:\n%s\nCan Not Get Sentence_index!!! Pls Check!!!\n", sentence);
+            LOG_EXT_E("\nsentence:\n%s\nCan Not Get Sentence_index!!! Pls Check!!!", sentence);
             return OS_FALSE;
         }
     }
     else
     {
-        LOG_E(GNSS_POS_TAG, "<nmea> param is ERROR!!!\n");
+        LOG_EXT_E("<nmea> param is ERROR!!!\n");
         return OS_FALSE;
     }
 }
 
-#if NMEA_DEBUG_PRINT
+#if defined(ONEPOS_DEBUG)
 
 #if NMEA_SUPP_RMC
 static void nmea_rmc_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA RMC DATA:\n");
-    index += os_snprintf(temp_str + index,
+    index = os_snprintf((char*)temp_str, 1024, "NMEA RMC DATA:\n");
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t date : 20%02d - %d - %d\n",
                          nmea->rmc_frame.date.year,
                          nmea->rmc_frame.date.month,
                          nmea->rmc_frame.date.day);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t time : %d : %d : %d : %d\n",
                          nmea->rmc_frame.time.hours,
                          nmea->rmc_frame.time.minutes,
                          nmea->rmc_frame.time.seconds,
                          nmea->rmc_frame.time.microseconds);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t status : %d\n", nmea->rmc_frame.status);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t status : %d\n", nmea->rmc_frame.status);
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t latitude : %lld, %d\n",
                          nmea->rmc_frame.latitude.value,
                          nmea->rmc_frame.latitude.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t longitude : %lld, %d\n",
                          nmea->rmc_frame.longitude.value,
                          nmea->rmc_frame.longitude.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t speed : %lld, %d\n",
                          nmea->rmc_frame.speed.value,
                          nmea->rmc_frame.speed.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t course : %lld, %d\n",
                          nmea->rmc_frame.course.value,
                          nmea->rmc_frame.course.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t variation : %lld, %d\n",
                          nmea->rmc_frame.variation.value,
                          nmea->rmc_frame.variation.dec_len);
-    os_snprintf(temp_str + index, 1024 - index, "\t mode_indicat : %d\n", nmea->rmc_frame.mode_indicat);
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    os_snprintf((char*)(temp_str + index), 1024 - index, "\t mode_indicat : %d\n", nmea->rmc_frame.mode_indicat);
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
 #if NMEA_SUPP_GGA
 static void nmea_gga_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA GGA DATA:\n");
-    index += os_snprintf(temp_str + index,
+    index = os_snprintf((char*)temp_str, 1024, "NMEA GGA DATA:\n");
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t time : %d : %d : %d : %d\n",
                          nmea->gga_frame.time.hours,
                          nmea->gga_frame.time.minutes,
                          nmea->gga_frame.time.seconds,
                          nmea->gga_frame.time.microseconds);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t latitude : %lld, %d\n",
                          nmea->gga_frame.latitude.value,
                          nmea->gga_frame.latitude.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t longitude : %lld, %d\n",
                          nmea->gga_frame.longitude.value,
                          nmea->gga_frame.longitude.dec_len);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t quality : %d\n", nmea->gga_frame.quality);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t satellites_used : %d\n", nmea->gga_frame.satellites_used);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t quality : %d\n", nmea->gga_frame.quality);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t satellites_used : %d\n", nmea->gga_frame.satellites_used);
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t hdop : %lld, %d\n",
                          nmea->gga_frame.hdop.value,
                          nmea->gga_frame.hdop.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t altitude : %lld, %d (%c)\n",
                          nmea->gga_frame.altitude.value,
                          nmea->gga_frame.altitude.dec_len,
                          nmea->gga_frame.altitude_units);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t geoidal_separat : %lld, %d (%c)\n",
                          nmea->gga_frame.geoidal_separat.value,
                          nmea->gga_frame.geoidal_separat.dec_len,
                          nmea->gga_frame.geoidal_separa_units);
-    os_snprintf(temp_str + index,
+    os_snprintf((char*)(temp_str + index),
                 1024 - index,
                 "\t dgps_age : %lld, %d\r\n",
                 nmea->gga_frame.dgps_age.value,
                 nmea->gga_frame.dgps_age.dec_len);
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
 #if NMEA_SUPP_GSV
 static void nmea_gsv_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA GSV DATA:\n");
-    index += os_snprintf(temp_str + index, 1024 - index, "\t total_msgs : %d\n", nmea->gsv_frame.total_msgs);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t msg_nr : %d\n", nmea->gsv_frame.msg_nr);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t total_sats : %d\n", nmea->gsv_frame.total_sats);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t statellites info : \n");
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    index = os_snprintf((char*)temp_str, 1024, "NMEA GSV DATA:\n");
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t total_msgs : %d\n", nmea->gsv_frame.total_msgs);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t msg_nr : %d\n", nmea->gsv_frame.msg_nr);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t total_sats : %d\n", nmea->gsv_frame.total_sats);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t statellites info : \n");
+    LOG_EXT_D("%s", temp_str);
     memset(temp_str, 0, sizeof(temp_str));
 #if NMEA_SUPP_GSV_SATES_INFO
     for (os_uint32_t i = 0; i < nmea->gsv_frame.msg_nr * MAX_SATE_NUM_OF_ONE_GSV; i++)
     {
-        index = os_snprintf(temp_str, 1024, "\t\t sate %d num : %d\n", i + 1, nmea->gsv_frame.sates_info[i].num);
-        index += os_snprintf(temp_str + index,
+        index = os_snprintf((char*)temp_str, 1024, "\t\t sate %d num : %d\n", i + 1, nmea->gsv_frame.sates_info[i].num);
+        index += os_snprintf((char*)(temp_str + index),
                              1024 - index,
                              "\t\t sate %d snr : %d\n",
                              i + 1,
                              nmea->gsv_frame.sates_info[i].snr);
-        index += os_snprintf(temp_str + index,
+        index += os_snprintf((char*)(temp_str + index),
                              1024 - index,
                              "\t\t sate %d azimuth : %d\n",
                              i + 1,
                              nmea->gsv_frame.sates_info[i].azimuth);
-        index += os_snprintf(temp_str + index,
+        index += os_snprintf((char*)(temp_str + index),
                              1024 - index,
                              "\t\t sate %d elevation : %d\n",
                              i + 1,
                              nmea->gsv_frame.sates_info[i].elevation);
-        LOG_D(GNSS_POS_TAG, "%s", temp_str);
+        LOG_EXT_D("%s", temp_str);
         memset(temp_str, 0, sizeof(temp_str));
     }
     memset(temp_str, 0, sizeof(temp_str));
-    os_snprintf(temp_str, 1024, "\r\n");
+    os_snprintf((char*)temp_str, 1024, "\r\n");
 #endif
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
 #if NMEA_SUPP_GLL
 static void nmea_gll_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA GLL DATA:\n");
-    index += os_snprintf(temp_str + index,
+    index = os_snprintf((char*)temp_str, 1024, "NMEA GLL DATA:\n");
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t time : %d : %d : %d : %d\n",
                          nmea->gll_frame.time.hours,
                          nmea->gll_frame.time.minutes,
                          nmea->gll_frame.time.seconds,
                          nmea->gll_frame.time.microseconds);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t status : %d\n", nmea->gll_frame.status);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t status : %d\n", nmea->gll_frame.status);
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t latitude : %lld, %d\n",
                          nmea->gll_frame.latitude.value,
                          nmea->gll_frame.latitude.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t longitude : %lld, %d\n",
                          nmea->gll_frame.longitude.value,
                          nmea->gll_frame.longitude.dec_len);
-    os_snprintf(temp_str + index, 1024 - index, "\t mode_indicat : %d\r\n", nmea->gll_frame.mode_indicat);
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    os_snprintf((char*)(temp_str + index), 1024 - index, "\t mode_indicat : %d\r\n", nmea->gll_frame.mode_indicat);
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
 #if NMEA_SUPP_GSA
 static void nmea_gsa_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA GSA DATA:\n");
+    index = os_snprintf((char*)temp_str, 1024, "NMEA GSA DATA:\n");
     index +=
-        os_snprintf(temp_str + index, 1024 - index, "\t opera_calcu__mode : %c\n", nmea->gsa_frame.opera_calcu__mode);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t calcu_mode : %d\n", nmea->gsa_frame.calcu_mode);
-    index += os_snprintf(temp_str + index,
+        os_snprintf((char*)(temp_str + index), 1024 - index, "\t opera_calcu__mode : %c\n", nmea->gsa_frame.opera_calcu__mode);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t calcu_mode : %d\n", nmea->gsa_frame.calcu_mode);
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t pdop : %lld, %d\n",
                          nmea->gsa_frame.pdop.value,
                          nmea->gsa_frame.pdop.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t hdop : %lld, %d\n",
                          nmea->gsa_frame.hdop.value,
                          nmea->gsa_frame.hdop.dec_len);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t vdop : %lld, %d\n",
                          nmea->gsa_frame.vdop.value,
                          nmea->gsa_frame.vdop.dec_len);
 
-    index += os_snprintf(temp_str + index, 1024 - index, "\t GPGSA_ID statellites IDs : \n");
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t GPGSA_ID statellites IDs : \n");
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
 #if NMEA_SUPP_VTG
 static void nmea_vtg_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA VTG DATA:\n");
-    index += os_snprintf(temp_str + index,
+    index = os_snprintf((char*)temp_str, 1024, "NMEA VTG DATA:\n");
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t course_over_ground_map : %lld, %d (%c)\n",
                          nmea->vtg_frame.course_over_ground_map.value,
                          nmea->vtg_frame.course_over_ground_map.dec_len,
                          nmea->vtg_frame.degree_true);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t course_over_ground_mangnetic : %lld, %d (%c)\n",
                          nmea->vtg_frame.course_over_ground_mangnetic.value,
                          nmea->vtg_frame.course_over_ground_mangnetic.dec_len,
                          nmea->vtg_frame.degree_magnetic);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t speed_N : %lld, %d (%c)\n",
                          nmea->vtg_frame.speed_N.value,
                          nmea->vtg_frame.speed_N.dec_len,
                          nmea->vtg_frame.speed_N_units);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t speed_K : %lld, %d (%c)\n",
                          nmea->vtg_frame.speed_K.value,
                          nmea->vtg_frame.speed_K.dec_len,
                          nmea->vtg_frame.speed_K_units);
-    os_snprintf(temp_str + index, 1024 - index, "\t mode_indicat : %d\r\n", nmea->vtg_frame.mode_indoct);
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    os_snprintf((char*)(temp_str + index), 1024 - index, "\t mode_indicat : %d\r\n", nmea->vtg_frame.mode_indoct);
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
 #if NMEA_SUPP_ZDA
 static void nmea_zda_display(nmea_t *nmea)
 {
-    char         temp_str[1024];
-    unsigned int index = 0;
+    os_int8_t   temp_str[1024];
+    os_uint32_t index = 0;
     memset(temp_str, 0, sizeof(temp_str));
 
-    index = os_snprintf(temp_str, 1024, "NMEA ZDA DATA:\n");
-    index += os_snprintf(temp_str + index,
+    index = os_snprintf((char*)temp_str, 1024, "NMEA ZDA DATA:\n");
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t date : %d - %d - %d\n",
                          nmea->zda_frame.date.year,
                          nmea->zda_frame.date.month,
                          nmea->zda_frame.date.day);
-    index += os_snprintf(temp_str + index,
+    index += os_snprintf((char*)(temp_str + index),
                          1024 - index,
                          "\t time : %d : %d : %d : %d\n",
                          nmea->zda_frame.time.hours,
                          nmea->zda_frame.time.minutes,
                          nmea->zda_frame.time.seconds,
                          nmea->zda_frame.time.microseconds);
-    index += os_snprintf(temp_str + index, 1024 - index, "\t local_h : %d\n", nmea->zda_frame.local_h);
-    os_snprintf(temp_str + index, 1024 - index, "\t local_m : %d\n", nmea->zda_frame.local_m);
-    LOG_D(GNSS_POS_TAG, "%s", temp_str);
+    index += os_snprintf((char*)(temp_str + index), 1024 - index, "\t local_h : %d\n", nmea->zda_frame.local_h);
+    os_snprintf((char*)(temp_str + index), 1024 - index, "\t local_m : %d\n", nmea->zda_frame.local_m);
+    LOG_EXT_D("%s", temp_str);
 }
 #endif
 
-/*
- * @name: display_nmea
- * @function:
- * @msg:
- * @param {type}
- * @return:
+/**
+ ***********************************************************************************************************************
+ * @def         display_nmea
+ * 
+ * @param       sentence       display_nmea
+ ***********************************************************************************************************************
  */
 void display_nmea(nmea_t *nmea)
 {
@@ -1261,22 +1210,11 @@ void display_nmea(nmea_t *nmea)
 /* NMEA Config End*/
 
 /* NMEA Thread Start*/
-#ifdef GNSS_POS_DEBUG
-/**
- ***********************************************************************************************************************
- * @brief           print gnss_pos result
- *
- * @details
- *
- * @attention
- ***********************************************************************************************************************
- */
+#ifdef ONEPOS_DEBUG
 static void out_gnss_pos_result(void *parameter)
 {
-    char   temp[1024];
-    nmea_t nmea_data = {
-        0,
-    };
+    os_int8_t   temp[1024];
+    nmea_t      nmea_data = {0,};
 
     memset(temp, 0, sizeof(temp));
     memset((void *)&nmea_data, 0, sizeof(nmea_t));
@@ -1286,9 +1224,10 @@ static void out_gnss_pos_result(void *parameter)
     NMEA_PARSER_UNLOCK();
     if (GNSS_RMC_DATA_FLAG == (nmea_data.valid_flag & GNSS_RMC_DATA_FLAG))
     {
-        os_snprintf(temp,
+        os_snprintf((char*)temp,
                     sizeof(temp),
-                    "20%02d/%02d/%02d %02d:%02d:%02d:%03d %-15.15lld %02d %-15.15lld %02d %-15.15lld %02d\n",
+                    "20%02d/%02d/%02d %02d:%02d:%02d:%03d %-15.15lld %02d %-15.15lld %02d "
+                    "%-15.15lld %02d\n",
                     nmea_data.rmc_frame.date.year,
                     nmea_data.rmc_frame.date.month,
                     nmea_data.rmc_frame.date.day,
@@ -1305,9 +1244,10 @@ static void out_gnss_pos_result(void *parameter)
     }
     else if (GNSS_GGA_DATA_FLAG == (nmea_data.valid_flag & GNSS_GGA_DATA_FLAG))
     {
-        os_snprintf(temp,
+        os_snprintf((char*)temp,
                     sizeof(temp),
-                    "20%02d/%02d/%02d %02d:%02d:%02d:%03d %-15.15lld %02d %-15.15lld %02d %-15.15lld %02d\n",
+                    "20%02d/%02d/%02d %02d:%02d:%02d:%03d %-15.15lld %02d %-15.15lld %02d "
+                    "%-15.15lld %02d\n",
                     nmea_data.rmc_frame.date.year,
                     nmea_data.rmc_frame.date.month,
                     nmea_data.rmc_frame.date.day,
@@ -1337,18 +1277,18 @@ static void out_gnss_pos_result(void *parameter)
  */
 static void data_parsing(void)
 {
-    char                data[NMEA_SENTENCE_CHARS_MAX_LEN];
-    char                ch;
-    static unsigned int i       = 0;
+    os_int8_t          data[NMEA_SENTENCE_CHARS_MAX_LEN];
+    os_int8_t          ch;
+    static os_uint32_t i       = 0;
     os_err_t            ret_sta = OS_EOK;
     memset(data, 0, sizeof(data));
 
     while (1)
     {
-        ret_sta = os_sem_wait(nmea_data_sem, OS_TICK_PER_SECOND * NMEA_MIN_INTERVAL);
+        ret_sta = os_sem_wait(g_nmea_parse.rx_notice, OS_TICK_PER_SECOND * NMEA_MIN_INTERVAL);
         if (OS_EOK == ret_sta)
         {
-            while(1 == rb_ring_buff_get(&nmea_ring_buff, (os_uint8_t *)&ch, 1))
+            while (1 == rb_ring_buff_get(&nmea_ring_buff, (os_uint8_t *)&ch, 1))
             {
                 if (NMEA_SENTENCE_END_CHAR == ch)
                 {
@@ -1357,15 +1297,15 @@ static void data_parsing(void)
                     if (nmea_check(data))
                     {
                         NMEA_PARSER_LOCK();
-                        if (!nmea(&global_nmea_data, (const char *)data))
+                        if (!nmea(&global_nmea_data, (const os_int8_t *)data))
                         {
                             NMEA_PARSER_UNLOCK();
-                            LOG_E(GNSS_POS_TAG, "Sentence:\n%s\nPrase ERROR!!! Pls Check!!!\n", data);
+                            LOG_EXT_E("Sentence:\n%s\nPrase ERROR!!! Pls Check!!!", data);
                         }
                         else
                         {
                             NMEA_PARSER_UNLOCK();
-#ifdef GNSS_POS_DEBUG
+#ifdef ONEPOS_DEBUG
                             out_gnss_pos_result(OS_NULL);
 #endif
                         }
@@ -1389,7 +1329,7 @@ static void data_parsing(void)
         }
         else
         {
-            LOG_E(GNSS_POS_TAG, "Take nmea_data_sem is ERROR : %d\n", ret_sta);
+            LOG_EXT_E("Take nmea_data_sem is ERROR : %d", ret_sta);
         }
     }
 }
@@ -1398,10 +1338,6 @@ static void data_parsing(void)
 /**
  ***********************************************************************************************************************
  * @brief           start paraser task
- *
- * @details
- *
- * @attention
  *
  * @param[in]       void
  *
@@ -1412,16 +1348,24 @@ static void data_parsing(void)
 
 os_int32_t gnss_loca_start(void)
 {
-    char                    uart_name[OS_NAME_MAX];
-    struct serial_configure config = NMEA_SERIAL_CONFIG_DEFAULT; /* init serial */
+    os_int8_t                uart_name[OS_NAME_MAX];
+    os_err_t                 result  = OS_EOK;
+	struct serial_configure  config = NMEA_SERIAL_CONFIG_DEFAULT;
+	
+    struct os_device_cb_info cb_info = {
+        .type = OS_DEVICE_CB_TYPE_RX,
+        .data = (void *)&g_nmea_parse, /* The nmea Parser operator is passed
+                                          through a callback structure */
+        .cb = uart_rx_ind,
+    };
 
-    strncpy(uart_name, NMEA_SERIAL_DEVICE_NAME, OS_NAME_MAX);
+    strncpy((char*)uart_name, NMEA_SERIAL_DEVICE_NAME, OS_NAME_MAX);
 
     /* find the serial port device in the system */
-    serial = os_device_find(uart_name);
-    if (!serial)
+    g_nmea_parse.device = os_device_find((const char*)uart_name);
+    if (!g_nmea_parse.device)
     {
-        LOG_E(GNSS_POS_TAG, "find %s failed!\n", uart_name);
+        LOG_EXT_E("find %s failed!", uart_name);
         return OS_ERROR;
     }
 
@@ -1429,34 +1373,31 @@ os_int32_t gnss_loca_start(void)
     rb_ring_buff_init(&nmea_ring_buff, (os_uint8_t *)nmea_data_buff, sizeof(nmea_data_buff));
 
     /* init semaphore */
-    nmea_data_sem = os_sem_create("nmea_data_sem", 0, OS_IPC_FLAG_FIFO);
-    if (nmea_data_sem == OS_NULL)
+    g_nmea_parse.rx_notice = os_sem_create("nmea_data_sem", 0, OS_IPC_FLAG_FIFO);
+    if (g_nmea_parse.rx_notice == OS_NULL)
     {
-        LOG_E(GNSS_POS_TAG, "creat semphore failed.");
+        LOG_EXT_E("creat semphore failed.");
         return OS_ENOMEM;
     }
     /* init mutex */
     nmea_parser_lock = os_sem_create("nmea_parser_lock", 1, OS_IPC_FLAG_FIFO);
     if (nmea_parser_lock == OS_NULL)
     {
-        LOG_E(GNSS_POS_TAG, "creat semphore failed.");
+        LOG_EXT_E("creat semphore failed.");
         return OS_ENOMEM;
     }
 
     /* control Serial Device*/
-    os_device_control(serial, OS_DEVICE_CTRL_CONFIG, &config);
+    os_device_control(g_nmea_parse.device, OS_DEVICE_CTRL_CONFIG, &config);
     /* open device */
-    os_device_open(serial, OS_DEVICE_FLAG_INT_RX);
-
+    os_device_open(g_nmea_parse.device, OS_DEVICE_FLAG_INT_RX);
     /* set calllback function */
-    struct os_device_cb_info cb_info = 
+    result = os_device_control(g_nmea_parse.device, IOC_SET_CB, &cb_info);
+    if (result != OS_EOK)
     {
-        .type = OS_DEVICE_CB_TYPE_RX,
-        .cb   = uart_rx_ind,
-    };
-
-    os_device_control(serial, IOC_SET_CB, &cb_info);
-    
+        LOG_EXT_E("Set AT Parse device receive indicate failed.");
+        return OS_ERROR;
+    }
     /* creat NMEA paraser task */
     os_task_t *thread =
         os_task_create("gnss_pos", (void (*)(void *parameter))data_parsing, OS_NULL, NMEA_THREAD_STACK_SIZE, 15, 20);
@@ -1477,9 +1418,7 @@ OS_CMPOENT_INIT(gnss_loca_start);
  ***********************************************************************************************************************
  * @brief           get gnss_pos result to call this func
  *
- * @details
- *
- * @attention       Do Not open MACRO GNSS_POS_DEBUG while using this func
+ * @attention       Do Not open MACRO ONEPOS_DEBUG while using this func
  *
  * @param[out]      nmea       nmea_t type to save date
  * @param[in]       get_data_type_flag       wait gnss setence type

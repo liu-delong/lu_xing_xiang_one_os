@@ -312,6 +312,7 @@
 
 /* MQTT kit */
 
+#define OS_USING_ONENET_MQTTS
 /* end of MQTT kit */
 
 /* NB-IoT kit */
@@ -407,7 +408,6 @@
 /* MQTT */
 
 #define NET_USING_PAHO_MQTT
-#define MQTT_USING_SAMPLE
 /* end of MQTT */
 
 /* Websocket */
@@ -480,6 +480,17 @@
 
 /* OnePos */
 
+#define OS_USING_OnePos
+#define ONEPOS_WIFI_POS
+#define ONEPOS_WIFI_DEVICE_NAME "esp8266"
+#define ONEPOS_DEVICE_ID "1000000078"
+#define ONEPOS_PASSWORD "b1c379171e773072ba00598230594b07"
+#define ONEPOS_COMM_REC_BUFF_LEN 2048
+#define ONEPOS_COMM_SEND_BUFF_LEN 2048
+#define ONEPOS_DEFAULT_INTERVAL 3
+#define ONEPOS_DEVICE_REC_POS_INFO
+#define ONEPOS_REC_SUB_MSG_TIMEOUT 2900
+#define ONEPOS_DEFAULT_SEV_TYPE 0
 /* end of OnePos */
 
 /* Ramdisk */
@@ -504,6 +515,11 @@
 
 /* NTP */
 
+#define PKG_USING_NTP
+#define NETUTILS_NTP_TIMEZONE 8
+#define NETUTILS_NTP_HOSTNAME "cn.ntp.org.cn"
+#define NETUTILS_NTP_HOSTNAME2 "ntp.ntsc.ac.cn"
+#define NETUTILS_NTP_HOSTNAME3 "edu.ntp.org.cn"
 /* end of NTP */
 
 /* WebClient */

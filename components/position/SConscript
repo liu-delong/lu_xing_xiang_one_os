@@ -10,8 +10,6 @@ LIBPATH = []
 group 	= []
 
 if IsDefined('OS_USING_OnePos'):
-	src += Glob('source/onepos_src_info.c')
-	src += Glob('source/onepos_interface.c')
 	CPPPATH = [pwd + '/include']
 
 	if IsDefined('ONEPOS_CMD'):
@@ -20,19 +18,16 @@ if IsDefined('OS_USING_OnePos'):
 	if IsDefined('ONEPOS_WIFI_POS'):
 		src += Glob('source/wifi_src/*.c')
 		
-		LIBPATH = [pwd+'/source/wifi_src']
-		if osconfig.CROSS_TOOL == 'gcc':
-			LIB = ['one_pos_armcm4_gcc']
-		elif osconfig.CROSS_TOOL == 'keil':
-			LIB = ['one_pos_armcm4_keil']
-		
 	if IsDefined('ONEPOS_CELL_POS'):
 		src += Glob('source/cell_src/*.c')
 	
-	if IsDefined('OS_USING_GNSS_POS'):
+	if IsDefined('ONEPOS_WIFI_POS') or IsDefined('ONEPOS_CELL_POS'):
+		src += Glob('source/onepos_src_info.c')
+		src += Glob('source/onepos_interface.c')
+
+	if IsDefined('ONEPOS_GNSS_POS'):
 		src += Glob('source/gnss_src/*.c')
 	
 group = AddCodeGroup('onepos', src, depend = ['OS_USING_OnePos'], CPPPATH = CPPPATH)
-group += AddCodeGroup('onepos_lib', [], depend = ['ONEPOS_WIFI_POS'], LIBS=LIB, LIBPATH = LIBPATH)
 
 Return('group')

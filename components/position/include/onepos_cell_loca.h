@@ -3,10 +3,26 @@
 
 #include <mo_api.h>
 
-extern char *mul_cells_pos_pub_msg(onepos_sev_pro_t sev_pro);
-extern os_err_t onepos_parse_mul_cell_pos(ops_platform_lbs_info_t *mul_cell_info, cJSON *data_item);
-extern os_err_t init_onepos_cell_device(void);
-extern os_bool_t onepos_get_cell_sta(void);
-extern void onepos_cell_info_clean(onepos_cell_info_t *onepos_cell_info);
+/**
+ ***********************************************************************************************************************
+ * @enum        onepos_cell_net_type_t
+ *
+ * @brief       onepos Supported Cell Network Type
+ ***********************************************************************************************************************
+ */
+typedef enum
+{
+    ONEPOS_CELL_TYPE_GSM = 1,
+    ONEPOS_CELL_TYPE_CDMA,
+    ONEPOS_CELL_TYPE_WCDMA,
+    ONEPOS_CELL_TYPE_TD_CDMA,
+    ONEPOS_CELL_TYPE_LTE,
+    /* Add others cell network type */
+} onepos_cell_net_type_t;
 
-#endif  /* __ONEPOS_CELL_LOCA_H__ */
+extern os_err_t  cell_pos_pub_msg(cJSON* json_src);
+extern os_err_t  init_onepos_cell_device(void);
+extern os_bool_t onepos_get_cell_sta(void);
+extern void      onepos_cell_info_clean(onepos_cell_info_t *onepos_cell_info);
+
+#endif /* __ONEPOS_CELL_LOCA_H__ */

@@ -26,8 +26,33 @@
 #ifndef __NMEA_0183_H__
 #define __NMEA_0183_H__
 
+#include <os_device.h>
+#include <os_kernel.h>
 #include <os_types.h>
-#include "pos_common.h"
+#include <os_device.h>
+#include <ring_buff.h>
+#include <serial.h>
+#include "onepos_common.h"
+
+/**
+ ***********************************************************************************************************************
+ * @def         NMEA_SERIAL_CONFIG_DEFAULT
+ *
+ * @brief       config of GNSS module use uart
+ ***********************************************************************************************************************
+ */
+#define NMEA_SERIAL_CONFIG_DEFAULT                                                                                     \
+    {                                                                                                                  \
+        BAUD_RATE_115200,       /* 115200 bits/s */                                                                    \
+            DATA_BITS_8,        /* 8 databits */                                                                       \
+            STOP_BITS_1,        /* 1 stopbit */                                                                        \
+            PARITY_NONE,        /* No parity  */                                                                       \
+            BIT_ORDER_LSB,      /* LSB first sent */                                                                   \
+            NRZ_NORMAL,         /* Normal mode */                                                                      \
+            OS_SERIAL_RX_BUFSZ, /* Tx buffer size */    \
+			OS_SERIAL_TX_BUFSZ, /* Tx buffer size */    \
+            0                                                                                                          \
+    }   
 
 /* NMEA Config Start*/
 /**
@@ -63,7 +88,6 @@ typedef enum
 #define NMEA_SENTENCE_END_CHAR '\n'
 
 #define PRO_SENTEN_START_CHAR '#'
-
 /* Typical messages might be 11 to a maximum of 79 characters in length */
 #define NMEA_MIN_LENGTH 11
 #define NMEA_MAX_LENGTH 128
@@ -234,12 +258,24 @@ static const char NMEA_STATUS[NMEA_STATUS_NUM] = {'V', 'A', 'D'};
             *pstatus_n = NMEA_STATUS_UNKNOWN;                                                                          \
     } while (0)
 
+	/**
+ ***********************************************************************************************************************
+ * @struct      nmea_parse_t
+ *
+ * @brief       The object of NMEA parser
+ ***********************************************************************************************************************
+ */
+typedef struct{
+	os_device_t *device; 	/* The device used by NMEA parser */
+	os_sem_t    *rx_notice;   /* The receive notice semaphore of at parser */
+}nmea_parse_t;	
+	
 // RMC
 // Recommended Minimum Specific GNSS Data page.106
 typedef struct
 {
-    loca_time_t time; /*  UTC of position fix  */
-    int status;       /* Data status4, A = Data valid, V = Navigation receiver warning) */
+    loca_time_t              time;         /*  UTC of position fix  */
+    int                      status;       /* Data status4, A = Data valid, V = Navigation receiver warning) */
     loca_float_t             latitude;     /* Destination waypoint lat. - N/S */
     loca_float_t             longitude;    /* Destination waypoint longitude, E/W */
     loca_float_t             speed;        /*  Speed over ground, knots ） */
@@ -266,15 +302,15 @@ typedef struct
     loca_time_t  time;            /* UTC */
     loca_float_t latitude;        /* Latitude, N/S */
     loca_float_t longitude;       /*  Longitude, E/W */
-    int          quality;         /* Status */
-    int          satellites_used; /* Number of satellites in use, 00-12, may be different from the number in view */
+    os_int32_t   quality;         /* Status */
+    os_int32_t   satellites_used; /* Number of satellites in use, 00-12, may be different from the number in view */
     loca_float_t hdop;            /* Horizontal dilution of precision */
     loca_float_t altitude;        /* Altitude re: mean-sea-level (geoid) */
-    char         altitude_units;  /* meters */
+    os_int8_t    altitude_units;  /* meters */
     loca_float_t geoidal_separat; /*  Geoidal separation */
-    char geoidal_separa_units; /*  meters */
-    loca_float_t dgps_age; /*  Age of Differential GPS data */
-    int          dgps_id;  /*  Differential reference station ID, 0000-1023 */
+    os_int8_t    geoidal_separa_units; /*  meters */
+    loca_float_t dgps_age;             /*  Age of Differential GPS data */
+    os_int32_t   dgps_id;              /*  Differential reference station ID, 0000-1023 */
 } nmea_gga_t;
 
 // GSV
@@ -282,18 +318,18 @@ typedef struct
 #if NMEA_SUPP_GSV_SATES_INFO
 typedef struct
 {
-    int  num;       /* Satellite ID number */
-    int  elevation; /*  Elevation, degrees, 90o maximum */
-    int  azimuth;   /* Azimuth, degrees True, 000 to 359 */
-    char snr;       /* SNR (C/No) 00-99 dB-Hz, null when not tracking */
+    os_int32_t  num;       /* Satellite ID number */
+    os_int32_t  elevation; /*  Elevation, degrees, 90o maximum */
+    os_int32_t  azimuth;   /* Azimuth, degrees True, 000 to 359 */
+    os_int8_t   snr;       /* SNR (C/No) 00-99 dB-Hz, null when not tracking */
 } nmea_sate_t;
 #endif
 
 typedef struct
 {
-    int total_msgs; /* Total number of sentences, 1 to 9 */
-    int msg_nr;     /* Sentence number, 1 to 9 */
-    int total_sats; /* Total number of satellites in view */
+    os_int32_t total_msgs; /* Total number of sentences, 1 to 9 */
+    os_int32_t msg_nr;     /* Sentence number, 1 to 9 */
+    os_int32_t total_sats; /* Total number of satellites in view */
 #if NMEA_SUPP_GSV_SATES_INFO
     nmea_sate_t sates_info[MAX_SATE_NUM_OF_ONE_GSV * MAX_GSV_NUM]; /* Satellite details information */
 #endif
@@ -306,7 +342,7 @@ typedef struct
     loca_float_t             latitude;     /* Latitude, N/S */
     loca_float_t             longitude;    /*  Longitude, E/W */
     loca_time_t              time;         /*  UTC of position */
-    int                      status;       /* Status */
+    os_int32_t               status;       /* Status */
     nmea_pos_sys_mode_indoct mode_indicat; /*  Mode Indicator */
 } nmea_gll_t;
 
@@ -314,36 +350,36 @@ typedef struct
 // GNSS DOP and Active Satellites
 typedef struct
 {
-    char opera_calcu__mode;    /* Select Solution Mode */
-    int  calcu_mode;           /* Solution Mode */
-    int satells_id[NMEA_MAX_GSA_ID_NUM];    /* ID numbers1 of satellites used in solution */
-    loca_float_t pdop;                      /* PDOP */
-    loca_float_t hdop;                      /* hdop */
-    loca_float_t vdop;                      /* vdop */
+    os_int8_t    opera_calcu__mode;               /* Select Solution Mode */
+    os_int32_t   calcu_mode;                      /* Solution Mode */
+    os_int32_t   satells_id[NMEA_MAX_GSA_ID_NUM]; /* ID numbers1 of satellites used in solution */
+    loca_float_t pdop;                            /* PDOP */
+    loca_float_t hdop;                            /* hdop */
+    loca_float_t vdop;                            /* vdop */
 } nmea_gsa_t;
 
 // VTG
 // Course Over Ground & Ground Speed
 typedef struct
 {
-    nmea_pos_sys_mode_indoct mode_indoct;               /*  Mode Indicator */
-    loca_float_t             course_over_ground_map;    /*  Course over ground */
-    char                     degree_true;               /* degrees True T */
-    loca_float_t course_over_ground_mangnetic;          /* Course over ground, degrees Magnetic */
-    char         degree_magnetic;                       
-    loca_float_t speed_N;                         /*  Speed over ground */
-    char         speed_N_units;                   /* knots */
-    loca_float_t speed_K;                         /* Speed over ground */
-    char         speed_K_units;                   /* km/hr */
+    nmea_pos_sys_mode_indoct mode_indoct;                  /*  Mode Indicator */
+    loca_float_t             course_over_ground_map;       /*  Course over ground */
+    os_int8_t                degree_true;                  /* degrees True T */
+    loca_float_t             course_over_ground_mangnetic; /* Course over ground, degrees Magnetic */
+    os_int8_t                degree_magnetic;
+    loca_float_t             speed_N;       /*  Speed over ground */
+    os_int8_t                speed_N_units; /* knots */
+    loca_float_t             speed_K;       /* Speed over ground */
+    os_int8_t                speed_K_units; /* km/hr */
 } nmea_vtg_t;
 
 #ifdef NMEA_SUPP_ZDA
 typedef struct
 {
-    loca_time_t time;       /* UTC */
-    loca_date_t date;       /* date */
-    int         local_h;    /* Local zone hours, 00 to ±13 hrs */
-    int         local_m;    /* Local zone minutes, 00 to +59 */
+    loca_time_t time;    /* UTC */
+    loca_date_t date;    /* date */
+    os_int32_t  local_h; /* Local zone hours, 00 to ±13 hrs */
+    os_int32_t  local_m; /* Local zone minutes, 00 to +59 */
 } nmea_zda_t;
 #endif
 
@@ -383,7 +419,7 @@ typedef struct
 } nmea_t;
 
 //  handle of nmea sentence parse function
-typedef bool (*nmea_parser_func_t)(nmea_t *, const char *);
+typedef os_bool_t (*nmea_parser_func_t)(nmea_t *, const os_int8_t *);
 
 // to improve portability and flexibility, a string is used to represent the composition of a statement
 // d -> director（N\E\S\W）
@@ -397,8 +433,8 @@ typedef bool (*nmea_parser_func_t)(nmea_t *, const char *);
 // ; -> jump
 typedef struct
 {
-    const char *       sentence_id_str;    // sentence id ,eg: RMC\GGA\...
-    const char *       sentence_format;    // sentence format
+    const os_int8_t *  sentence_id_str;    // sentence id ,eg: RMC\GGA\...
+    const os_int8_t *  sentence_format;    // sentence format
     nmea_parser_func_t parse_fun;          // sentence parser function
 } nmea_sentence_praser_t;
 

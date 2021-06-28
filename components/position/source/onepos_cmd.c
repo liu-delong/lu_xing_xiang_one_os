@@ -1,24 +1,23 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <os_kernel.h>
 #include <shell.h>
-#include "onepos_interface.h"
-
-#define _isdigit(argv)          ((((*argv) - '0') < 10u) && (((*argv) - '0') >= 0u))
-
+#include "onepos_common.h"
 struct onepos_cmd_des
 {
-    const char *cmd;
-    int (*fun)(int argc, char *argv[]);
+    const os_int8_t *cmd;
+    os_int32_t (*fun)(os_int32_t argc, os_int8_t *argv[]);
 };
 
-static int onepos_status_cmd_func(int argc, char *argv[])
-{
-    char sta_str[ONEPOS_MAX_STA][30] = {
-                                            "closing",
-                                            "runing",
-                                            "sig_sev_runing",
-                                            "will_close"};
+#if defined(ONEPOS_WIFI_POS) || defined(ONEPOS_CELL_POS)
+#include "onepos_interface.h"
 
-    if(2 == argc)   //  read
+static os_int32_t onepos_status_cmd_func(os_int32_t argc, os_int8_t *argv[])
+{
+    os_int8_t sta_str[ONEPOS_MAX_STA][30] = {"closing", "runing", "sig_sev_runing", "will_close"};
+
+    if (2 == argc)    //  read
     {
         os_kprintf("status : %s\n", sta_str[onepos_get_server_sta()]);
     }
@@ -30,15 +29,15 @@ static int onepos_status_cmd_func(int argc, char *argv[])
     return 0;
 }
 
-static int onepos_interval_cmd_func(int argc, char *argv[])
+static os_int32_t onepos_interval_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
-    if(2 == argc)   //  read
+    if (2 == argc)    //  read
     {
         os_kprintf("interval : %d sec\n", onepos_get_pos_interval());
     }
-    else if(3 == argc && _isdigit(argv[2]))
+    else if (3 == argc && _isdigit(argv[2]))
     {
-        onepos_set_pos_interval(atoi(argv[2]));
+        onepos_set_pos_interval(atoi((char*)(char*)argv[2]));
     }
     else
     {
@@ -48,60 +47,13 @@ static int onepos_interval_cmd_func(int argc, char *argv[])
     return 0;
 }
 
-static int onepos_mode_cmd_func(int argc, char *argv[])
+static os_int32_t onepos_start_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
-    char mode_str[ONEPOS_MAX_POS_MODE][15] = {
-                                            "invaild",
-                                            "single_wifi",
-                                            "mul_wifis",
-                                            "mul_cells"};
-
-    if(2 == argc)   //  read
-    {
-        os_kprintf("mode : %s\n", mode_str[onepos_get_pos_mode()]);
-    }
-    else if(3 == argc && IS_VALID_POS_MODE(atoi(argv[2])))  //set
-    {
-        onepos_set_pos_mode((onepos_pos_mode_t)atoi(argv[2]));
-    }
-    else
-    {
-        os_kprintf("this cmd do not support input format, shoud be (onepos mode <1~3>)\n");
-    }
-
-    return 0;
-}
-
-static int onepos_sev_pro_cmd_func(int argc, char *argv[])
-{
-    char pro_str[ONEPOS_MAX_SEV_PRO][15] = {
-                                            "own",
-                                            "onenet" };
-
-    if(2 == argc)   //  read
-    {
-        os_kprintf("sev_pro : %s\n", pro_str[onepos_get_sev_pro()]);
-    }
-    else if(3 == argc && IS_VAILD_SEV_PRO(atoi(argv[2])))  // set
-    {
-        onepos_set_sev_pro((onepos_sev_pro_t)atoi(argv[2]));
-    }
-    else
-    {
-        os_kprintf("this cmd do not support input format, shoud be (onepos sev_pro <0/1>)\n");
-    }
-
-    return 0;
-}
-
-
-static int onepos_start_cmd_func(int argc, char *argv[])
-{
-    if(ONEPOS_CLOSING == onepos_get_server_sta())
+    if (ONEPOS_CLOSING == onepos_get_server_sta())
     {
         onepos_start_server();
     }
-    else if(ONEPOS_WILL_CLOSE == onepos_get_server_sta())
+    else if (ONEPOS_WILL_CLOSE == onepos_get_server_sta())
     {
         os_kprintf("onepos is will close, pls wait ...\n");
     }
@@ -113,17 +65,17 @@ static int onepos_start_cmd_func(int argc, char *argv[])
     return 0;
 }
 
-static int onepos_stop_cmd_func(int argc, char *argv[])
+static os_int32_t onepos_stop_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
-    if(ONEPOS_RUNING == onepos_get_server_sta())
+    if (ONEPOS_RUNING == onepos_get_server_sta())
     {
         onepos_stop_server();
     }
-    else if(ONEPOS_SIG_RUNING == onepos_get_server_sta())
+    else if (ONEPOS_SIG_RUNING == onepos_get_server_sta())
     {
         os_kprintf("onepos single server is runing, it will automatic stop!\n");
     }
-    else if(ONEPOS_WILL_CLOSE == onepos_get_server_sta())
+    else if (ONEPOS_WILL_CLOSE == onepos_get_server_sta())
     {
         os_kprintf("onepos is will close, pls wait ...\n");
     }
@@ -135,61 +87,50 @@ static int onepos_stop_cmd_func(int argc, char *argv[])
     return 0;
 }
 
-static int onepos_get_latest_position_cmd_func(int argc, char* argv[])
+static os_int32_t onepos_get_latest_position_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
-    ops_sigle_wifi_info_t    wifi_info;
-    ops_platform_wifi_info_t wifis_info;
-    ops_platform_lbs_info_t  lbs_info;
-    onepos_pos_mode_t        mode = onepos_get_pos_mode();
-    ops_src_info_t           onepos_src_info = {
-                                                &wifi_info,
-                                                &wifis_info,
-                                                &lbs_info};
-                                                
-    memset(&wifi_info, 0, sizeof(ops_sigle_wifi_info_t));
-    memset(&wifis_info, 0, sizeof(ops_platform_wifi_info_t));
-    memset(&lbs_info, 0, sizeof(ops_platform_lbs_info_t));
-    
-    onepos_get_latest_position(&onepos_src_info);
-    onepos_info_print(&onepos_src_info, mode);
+    onepos_pos_t pos_info = {0};
+
+    memset(&pos_info, 0, sizeof(onepos_pos_t));
+
+    onepos_get_latest_position(&pos_info);
+    onepos_info_print(&pos_info);
 
     return 0;
 }
 
-static int onepos_server_type_cmd_func(int argc, char *argv[])
+static os_int32_t onepos_server_type_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
-    char server_type_str[ONEPOS_MAX_TYPE][15] = {
-                                            "circulation",
-                                            "single"
-                                            };
+    os_int8_t server_type_str[ONEPOS_MAX_TYPE][15] = {"circulation", "single"};
 
-    if(2 == argc)   //  read
+    if (2 == argc)    //  read
     {
         os_kprintf("server_type : %s\n", server_type_str[onepos_get_server_type()]);
     }
-    else if(3 == argc && IS_VAILD_SEV_TYPE(atoi(argv[2])))  // set
+    else if (3 == argc && IS_VAILD_SEV_TYPE(atoi((char*)argv[2])))    // set
     {
-        onepos_set_server_type((onepos_serv_type)atoi(argv[2]));
+        onepos_set_server_type((onepos_serv_type_t)atoi((char*)argv[2]));
     }
     else
     {
-        os_kprintf("this cmd do not support input format, shoud be (onepos server_type <1/2>)\n");
+        os_kprintf("this cmd do not support input format, shoud be (onepos sev_type <0/1>)\n");
     }
 
     return 0;
 }
+#endif
 
-static int onepos_test_cmd_func(int argc, char *argv[])
+static os_int32_t onepos_test_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
     printf("%s entry!\n", __func__);
     return 0;
 }
-
-#if defined(OS_USING_GNSS_POS)
-static int onepos_gnss_pos_cmd_func(int argc, char *argv[])
+#if defined(ONEPOS_GNSS_POS)
+#include "nmea_0183.h"
+static os_int32_t onepos_gnss_pos_cmd_func(os_int32_t argc, os_int8_t *argv[])
 {
     nmea_t nmea_data;
-    char   temp_str[256];
+    os_int8_t temp_str[256];
     memset(&nmea_data, 0, sizeof(nmea_t));
     memset(temp_str, 0, sizeof(temp_str));
 
@@ -221,48 +162,45 @@ static int onepos_gnss_pos_cmd_func(int argc, char *argv[])
 }
 #endif
 
-
 /* cmd table */
-static const struct onepos_cmd_des onepos_cmd_tab[] =
-{
-    {"status",   onepos_status_cmd_func},
-    {"interval", onepos_interval_cmd_func},
-    {"mode", onepos_mode_cmd_func},
-    {"sev_pro", onepos_sev_pro_cmd_func},
-    {"sev_type", onepos_server_type_cmd_func},
-    {"start", onepos_start_cmd_func},
-    {"stop", onepos_stop_cmd_func},
-    {"pos", onepos_get_latest_position_cmd_func},    
-    #if defined(OS_USING_GNSS_POS)
-    {"gnss_pos", onepos_gnss_pos_cmd_func},
-    #endif
-    {"test", onepos_test_cmd_func}
-};
+static const struct onepos_cmd_des onepos_cmd_tab[] = {
+#if defined(ONEPOS_WIFI_POS) || defined(ONEPOS_CELL_POS)
+                                                       {"status", onepos_status_cmd_func},
+                                                       {"interval", onepos_interval_cmd_func},
+                                                       {"sev_type", onepos_server_type_cmd_func},
+                                                       {"start", onepos_start_cmd_func},
+                                                       {"stop", onepos_stop_cmd_func},
+                                                       {"pos", onepos_get_latest_position_cmd_func},
+#endif                                                       
+#if defined(ONEPOS_GNSS_POS)
+                                                       {"gnss_pos", onepos_gnss_pos_cmd_func},
+#endif
+                                                       {"test", onepos_test_cmd_func}};
 
-static int onepos_help(int argc, char *argv[])
+static os_int32_t onepos_help(os_int32_t argc, os_int8_t *argv[])
 {
+#if defined(ONEPOS_WIFI_POS) || defined(ONEPOS_CELL_POS)
     os_kprintf("onepos\n");
     os_kprintf("onepos help\n");
     os_kprintf("onepos status <0/1(0:closing;1:runing)>\n");
     os_kprintf("onepos interval <second(>=3)>\n");
-    os_kprintf("onepos mode <1~3(1:single wifi;2:multiple wifis;3:multiple cells)>\n");
-    os_kprintf("onepos sev_pro <0/1(0:own;1:onenet)> \n");
     os_kprintf("onepos sev_type <0/1(0:circ;1:single)> \n");
     os_kprintf("onepos start\n");
     os_kprintf("onepos stop\n");
-    os_kprintf("onepos pos\n");    
-    #if defined(OS_USING_GNSS_POS)
+    os_kprintf("onepos pos\n");
+#endif
+#if defined(ONEPOS_GNSS_POS)
     os_kprintf("onepos gnss_pos\n");
-    #endif
+#endif
     os_kprintf("onepos test\n");
     return 0;
 }
 
-static int onepos_cmd(int argc, char *argv[])
+static os_int32_t onepos_cmd(os_int32_t argc, os_int8_t *argv[])
 {
-    int i;
-    int result = 0;
-    
+    os_int32_t i;
+    os_int32_t result = 0;
+
     const struct onepos_cmd_des *run_cmd = OS_NULL;
 
     if (argc == 1)
@@ -274,7 +212,7 @@ static int onepos_cmd(int argc, char *argv[])
     /* find fun */
     for (i = 0; i < sizeof(onepos_cmd_tab) / sizeof(onepos_cmd_tab[0]); i++)
     {
-        if (strcmp(onepos_cmd_tab[i].cmd, argv[1]) == 0)
+        if (strcmp((const char*)onepos_cmd_tab[i].cmd, (const char*)argv[1]) == 0)
         {
             run_cmd = &onepos_cmd_tab[i];
             break;

@@ -20,6 +20,7 @@
  * 2020-02-20   OneOS Team      First Version
  ***********************************************************************************************************************
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,10 +30,10 @@
 #include <os_clock.h>// shi zhong jie pai
 #include <os_kernel.h> //cao zuo xi tong nei he
 #include <os_dbg_ext.h>//tiao shi xin xi
-
+#include <location.h>
 #include <shell.h>
 
-#include <sensors/sensor.h> //cuan gan qi
+#include <sensors/sensor.h> //chuan gan qi
 #include <st7789vw.h>//lcd xian shi
 #include "onenet_mqtts.h"
 #include "liu_de_long.h"
@@ -148,7 +149,6 @@ void test()
 int main(void)
 {
     onenet_mqtts_device_start();
-	
 		os_task_t *task1;// status_led
 		os_task_t *task2;// data_up_to_cloud
 		
@@ -159,6 +159,6 @@ int main(void)
 		task2=os_task_create("data_up",test,NULL,8096,7,10);
 		OS_ASSERT(task2);
 		os_task_startup(task2);
-		
+	
     return 0;
 }
