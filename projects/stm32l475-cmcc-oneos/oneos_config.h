@@ -292,6 +292,7 @@
 
 /* end of NAND */
 #define OS_USING_DRIVERS_SAMPLES
+#define OS_KEY_DEMO
 #define OS_UART_DEMO
 #define OS_SENSORS_DEMO
 /* end of Drivers */
@@ -312,6 +313,8 @@
 
 /* MQTT kit */
 
+#define OS_USING_ONENET_MQTTS
+#define ONENET_MQTTS_USING_AUTO_REGISTER
 /* end of MQTT kit */
 
 /* NB-IoT kit */

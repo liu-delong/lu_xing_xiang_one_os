@@ -158,7 +158,7 @@ onenet_info_t g_onenet_info = {ONENET_MQTTS_DEVICE_SERVER_IP,
 #endif
 
 struct os_mq mqtts_mq;
-os_uint8_t   mqtts_msg_pool[660];
+os_uint8_t   mqtts_msg_pool[10 * sizeof(mq_msg_t)];
 
 /**
  ***********************************************************************************************************************
@@ -1206,7 +1206,7 @@ int onenet_mqtts_device_publish(void)
     char      pubtopic_buf[64]         = {0};
     int       pubtopic_buf_len         = sizeof(pubtopic_buf);
     char     *pubtopic_filter          = NULL;
-    char      publish_message_buf[128] = {0};
+    char      publish_message_buf[384] = {0};
     mq_msg_t  mq_msg;
     os_size_t recv_len = sizeof(mq_msg);
 

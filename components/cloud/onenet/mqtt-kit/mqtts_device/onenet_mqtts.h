@@ -67,7 +67,7 @@ typedef enum
 typedef struct
 {
     int  topic_type;    /*0:data point, 1:device image get, 2:device image update, 3:child device*/
-    char data_buf[128]; /*publish data*/ /*can increase by user*/
+    char data_buf[384]; /*publish data*/ /*can increase by user*/
     int  data_len;      /*publish data length*/
 } mq_msg_t;
 
@@ -81,7 +81,7 @@ extern void onenet_mqtts_device_disconnect(void);
 extern int  onenet_mqtts_device_subscribe(void);
 extern int  onenet_mqtts_client_unsubscribe(const char *);
 extern int  onenet_mqtts_device_publish(void);
-extern void onenet_mqtts_publish(int, char *[]);
+extern void onenet_mqtts_pfffublish(int, char *[]);
 extern void onenet_mqtts_device_start(void);
 extern void onenet_mqtts_device_end(void);
 

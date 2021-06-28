@@ -335,9 +335,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>OS_USING_ARM_LIBC, STM32L475xx, USE_HAL_DRIVER</Define>
+              <Define>STM32L475xx, USE_HAL_DRIVER, OS_USING_ARM_LIBC</Define>
               <Undefine></Undefine>
-              <IncludePath>.;application;..\..\drivers\audio;board;board\CubeMX_Config\Inc;board\ports;..\..\thirdparty\cJSON-v1.7.12;..\..\common\include;..\..\arch\arm\common;..\..\arch\arm\cortex-m4;..\..\components\diagnose\include;..\..\drivers\driver_test;..\..\drivers;..\..\drivers\bus;..\..\drivers\can;..\..\drivers\dma;..\..\drivers\fal;..\..\drivers\hwcrypto;.;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\pin;..\..\drivers\rtc;..\..\drivers\serial;..\..\drivers\spi;..\..\drivers\spi\sfud\inc;..\..\drivers\timer;..\..\drivers\usb\usbdevice;..\..\drivers\watchdog;..\..\components\fs\include;..\..\components\fs\include\devfs;..\..\components\fs\include\fatfs;..\..\drivers\graphic;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Device\ST\STM32L4xx\Include;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Include;..\..\drivers\infrared;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\net\molink\core\include;..\..\components\net\molink\api\include;..\..\components\net\molink\parser\include;..\..\components\net\molink\module\esp8266\include;..\..\thirdparty\mpu6xxx\inc;..\..\components\cloud\onenet\mqtt-kit\authorization;..\..\components\cloud\onenet\mqtt-kit\cert;..\..\components\cloud\onenet\mqtt-kit\mqtts_device;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\src;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src;..\..\drivers\sensors;..\..\components\shell\include;..\..\components\net\socket\include;..\..\components\net\socket\include\sys_socket;..\..\components\net\socket\include\vfs_net;..\..\components\net\tools\include</IncludePath>
+              <IncludePath>.;application;..\..\drivers\audio;board;board\CubeMX_Config\Inc;board\ports;..\..\thirdparty\cJSON-v1.7.12;..\..\common\include;..\..\arch\arm\common;..\..\arch\arm\cortex-m4;..\..\components\diagnose\include;..\..\drivers\driver_test;..\..\drivers;..\..\drivers\bus;..\..\drivers\can;..\..\drivers\dma;..\..\drivers\fal;..\..\drivers\hwcrypto;.;..\..\drivers\i2c;..\..\drivers\misc;..\..\drivers\pin;..\..\drivers\rtc;..\..\drivers\serial;..\..\drivers\spi;..\..\drivers\spi\sfud\inc;..\..\drivers\timer;..\..\drivers\usb\usbdevice;..\..\drivers\watchdog;..\..\components\fs\include;..\..\components\fs\include\devfs;..\..\components\fs\include\fatfs;..\..\drivers\graphic;..\..\drivers\hal\st\devices;..\..\drivers\hal\st\drivers;..\..\drivers\hal\st\drivers\config;..\..\drivers\hal\st\drivers\drv_flash;..\..\drivers\hal\st\STM32L4xx_HAL\STM32L4xx_HAL_Driver\Inc;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Device\ST\STM32L4xx\Include;..\..\drivers\hal\st\STM32L4xx_HAL\CMSIS\Include;..\..\drivers\infrared;..\..\kernel\include;..\..\kernel\include\extend;..\..\libc\include;..\..\libc\include\armlibc;..\..\components\net\molink\core\include;..\..\components\net\molink\api\include;..\..\components\net\molink\parser\include;..\..\components\net\molink\module\esp8266\include;..\..\thirdparty\mpu6xxx\inc;..\..\components\cloud\onenet\mqtt-kit\authorization;..\..\components\cloud\onenet\mqtt-kit\cert;..\..\components\cloud\onenet\mqtt-kit\mqtts_device;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\samples;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\src;..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTPacket\src;..\..\drivers\sensors;..\..\components\shell\include;..\..\components\net\socket\include;..\..\components\net\socket\include\sys_socket;..\..\components\net\socket\include\vfs_net;..\..\components\net\tools\include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -387,19 +387,14 @@
               <FilePath>application\main.c</FilePath>
             </File>
             <File>
+              <FileName>get_sennor_data.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\application\get_sennor_data.h</FilePath>
+            </File>
+            <File>
               <FileName>liu_de_long.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\liu_de_long.h</FilePath>
-            </File>
-            <File>
-              <FileName>liu_mqtts_func.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\liu_mqtts_func.h</FilePath>
-            </File>
-            <File>
-              <FileName>order_recv.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\order_recv.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -541,6 +536,11 @@
         <Group>
           <GroupName>driver_test</GroupName>
           <Files>
+            <File>
+              <FileName>key_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\drivers\driver_test\key_test.c</FilePath>
+            </File>
             <File>
               <FileName>serial_test.c</FileName>
               <FileType>1</FileType>
@@ -1575,6 +1575,16 @@
         <Group>
           <GroupName>pahomqtt</GroupName>
           <Files>
+            <File>
+              <FileName>certificate.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\samples\certificate.c</FilePath>
+            </File>
+            <File>
+              <FileName>mqtt_sample.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\components\net\protocols\pahomqtt-v1.1.0\MQTTClient-OneOS\samples\mqtt_sample.c</FilePath>
+            </File>
             <File>
               <FileName>MQTTClient.c</FileName>
               <FileType>1</FileType>

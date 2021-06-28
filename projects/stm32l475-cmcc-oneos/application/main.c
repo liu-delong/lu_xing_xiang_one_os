@@ -37,6 +37,7 @@
 #include "onenet_mqtts.h"
 #include "liu_de_long.h"
 #include "liu_mqtts_func.h"
+#include "get_sennor_data.h"
 /*
 static void user_task(void *parameter)
 {
@@ -115,33 +116,39 @@ void test()
 									"00000000000000000000000000000000000000000"};
 		int value[3];
 		int num;
+		value[0]=0;value[1]=1000;value[2]=2000;
 		while (1)
 		{
-			num=getdata(0,key,value);
+			//num=getdata(0,key,value);
 			/*
 			lcd_show_string(0, 0, 16, "%s:",key[0]);
 			lcd_show_string(0, 16, 16, "%d",value[0]);
 			lcd_show_string(0, 32, 16, "%s:",key[1]);
 			lcd_show_string(0, 48, 16, "%d",value[1]);
 			*/
-			mysend(key,value,num,id);
-			num=getdata(1,key,value);
+			key[0]="test1";key[1]="test2";key[2]="test3";
+			
+			mysend(key,value,3,id);
+			//num=getdata(1,key,value);
 			/*
 			lcd_show_string(0, 64, 16, "%s:",key[0]);
 			lcd_show_string(0, 80, 16, "%d",value[0]);
 			lcd_show_string(0, 96, 16, "%s:",key[1]);
 			lcd_show_string(0, 112, 16, "%d",value[1]);
 			*/
-			mysend(key,value,num,id);
-			num=getdata(2,key,value);
+			//mysend(key,value,num,id);
+			//num=getdata(2,key,value);
 			/*
 			lcd_show_string(0, 128, 16, "%s:",key[0]);
 			lcd_show_string(0, 144, 16, "%d",value[0]);
 			lcd_show_string(0, 160, 16, "%s:",key[1]);
 			lcd_show_string(0, 178, 16, "%d",value[1]);
 			*/
-			mysend(key,value,num,id);	
+			//mysend(key,value,num,id);	
 			id++;
+			value[0]++;
+			value[1]++;
+			value[2]++;
 		}
 }
 
@@ -156,9 +163,15 @@ int main(void)
 		task1 = os_task_create("status_led", signal_task, NULL, 512, 6, 5);
     OS_ASSERT(task1);
     os_task_startup(task1);
-		
+		/*
 		task2=os_task_create("data_up",test,NULL,8096,7,10);
 		OS_ASSERT(task2);
 		os_task_startup(task2);
+		*/
+		os_task_t *wen_du_task;
+		wen_du_task=os_task_create("wen_du",data_get_and_up,NULL,8096,8,10);
+		OS_ASSERT(wen_du_task);
+		os_task_startup(wen_du_task);
+		
     return 0;
 }
